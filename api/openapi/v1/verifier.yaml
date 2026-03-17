@@ -1,0 +1,100 @@
+openapi: "3.0.3"
+info:
+  title: INDIS Verifier API
+  description: |
+    External REST API for third-party verifiers to verify citizen credentials.
+    
+    Verifier terminals display ONLY binary results for ZK-proof verifications (PRD §FR-013).
+    No citizen data is transmitted or displayed.
+  version: "1.0.0"
+  contact:
+    name: INDIS Technical Team
+  license:
+    name: AGPL-3.0
+
+servers:
+  - url: https://api.indis.ir/v1
+    description: Production
+  - url: https://staging-api.indis.ir/v1
+    description: Staging
+
+paths:
+  /verify:
+    post:
+      summary: Verify a ZK proof
+      description: |
+        Submit a zero-knowledge proof for verification. Returns ONLY a boolean result.
+        No citizen data is processed or returned.
+      operationId: verifyProof
+      tags:
+        - Verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerificationRequest"
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationResponse"
+        "401":
+          description: Unauthorized — invalid verifier certificate
+        "429":
+          description: Rate limit exceeded
+
+  /health:
+    get:
+      summary: Health check
+      operationId: healthCheck
+      tags:
+        - System
+      responses:
+        "200":
+          description: Service is healthy
+
+components:
+  schemas:
+    VerificationRequest:
+      type: object
+      required:
+        - credential_type
+        - proof
+        - nonce
+      properties:
+        credential_type:
+          type: string
+          enum:
+            - citizenship
+            - age_range
+            - voter_eligibility
+            - residency
+            - professional
+            - health_insurance
+            - pension
+            - security_clearance
+        proof:
+          type: string
+          format: byte
+          description: Base64-encoded ZK proof
+        nonce:
+          type: string
+          description: Verification nonce for replay protection
+
+    VerificationResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+          description: "true if the proof is valid, false otherwise"
+        timestamp:
+          type: string
+          format: date-time
+
+  securitySchemes:
+    verifierCertificate:
+      type: mutualTLS
+      description: mTLS with verifier certificate issued by NIA

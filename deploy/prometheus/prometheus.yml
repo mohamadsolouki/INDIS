@@ -1,0 +1,11 @@
+# Placeholder Prometheus configuration for local development
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: "indis-services"
+    static_configs:
+      - targets:
+          - "host.docker.internal:8080"  # identity
+          - "host.docker.internal:8081"  # credential
+          - "host.docker.internal:8082"  # enrollment

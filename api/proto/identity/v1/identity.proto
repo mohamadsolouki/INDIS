@@ -1,0 +1,67 @@
+// INDIS — Identity Service API
+// Core identity management — DID operations
+syntax = "proto3";
+
+package indis.identity.v1;
+
+option go_package = "github.com/IranProsperityProject/INDIS/api/gen/go/identity/v1";
+
+// IdentityService manages decentralized identifiers (DIDs) per W3C DID Core 1.0.
+service IdentityService {
+  // RegisterIdentity creates a new DID for an enrolled citizen.
+  rpc RegisterIdentity(RegisterIdentityRequest) returns (RegisterIdentityResponse);
+
+  // ResolveIdentity retrieves a DID document.
+  rpc ResolveIdentity(ResolveIdentityRequest) returns (ResolveIdentityResponse);
+
+  // DeactivateIdentity deactivates a DID (e.g., death, fraud detection).
+  rpc DeactivateIdentity(DeactivateIdentityRequest) returns (DeactivateIdentityResponse);
+}
+
+message RegisterIdentityRequest {
+  string did = 1;
+  DIDDocument document = 2;
+}
+
+message RegisterIdentityResponse {
+  string tx_id = 1;
+  uint64 block_height = 2;
+}
+
+message ResolveIdentityRequest {
+  string did = 1;
+}
+
+message ResolveIdentityResponse {
+  DIDDocument document = 1;
+}
+
+message DeactivateIdentityRequest {
+  string did = 1;
+  string reason = 2;
+}
+
+message DeactivateIdentityResponse {
+  string tx_id = 1;
+}
+
+message DIDDocument {
+  string id = 1;
+  repeated PublicKey public_keys = 2;
+  repeated ServiceEndpoint service_endpoints = 3;
+  string created = 4;
+  string updated = 5;
+}
+
+message PublicKey {
+  string id = 1;
+  string type = 2;
+  string controller = 3;
+  bytes public_key = 4;
+}
+
+message ServiceEndpoint {
+  string id = 1;
+  string type = 2;
+  string endpoint = 3;
+}

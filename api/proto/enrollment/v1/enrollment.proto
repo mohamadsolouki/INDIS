@@ -1,0 +1,90 @@
+// INDIS — Enrollment Service API
+// Enrollment processing — standard, enhanced, and social attestation pathways
+syntax = "proto3";
+
+package indis.enrollment.v1;
+
+option go_package = "github.com/IranProsperityProject/INDIS/api/gen/go/enrollment/v1";
+
+// EnrollmentService processes citizen enrollment (PRD §FR-001).
+service EnrollmentService {
+  // InitiateEnrollment begins the enrollment process.
+  rpc InitiateEnrollment(InitiateEnrollmentRequest) returns (InitiateEnrollmentResponse);
+
+  // SubmitBiometrics uploads biometric data for deduplication.
+  rpc SubmitBiometrics(SubmitBiometricsRequest) returns (SubmitBiometricsResponse);
+
+  // SubmitSocialAttestation submits community co-attestation (3+ attestors).
+  rpc SubmitSocialAttestation(SubmitSocialAttestationRequest) returns (SubmitSocialAttestationResponse);
+
+  // CompleteEnrollment finalizes enrollment after all checks pass.
+  rpc CompleteEnrollment(CompleteEnrollmentRequest) returns (CompleteEnrollmentResponse);
+
+  // GetEnrollmentStatus checks enrollment progress.
+  rpc GetEnrollmentStatus(GetEnrollmentStatusRequest) returns (GetEnrollmentStatusResponse);
+}
+
+// EnrollmentPathway defines the three enrollment pathways (PRD §FR-001.1).
+enum EnrollmentPathway {
+  ENROLLMENT_PATHWAY_UNSPECIFIED = 0;
+  ENROLLMENT_PATHWAY_STANDARD = 1;    // Documents + biometrics
+  ENROLLMENT_PATHWAY_ENHANCED = 2;    // Civil registry + biometrics
+  ENROLLMENT_PATHWAY_SOCIAL = 3;      // Community attestation + biometrics
+}
+
+message InitiateEnrollmentRequest {
+  EnrollmentPathway pathway = 1;
+  string agent_id = 2;
+  string locale = 3;  // e.g., "fa", "en", "ku"
+}
+
+message InitiateEnrollmentResponse {
+  string enrollment_id = 1;
+  string temporary_receipt_credential = 2;
+}
+
+message SubmitBiometricsRequest {
+  string enrollment_id = 1;
+  bytes facial_data = 2;
+  bytes fingerprint_data = 3;
+  bytes iris_data = 4;  // Optional
+}
+
+message SubmitBiometricsResponse {
+  bool deduplication_passed = 1;
+  string deduplication_time_ms = 2;
+}
+
+message SubmitSocialAttestationRequest {
+  string enrollment_id = 1;
+  repeated SocialAttestor attestors = 2;  // Minimum 3 (PRD §FR-001.8)
+}
+
+message SocialAttestor {
+  string attestor_did = 1;
+  bytes signature = 2;
+  string relationship = 3;
+}
+
+message SubmitSocialAttestationResponse {
+  bool accepted = 1;
+  int32 attestor_count = 2;
+}
+
+message CompleteEnrollmentRequest {
+  string enrollment_id = 1;
+}
+
+message CompleteEnrollmentResponse {
+  string did = 1;
+  repeated string issued_credentials = 2;
+}
+
+message GetEnrollmentStatusRequest {
+  string enrollment_id = 1;
+}
+
+message GetEnrollmentStatusResponse {
+  string status = 1;
+  string enrollment_id = 2;
+}
