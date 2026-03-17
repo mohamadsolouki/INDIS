@@ -1,0 +1,18 @@
+go 1.22.0
+
+use (
+	./pkg/blockchain
+	./pkg/crypto
+	./pkg/did
+	./pkg/vc
+	./pkg/i18n
+	./services/identity
+	./services/credential
+	./services/enrollment
+	./services/biometric
+	./services/audit
+	./services/notification
+	./services/electoral
+	./services/justice
+	./services/gateway
+)
