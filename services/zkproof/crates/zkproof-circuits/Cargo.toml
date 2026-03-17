@@ -1,0 +1,10 @@
+[package]
+name = "zkproof-circuits"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+zkproof-core = { path = "../zkproof-core" }
+serde = { workspace = true }
+tracing = { workspace = true }
