@@ -1,2 +1,3 @@
-// Package repository implements data access for the gateway service.
+// Package repository is intentionally empty for the gateway service.
+// The gateway is stateless; all persistence is handled by the backend services.
 package repository

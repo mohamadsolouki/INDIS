@@ -180,10 +180,10 @@ func (g *Gateway) handleCredential(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusCreated, resp)
 
 	case len(parts) == 1 && r.Method == http.MethodGet:
-		// GET /v1/credential/{id}
+		// GET /v1/credential/{id} → check revocation status
 		ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 		defer cancel()
-		resp, err := g.clients.Credential.VerifyCredential(ctx, &credentialv1.VerifyCredentialRequest{CredentialId: parts[0]})
+		resp, err := g.clients.Credential.CheckRevocationStatus(ctx, &credentialv1.CheckRevocationStatusRequest{CredentialId: parts[0]})
 		if err != nil {
 			writeGRPCError(w, err)
 			return
