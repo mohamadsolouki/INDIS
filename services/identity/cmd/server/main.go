@@ -13,6 +13,7 @@ import (
 	identityv1 "github.com/IranProsperityProject/INDIS/api/gen/go/identity/v1"
 	"github.com/IranProsperityProject/INDIS/pkg/blockchain"
 	"github.com/IranProsperityProject/INDIS/pkg/events"
+	indismetrics "github.com/IranProsperityProject/INDIS/pkg/metrics"
 	indistls "github.com/IranProsperityProject/INDIS/pkg/tls"
 	"github.com/IranProsperityProject/INDIS/services/identity/internal/config"
 	"github.com/IranProsperityProject/INDIS/services/identity/internal/handler"
@@ -28,6 +29,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("config: %v", err)
 	}
+
+	indismetrics.Init("identity")
+	if err := indismetrics.ServeMetrics(fmt.Sprintf(":%d", cfg.MetricsPort)); err != nil {
+		log.Fatalf("metrics: %v", err)
+	}
+	log.Printf("Metrics endpoint listening on :%d/metrics", cfg.MetricsPort)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

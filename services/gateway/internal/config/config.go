@@ -10,6 +10,7 @@ import (
 // Config holds the configuration for the gateway service.
 type Config struct {
 	HTTPPort int
+	MetricsPort int
 
 	// Backend service addresses (host:port)
 	IdentityAddr     string
@@ -39,6 +40,7 @@ type Config struct {
 func Load() (*Config, error) {
 	cfg := &Config{
 		HTTPPort:              envInt("HTTP_PORT", 8080),
+		MetricsPort:           envInt("METRICS_PORT", 9109),
 		IdentityAddr:          envStr("IDENTITY_ADDR", "localhost:50051"),
 		CredentialAddr:        envStr("CREDENTIAL_ADDR", "localhost:50052"),
 		EnrollmentAddr:        envStr("ENROLLMENT_ADDR", "localhost:50053"),

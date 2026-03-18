@@ -12,6 +12,8 @@ import (
 type Config struct {
 	// GRPCPort is the port for the gRPC server.
 	GRPCPort int
+	// MetricsPort is the port for the Prometheus metrics endpoint.
+	MetricsPort int
 	// HTTPPort is the port for the HTTP/REST server.
 	HTTPPort int
 	// DatabaseURL is the PostgreSQL connection string.
@@ -27,6 +29,7 @@ type Config struct {
 func Load() (*Config, error) {
 	cfg := &Config{
 		GRPCPort:    50051,
+		MetricsPort: 9101,
 		HTTPPort:    8080,
 		DatabaseURL: "postgres://indis:indis_dev_password@localhost:5432/indis_identity?sslmode=disable",
 		RedisURL:    "redis://localhost:6379/0",
@@ -39,6 +42,14 @@ func Load() (*Config, error) {
 			return nil, fmt.Errorf("config: GRPC_PORT must be an integer: %w", err)
 		}
 		cfg.GRPCPort = p
+	}
+
+	if v := os.Getenv("METRICS_PORT"); v != "" {
+		p, err := strconv.Atoi(v)
+		if err != nil {
+			return nil, fmt.Errorf("config: METRICS_PORT must be an integer: %w", err)
+		}
+		cfg.MetricsPort = p
 	}
 
 	if v := os.Getenv("HTTP_PORT"); v != "" {

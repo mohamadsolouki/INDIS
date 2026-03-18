@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	notificationv1 "github.com/IranProsperityProject/INDIS/api/gen/go/notification/v1"
+	indismetrics "github.com/IranProsperityProject/INDIS/pkg/metrics"
 	indistls "github.com/IranProsperityProject/INDIS/pkg/tls"
 	"github.com/IranProsperityProject/INDIS/services/notification/internal/config"
 	"github.com/IranProsperityProject/INDIS/services/notification/internal/handler"
@@ -26,6 +27,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("config: %v", err)
 	}
+
+	indismetrics.Init("notification")
+	if err := indismetrics.ServeMetrics(fmt.Sprintf(":%d", cfg.MetricsPort)); err != nil {
+		log.Fatalf("metrics: %v", err)
+	}
+	log.Printf("Metrics endpoint listening on :%d/metrics", cfg.MetricsPort)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

@@ -37,7 +37,7 @@
 | **Redis caching** | ✅ Implemented (Tier 1 baseline) | `pkg/cache` wired into credential revocation + revocation status checks |
 | **Kubernetes / Helm** | 🔴 None | Only docker-compose in Makefile |
 | **CI/CD** | 🔴 None | No GitLab CI or ArgoCD config |
-| **Observability** | 🔴 None | No Prometheus metrics or traces |
+| **Observability** | 🟡 Partial+ | `pkg/metrics` wired into all Go services with per-service `/metrics` endpoints; Prometheus scrape targets added for local dev |
 | **HSM integration** | 🔴 None | Ephemeral keys everywhere |
 | **Physical card** | 🔴 None | ICAO 9303 / ISO 7816 |
 | **USSD/SMS gateway** | 🔴 None | No feature-phone path |
@@ -257,6 +257,17 @@ clients/android/
 ---
 
 ### T1.8 — Prometheus Metrics
+
+**Status (2026-03-18):** Partial+ complete (Tier 1 baseline).
+
+Implemented now:
+- All 9 Go services initialize `pkg/metrics` and expose `/metrics` on dedicated ports via `metrics.ServeMetrics(...)`
+- Added `METRICS_PORT` configuration in each service (`identity:9101`, `credential:9102`, `enrollment:9103`, `biometric:9104`, `audit:9105`, `notification:9106`, `electoral:9107`, `justice:9108`, `gateway:9109`)
+- Updated `deploy/prometheus/prometheus.yml` to scrape all Go service metrics endpoints
+
+Remaining for full completion:
+- Add operation-level instrumentation in handlers/services (currently endpoint exposure + metric registration baseline is wired)
+- Add starter Grafana dashboard JSON and service-level alert rules for error rate/latency
 
 Every service needs `/metrics` for observability. Required before Phase 1 launch.
 

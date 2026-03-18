@@ -7,6 +7,7 @@ require (
 	github.com/IranProsperityProject/INDIS/pkg/blockchain v0.0.0-00010101000000-000000000000
 	github.com/IranProsperityProject/INDIS/pkg/did v0.0.0-00010101000000-000000000000
 	github.com/IranProsperityProject/INDIS/pkg/events v0.0.0-00010101000000-000000000000
+	github.com/IranProsperityProject/INDIS/pkg/metrics v0.0.0-00010101000000-000000000000
 	github.com/IranProsperityProject/INDIS/pkg/tls v0.0.0-00010101000000-000000000000
 	github.com/jackc/pgx/v5 v5.6.0
 	google.golang.org/grpc v1.64.0
@@ -31,5 +32,6 @@ replace (
 	github.com/IranProsperityProject/INDIS/pkg/crypto => ../../pkg/crypto
 	github.com/IranProsperityProject/INDIS/pkg/did => ../../pkg/did
 	github.com/IranProsperityProject/INDIS/pkg/events => ../../pkg/events
+	github.com/IranProsperityProject/INDIS/pkg/metrics => ../../pkg/metrics
 	github.com/IranProsperityProject/INDIS/pkg/tls => ../../pkg/tls
 )

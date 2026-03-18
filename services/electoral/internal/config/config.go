@@ -10,6 +10,7 @@ import (
 // Config holds the configuration for the electoral service.
 type Config struct {
 	GRPCPort    int
+	MetricsPort int
 	DatabaseURL string
 }
 
@@ -17,6 +18,7 @@ type Config struct {
 func Load() (*Config, error) {
 	cfg := &Config{
 		GRPCPort:    50057,
+		MetricsPort: 9107,
 		DatabaseURL: "postgres://indis:indis_dev_password@localhost:5432/indis_electoral?sslmode=disable",
 	}
 	if v := os.Getenv("GRPC_PORT"); v != "" {
@@ -25,6 +27,13 @@ func Load() (*Config, error) {
 			return nil, fmt.Errorf("config: GRPC_PORT: %w", err)
 		}
 		cfg.GRPCPort = p
+	}
+	if v := os.Getenv("METRICS_PORT"); v != "" {
+		p, err := strconv.Atoi(v)
+		if err != nil {
+			return nil, fmt.Errorf("config: METRICS_PORT: %w", err)
+		}
+		cfg.MetricsPort = p
 	}
 	if v := os.Getenv("DATABASE_URL"); v != "" {
 		cfg.DatabaseURL = v

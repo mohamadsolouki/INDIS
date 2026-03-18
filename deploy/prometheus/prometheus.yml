@@ -1,11 +1,17 @@
-# Placeholder Prometheus configuration for local development
+# Prometheus configuration for local development
 global:
   scrape_interval: 15s
 
 scrape_configs:
-  - job_name: "indis-services"
+  - job_name: "indis-go-services"
     static_configs:
       - targets:
-          - "host.docker.internal:8080"  # identity
-          - "host.docker.internal:8081"  # credential
-          - "host.docker.internal:8082"  # enrollment
+          - "host.docker.internal:9101"  # identity
+          - "host.docker.internal:9102"  # credential
+          - "host.docker.internal:9103"  # enrollment
+          - "host.docker.internal:9104"  # biometric
+          - "host.docker.internal:9105"  # audit
+          - "host.docker.internal:9106"  # notification
+          - "host.docker.internal:9107"  # electoral
+          - "host.docker.internal:9108"  # justice
+          - "host.docker.internal:9109"  # gateway

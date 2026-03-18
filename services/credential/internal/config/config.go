@@ -11,6 +11,7 @@ import (
 // Config holds the configuration for the credential service.
 type Config struct {
 	GRPCPort    int
+	MetricsPort int
 	HTTPPort    int
 	DatabaseURL string
 	RedisURL    string
@@ -24,6 +25,7 @@ type Config struct {
 func Load() (*Config, error) {
 	cfg := &Config{
 		GRPCPort:    50052,
+		MetricsPort: 9102,
 		HTTPPort:    8081,
 		DatabaseURL: "postgres://indis:indis_dev_password@localhost:5432/indis_credential?sslmode=disable",
 		RedisURL:    "redis://localhost:6379/1",
@@ -37,6 +39,13 @@ func Load() (*Config, error) {
 			return nil, fmt.Errorf("config: GRPC_PORT must be an integer: %w", err)
 		}
 		cfg.GRPCPort = p
+	}
+	if v := os.Getenv("METRICS_PORT"); v != "" {
+		p, err := strconv.Atoi(v)
+		if err != nil {
+			return nil, fmt.Errorf("config: METRICS_PORT must be an integer: %w", err)
+		}
+		cfg.MetricsPort = p
 	}
 	if v := os.Getenv("HTTP_PORT"); v != "" {
 		p, err := strconv.Atoi(v)

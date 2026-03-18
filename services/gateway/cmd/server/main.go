@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	indismetrics "github.com/IranProsperityProject/INDIS/pkg/metrics"
 	"github.com/IranProsperityProject/INDIS/services/gateway/internal/config"
 	"github.com/IranProsperityProject/INDIS/services/gateway/internal/handler"
 	"github.com/IranProsperityProject/INDIS/services/gateway/internal/proxy"
@@ -27,6 +28,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("config: %v", err)
 	}
+
+	indismetrics.Init("gateway")
+	if err := indismetrics.ServeMetrics(fmt.Sprintf(":%d", cfg.MetricsPort)); err != nil {
+		log.Fatalf("metrics: %v", err)
+	}
+	log.Printf("Metrics endpoint listening on :%d/metrics", cfg.MetricsPort)
 
 	clients, err := proxy.New(
 		cfg.IdentityAddr,
