@@ -364,7 +364,7 @@ def md_to_html(md_content: str, rtl: bool = False) -> str:
 def generate_cover_bilingual() -> str:
     return """
 <div class="cover">
-  <div class="logo">🇮🇷</div>
+  <div class="logo">IRAN</div>
   <h1>سیستم هویت دیجیتال ملی ایران</h1>
   <h2>Iran National Digital Identity System (INDIS)</h2>
   <h2>سند نیازمندی‌های محصول — Product Requirements Document</h2>
@@ -381,7 +381,7 @@ def generate_cover_bilingual() -> str:
 def generate_cover_persian() -> str:
     return """
 <div class="cover">
-  <div style="font-size:40pt; margin-bottom:0.3em;">🇮🇷</div>
+  <div style="font-size:40pt; margin-bottom:0.3em;">IRAN</div>
   <h1>سیستم هویت دیجیتال ملی ایران</h1>
   <h2>INDIS — Iran National Digital Identity System</h2>
   <h1 style="font-size:18pt; border:none; color:white; margin-top:0.3em;">سند نیازمندی‌های محصول</h1>

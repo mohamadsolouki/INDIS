@@ -16,4 +16,9 @@ use (
 	./services/electoral
 	./services/justice
 	./services/gateway
+	./pkg/migrate
+	./pkg/events
+	./pkg/cache
+	./pkg/metrics
+	./pkg/tls
 )
