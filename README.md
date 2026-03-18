@@ -1,4 +1,4 @@
-# 🇮🇷 INDIS — Iran National Digital Identity System
+# INDIS — Iran National Digital Identity System
 # سیستم هویت دیجیتال ملی ایران
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
@@ -117,11 +117,11 @@ make dev-down
 
 ## Guiding Principles
 
-1. 🔐 **Privacy by Architecture** — Privacy is a mathematical guarantee (ZK proofs)
-2. 🇮🇷 **Sovereignty First** — No foreign entity has administrative access
-3. 🤝 **Inclusion Without Exception** — Every Iranian has a path to enrollment
-4. 🛡️ **Adversarial Security** — Designed against active subversion
-5. 👁️ **Transparent System, Private Citizens** — Code is public; citizen data is not
+1. **Privacy by Architecture** — Privacy is a mathematical guarantee (ZK proofs)
+2. **Sovereignty First** — No foreign entity has administrative access
+3. **Inclusion Without Exception** — Every Iranian has a path to enrollment
+4. **Adversarial Security** — Designed against active subversion
+5. **Transparent System, Private Citizens** — Code is public; citizen data is not
 6. **فارسی اول** — Persian-first, RTL-first design
 
 ## Standards
