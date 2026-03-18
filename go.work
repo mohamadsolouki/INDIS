@@ -3,22 +3,22 @@ go 1.22.0
 use (
 	./api/gen/go
 	./pkg/blockchain
+	./pkg/cache
 	./pkg/crypto
 	./pkg/did
-	./pkg/vc
-	./pkg/i18n
-	./services/identity
-	./services/credential
-	./services/enrollment
-	./services/biometric
-	./services/audit
-	./services/notification
-	./services/electoral
-	./services/justice
-	./services/gateway
-	./pkg/migrate
 	./pkg/events
-	./pkg/cache
+	./pkg/i18n
 	./pkg/metrics
+	./pkg/migrate
 	./pkg/tls
+	./pkg/vc
+	./services/audit
+	./services/biometric
+	./services/credential
+	./services/electoral
+	./services/enrollment
+	./services/gateway
+	./services/identity
+	./services/justice
+	./services/notification
 )
