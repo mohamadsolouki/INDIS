@@ -33,7 +33,7 @@ build-rust: ## Build Rust ZK proof service
 
 build-python: ## Validate Python AI service
 	@echo "▸ Checking Python AI service..."
-	cd services/ai && python -m py_compile src/main.py
+	cd services/ai && python3 -m py_compile src/main.py
 
 # ── Test ─────────────────────────────────────────────────────
 test: test-go test-rust test-python ## Run all tests
@@ -51,7 +51,7 @@ test-rust: ## Run Rust tests
 
 test-python: ## Run Python tests
 	@echo "▸ Running Python tests..."
-	cd services/ai && python -m pytest tests/ -v
+	cd services/ai && .venv/bin/pytest tests/ -v
 
 # ── Lint ─────────────────────────────────────────────────────
 lint: lint-go lint-rust lint-python ## Lint all code
@@ -68,7 +68,7 @@ lint-rust: ## Lint Rust code
 
 lint-python: ## Lint Python code
 	@echo "▸ Linting Python..."
-	cd services/ai && ruff check src/
+	cd services/ai && .venv/bin/ruff check src/
 
 # ── Protobuf ────────────────────────────────────────────────
 proto-gen: ## Generate code from protobuf definitions

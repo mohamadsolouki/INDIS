@@ -1,6 +1,7 @@
 go 1.22.0
 
 use (
+	./api/gen/go
 	./pkg/blockchain
 	./pkg/crypto
 	./pkg/did
