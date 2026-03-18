@@ -10,6 +10,10 @@
 //! - `voter_eligibility` — Atomic proof: citizenship + age ≥ 18 + not excluded
 //! - `credential_validity` — Proves credential is issued, not revoked, not expired
 
+pub mod electoral_stark;
+
+pub use electoral_stark::VoterEligibilityStarkAir;
+
 /// Placeholder for circuit loading and binding functionality.
 pub fn placeholder() {
     // TODO: Load compiled circuit artifacts

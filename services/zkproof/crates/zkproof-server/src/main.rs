@@ -18,6 +18,9 @@ use base64::{engine::general_purpose, Engine};
 use serde::{Deserialize, Serialize};
 use sha3::{Sha3_256, Digest};
 use tracing::info;
+use zkproof_circuits::VoterEligibilityStarkAir;
+use zkproof_core::{DevelopmentStarkEngine, Proof, ProofSystem};
+use zkproof_core::{ProofGenerator as _, ProofVerifier as _};
 
 /// HTTP request for proof generation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -116,6 +119,79 @@ impl ProofGenerator {
     }
 }
 
+fn is_stark(proof_system: &str) -> bool {
+    proof_system.eq_ignore_ascii_case("stark")
+}
+
+fn generate_stark_proof(circuit_id: &str, input_b64: &str) -> Result<String, String> {
+    let input = general_purpose::STANDARD
+        .decode(input_b64)
+        .map_err(|e| format!("failed to decode input: {}", e))?;
+
+    if circuit_id == "voter_eligibility" {
+        serde_json::from_slice::<VoterEligibilityStarkAir>(&input)
+            .map_err(|e| format!("invalid voter eligibility public inputs: {}", e))?;
+    }
+
+    let engine = DevelopmentStarkEngine;
+    let proof = engine
+        .generate(circuit_id, &[], &[input])
+        .map_err(|e| format!("failed to generate STARK proof: {}", e))?;
+
+    Ok(general_purpose::STANDARD.encode(proof.data))
+}
+
+fn verify_stark_proof(
+    proof_b64: &str,
+    election_id: Option<&String>,
+    public_inputs_b64: Option<&String>,
+) -> Result<(bool, String), String> {
+    let proof_bytes = general_purpose::STANDARD
+        .decode(proof_b64)
+        .map_err(|e| format!("failed to decode proof: {}", e))?;
+
+    let public_input_b64 = public_inputs_b64
+        .ok_or_else(|| "public_inputs_b64 is required for STARK verification".to_string())?;
+
+    let public_input = general_purpose::STANDARD
+        .decode(public_input_b64)
+        .map_err(|e| format!("failed to decode public inputs: {}", e))?;
+
+    if let Some(expected_election_id) = election_id {
+        let claim = serde_json::from_slice::<VoterEligibilityStarkAir>(&public_input)
+            .map_err(|e| format!("invalid voter eligibility public inputs: {}", e))?;
+        if claim.election_id != *expected_election_id {
+            return Ok((
+                false,
+                "public inputs election_id does not match request election_id".to_string(),
+            ));
+        }
+    }
+
+    let proof = Proof {
+        system: ProofSystem::Stark,
+        data: proof_bytes,
+        public_inputs: vec![public_input.clone()],
+    };
+
+    let engine = DevelopmentStarkEngine;
+    let verification_key = election_id
+        .map(|id| id.as_bytes().to_vec())
+        .unwrap_or_default();
+
+    let result = engine
+        .verify(&proof, &verification_key, &[public_input])
+        .map_err(|e| format!("failed to verify STARK proof: {}", e))?;
+
+    let reason = if result.valid {
+        "stark proof verified".to_string()
+    } else {
+        "stark proof verification failed".to_string()
+    };
+
+    Ok((result.valid, reason))
+}
+
 /// POST /prove — Generate a proof.
 async fn prove(Json(req): Json<ProveRequest>) -> Result<Json<ProveResponse>, (StatusCode, String)> {
     info!(
@@ -124,9 +200,13 @@ async fn prove(Json(req): Json<ProveRequest>) -> Result<Json<ProveResponse>, (St
         "generating proof"
     );
 
-    let proof_b64 =
+    let proof_b64 = if is_stark(&req.proof_system) {
+        generate_stark_proof(&req.circuit_id, &req.input_b64)
+            .map_err(|e| (StatusCode::BAD_REQUEST, e))?
+    } else {
         ProofGenerator::generate_proof(&req.circuit_id, &req.input_b64)
-            .map_err(|e| (StatusCode::BAD_REQUEST, e))?;
+            .map_err(|e| (StatusCode::BAD_REQUEST, e))?
+    };
 
     Ok(Json(ProveResponse { proof_b64 }))
 }
@@ -139,25 +219,36 @@ async fn verify(Json(req): Json<VerifyRequest>) -> Result<Json<VerifyResponse>, 
         "verifying proof"
     );
 
-    // Determine the circuit ID and input based on what's provided
-    let (circuit_id, input_b64) = if let (Some(election_id), Some(public_inputs)) =
-        (&req.election_id, &req.public_inputs_b64)
-    {
-        // Electoral style: use election_id as circuit identifier, public_inputs as input
-        (election_id.clone(), public_inputs.clone())
+    let (valid, reason) = if is_stark(&req.proof_system) {
+        verify_stark_proof(
+            &req.proof_b64,
+            req.election_id.as_ref(),
+            req.public_inputs_b64.as_ref(),
+        )
+        .map_err(|e| (StatusCode::BAD_REQUEST, e))?
     } else {
-        // Justice style: use proof_system as circuit identifier
-        (req.proof_system.clone(), req.proof_system.clone())
-    };
+        // Determine the circuit ID and input based on what's provided
+        let (circuit_id, input_b64) = if let (Some(election_id), Some(public_inputs)) =
+            (&req.election_id, &req.public_inputs_b64)
+        {
+            // Electoral style: use election_id as circuit identifier, public_inputs as input
+            (election_id.clone(), public_inputs.clone())
+        } else {
+            // Justice style: use proof_system as circuit identifier
+            (req.proof_system.clone(), req.proof_system.clone())
+        };
 
-    let valid =
-        ProofGenerator::verify_proof(&circuit_id, &req.proof_b64, &input_b64)
-            .map_err(|e| (StatusCode::BAD_REQUEST, e))?;
+        let is_valid =
+            ProofGenerator::verify_proof(&circuit_id, &req.proof_b64, &input_b64)
+                .map_err(|e| (StatusCode::BAD_REQUEST, e))?;
 
-    let reason = if valid {
-        "proof verified".to_string()
-    } else {
-        "proof verification failed".to_string()
+        let verification_reason = if is_valid {
+            "proof verified".to_string()
+        } else {
+            "proof verification failed".to_string()
+        };
+
+        (is_valid, verification_reason)
     };
 
     Ok(Json(VerifyResponse { valid, reason }))

@@ -1326,6 +1326,8 @@ name = "zkproof-circuits"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "serde_json",
+ "sha3",
  "tracing",
  "zkproof-core",
 ]
@@ -1336,6 +1338,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+ "sha3",
  "thiserror",
  "tracing",
 ]

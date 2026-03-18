@@ -62,9 +62,9 @@ type credentialRevocationCache interface {
 // privateKey is the issuer's Ed25519 private key for signing credentials.
 func New(repo credentialRepository, chain blockchain.BlockchainAdapter, issuerDID string, privateKey ed25519.PrivateKey) *CredentialService {
 	return &CredentialService{
-		repo:      repo,
-		chain:     chain,
-		issuerDID: issuerDID,
+		repo:       repo,
+		chain:      chain,
+		issuerDID:  issuerDID,
 		privateKey: privateKey,
 	}
 }

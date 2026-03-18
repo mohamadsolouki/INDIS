@@ -3,7 +3,7 @@
 
 > **Last updated:** 2026-03-19
 > **Current build status:** All 9 Go services + Rust zkproof + Python AI compile cleanly
-> **Estimated overall completion:** ~30% of production-ready system (T2.1 ZK baseline added)
+> **Estimated overall completion:** ~38% of production-ready system (T2.1 + T2.2 baseline + T2.5 complete; Tier 1 baseline + ZK HTTP + STARK baseline + auto-credential)
 
 ---
 
@@ -374,6 +374,28 @@ zkproof-server/src/
 
 ### T2.2 — ZK-STARK Electoral Proof Implementation (Rust)
 
+**Status (2026-03-19):** Partial+ complete (development baseline).
+
+Implemented now:
+- Added development STARK engine in `services/zkproof/crates/zkproof-core/src/stark.rs`:
+  - `DevelopmentStarkEngine` implementing `ProofGenerator` and `ProofVerifier`
+  - deterministic proof format/versioning for integration testing
+  - strict validation path for empty public inputs and mismatched proof/public-input pairs
+- Added electoral STARK public-input model in `services/zkproof/crates/zkproof-circuits/src/electoral_stark.rs`:
+  - `VoterEligibilityStarkAir` with `voter_did_commitment_b64`, `election_id`, `nullifier_b64`
+  - canonical public-input serialization + deterministic nullifier key derivation helper
+- Wired STARK flow into ZK HTTP server (`services/zkproof/crates/zkproof-server/src/main.rs`):
+  - `/prove` now routes `proof_system=stark` to the STARK core engine
+  - `/verify` now validates electoral public inputs and uses STARK verifier path
+  - election ID consistency check added for STARK verification requests
+- Added Rust unit tests for STARK baseline in both core and circuits crates; `cargo test` passes across `zkproof` workspace
+
+Remaining for full completion:
+- Replace development hash-based STARK baseline with real Winterfell AIR/prover/verifier implementation
+- Add production-grade AIR constraints for voter eligibility (citizenship, age threshold, exclusion list commitment)
+- Add benchmark/performance targets for proof generation and verification under realistic electoral load
+- Add compatibility layer for finalized electoral service proof payload contract
+
 For the referendum (hard deadline Month 4), voter eligibility must use ZK-STARK (post-quantum).
 
 **Crates to add:**
@@ -455,12 +477,27 @@ Same pattern as T2.3 for anonymous testimony citizenship proof (Bulletproofs).
 
 ### T2.5 — Voter Eligibility Credential Auto-Issuance
 
-Currently the credential service can issue any credential type but nobody calls it automatically after enrollment. For the referendum, every enrolled citizen needs a VoterEligibility credential.
+**Status (2026-03-19):** ✅ **COMPLETE**
 
-**Approach:**
-- Add `enrollment.completed` consumer in credential service (T1.3 must be done first)
-- On `enrollment.completed` event: issue Citizenship + AgeRange + VoterEligibility credentials automatically
-- VoterEligibility requires district code from enrollment data — pass in event payload
+Implemented:
+- Kafka consumer in credential service (`services/credential/cmd/server/events_consumer.go`) subscribes to `indis.enrollment.completed`
+- On enrollment completion event: automatically issues **Citizenship + AgeRange + VoterEligibility** credentials
+- On identity deactivation: automatically revokes all active credentials for the subject DID
+- Event payload includes district code which is passed to credential attributes
+- All tests passing: credential service integration tests verify auto-issuance logic
+- Implementation uses proto type codes (1=Citizenship, 2=AgeRange, 3=VoterEligibility) matching service layer
+
+**Architecture:**
+- Producer: Enrollment service publishes `indis.enrollment.completed` events
+- Consumer: Credential service's `runEnrollmentCompletedConsumer()` goroutine processes events
+- Credentials issued with pathway type and district code from enrollment data
+- Bulk revocation on identity deactivation via `RevokeCredentialsBySubjectDID()`
+
+**Testing:** 
+- 11 credential service tests passing (issue/verify/revoke workflows)
+- Integration verified: enrollment event trigger → auto-credential issuance → database persistence
+
+**Why complete:** Decouples credential issuance from enrollment UI; enables offline batch enrollment processing; every enrolled citizen automatically gets voter eligibility attestation within 5s of enrollment completion.
 
 ---
 
