@@ -12,6 +12,7 @@ import (
 	"github.com/IranProsperityProject/INDIS/pkg/blockchain"
 	indiscrypto "github.com/IranProsperityProject/INDIS/pkg/crypto"
 	"github.com/IranProsperityProject/INDIS/pkg/did"
+	"github.com/IranProsperityProject/INDIS/pkg/events"
 	"github.com/IranProsperityProject/INDIS/services/enrollment/internal/repository"
 )
 
@@ -33,11 +34,29 @@ type CompleteResult struct {
 type EnrollmentService struct {
 	repo  *repository.Repository
 	chain blockchain.BlockchainAdapter
+	events enrollmentEventPublisher
+}
+
+type enrollmentEventPublisher interface {
+	Publish(ctx context.Context, topic string, event any) error
 }
 
 // New creates an EnrollmentService.
 func New(repo *repository.Repository, chain blockchain.BlockchainAdapter) *EnrollmentService {
 	return &EnrollmentService{repo: repo, chain: chain}
+}
+
+func (s *EnrollmentService) ensureRepo() error {
+	if s.repo == nil {
+		return fmt.Errorf("service: repository is not configured")
+	}
+	return nil
+}
+
+// SetEventPublisher wires an optional event publisher.
+// When nil, enrollment completion events are not emitted.
+func (s *EnrollmentService) SetEventPublisher(p enrollmentEventPublisher) {
+	s.events = p
 }
 
 // generateID creates a random URL-safe ID.
@@ -58,6 +77,10 @@ var pathwayName = map[int32]string{
 
 // InitiateEnrollment begins an enrollment session.
 func (s *EnrollmentService) InitiateEnrollment(ctx context.Context, pathwayInt int32, agentID, locale string) (*InitiateResult, error) {
+	if err := s.ensureRepo(); err != nil {
+		return nil, err
+	}
+
 	pathway, ok := pathwayName[pathwayInt]
 	if !ok {
 		return nil, fmt.Errorf("service: unknown enrollment pathway: %d", pathwayInt)
@@ -91,6 +114,10 @@ func (s *EnrollmentService) InitiateEnrollment(ctx context.Context, pathwayInt i
 // Deduplication is delegated to services/ai; this service records the outcome.
 // In production the AI service is called via gRPC. For now we accept all biometrics.
 func (s *EnrollmentService) SubmitBiometrics(ctx context.Context, enrollmentID string, _, _, _ []byte) (bool, string, error) {
+	if err := s.ensureRepo(); err != nil {
+		return false, "", err
+	}
+
 	rec, err := s.repo.GetByID(ctx, enrollmentID)
 	if errors.Is(err, repository.ErrNotFound) {
 		return false, "", fmt.Errorf("service: enrollment not found: %s", enrollmentID)
@@ -115,6 +142,10 @@ func (s *EnrollmentService) SubmitBiometrics(ctx context.Context, enrollmentID s
 // SubmitSocialAttestation records community co-attestors for a social pathway enrollment.
 // Requires at least minSocialAttestors (3) attestors. Ref: PRD §FR-001.8
 func (s *EnrollmentService) SubmitSocialAttestation(ctx context.Context, enrollmentID string, attestorDIDs []string) (bool, int32, error) {
+	if err := s.ensureRepo(); err != nil {
+		return false, 0, err
+	}
+
 	rec, err := s.repo.GetByID(ctx, enrollmentID)
 	if errors.Is(err, repository.ErrNotFound) {
 		return false, 0, fmt.Errorf("service: enrollment not found: %s", enrollmentID)
@@ -138,6 +169,10 @@ func (s *EnrollmentService) SubmitSocialAttestation(ctx context.Context, enrollm
 // CompleteEnrollment finalizes enrollment: generates a DID and initial credentials.
 // Ref: PRD §FR-001.5
 func (s *EnrollmentService) CompleteEnrollment(ctx context.Context, enrollmentID string) (*CompleteResult, error) {
+	if err := s.ensureRepo(); err != nil {
+		return nil, err
+	}
+
 	rec, err := s.repo.GetByID(ctx, enrollmentID)
 	if errors.Is(err, repository.ErrNotFound) {
 		return nil, fmt.Errorf("service: enrollment not found: %s", enrollmentID)
@@ -186,11 +221,27 @@ func (s *EnrollmentService) CompleteEnrollment(ctx context.Context, enrollmentID
 	// Full credential issuance is delegated to the credential service in production.
 	issued := []string{"CitizenshipCredential", "VoterEligibilityCredential"}
 
+	if s.events != nil {
+		event := events.EnrollmentCompletedEvent{
+			EnrollmentID: enrollmentID,
+			DID:          citizenDID.String(),
+			SubjectName:  "",
+			DistrictCode: "",
+			PathwayType:  rec.Pathway,
+			OccurredAt:   time.Now().UTC(),
+		}
+		_ = s.events.Publish(ctx, events.TopicEnrollmentCompleted, event)
+	}
+
 	return &CompleteResult{DID: citizenDID.String(), IssuedCredentials: issued}, nil
 }
 
 // GetEnrollmentStatus returns the current status of an enrollment session.
 func (s *EnrollmentService) GetEnrollmentStatus(ctx context.Context, enrollmentID string) (string, error) {
+	if err := s.ensureRepo(); err != nil {
+		return "", err
+	}
+
 	rec, err := s.repo.GetByID(ctx, enrollmentID)
 	if errors.Is(err, repository.ErrNotFound) {
 		return "", fmt.Errorf("service: enrollment not found: %s", enrollmentID)

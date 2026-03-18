@@ -12,6 +12,7 @@ import (
 
 	enrollmentv1 "github.com/IranProsperityProject/INDIS/api/gen/go/enrollment/v1"
 	"github.com/IranProsperityProject/INDIS/pkg/blockchain"
+	"github.com/IranProsperityProject/INDIS/pkg/events"
 	"github.com/IranProsperityProject/INDIS/services/enrollment/internal/config"
 	"github.com/IranProsperityProject/INDIS/services/enrollment/internal/handler"
 	"github.com/IranProsperityProject/INDIS/services/enrollment/internal/repository"
@@ -39,6 +40,19 @@ func main() {
 	repo := repository.New(pool)
 	chain := blockchain.NewMockAdapter()
 	svc := service.New(repo, chain)
+
+	producer, err := events.NewProducer(cfg.KafkaBrokers)
+	if err != nil {
+		log.Printf("events producer disabled: %v", err)
+	} else {
+		svc.SetEventPublisher(producer)
+		defer func() {
+			if cerr := producer.Close(); cerr != nil {
+				log.Printf("events producer close: %v", cerr)
+			}
+		}()
+	}
+
 	h := handler.New(svc)
 
 	addr := fmt.Sprintf(":%d", cfg.GRPCPort)

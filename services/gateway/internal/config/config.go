@@ -23,6 +23,14 @@ type Config struct {
 
 	// Rate limit: max requests per second per IP
 	RateLimitRPS int
+
+	// Backend gRPC transport security mode.
+	// Supported values:
+	//   - plaintext: no TLS (local/dev compatibility)
+	//   - tls: verify backend certs using BackendCAFile
+	//   - tls_insecure_skip_verify: TLS encryption without cert verification (dev only)
+	BackendTLSMode string
+	BackendCAFile  string
 }
 
 // Load reads configuration from environment variables with sane defaults.
@@ -38,10 +46,23 @@ func Load() (*Config, error) {
 		ElectoralAddr:    envStr("ELECTORAL_ADDR", "localhost:50057"),
 		JusticeAddr:      envStr("JUSTICE_ADDR", "localhost:50058"),
 		RateLimitRPS:     envInt("RATE_LIMIT_RPS", 100),
+		BackendTLSMode:   envStr("BACKEND_TLS_MODE", "plaintext"),
+		BackendCAFile:    envStr("BACKEND_CA_FILE", ""),
 	}
 
 	if cfg.RateLimitRPS <= 0 {
 		return nil, fmt.Errorf("RATE_LIMIT_RPS must be positive, got %d", cfg.RateLimitRPS)
+	}
+
+	switch cfg.BackendTLSMode {
+	case "plaintext", "tls", "tls_insecure_skip_verify":
+		// valid
+	default:
+		return nil, fmt.Errorf("BACKEND_TLS_MODE must be one of plaintext|tls|tls_insecure_skip_verify, got %q", cfg.BackendTLSMode)
+	}
+
+	if cfg.BackendTLSMode == "tls" && cfg.BackendCAFile == "" {
+		return nil, fmt.Errorf("BACKEND_CA_FILE is required when BACKEND_TLS_MODE=tls")
 	}
 
 	return cfg, nil

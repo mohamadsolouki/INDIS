@@ -31,15 +31,23 @@ type RevocationStatusResult struct {
 
 // CredentialService implements business logic for VC lifecycle management.
 type CredentialService struct {
-	repo       *repository.Repository
+	repo       credentialRepository
 	chain      blockchain.BlockchainAdapter
 	issuerDID  string
 	privateKey ed25519.PrivateKey // issuer signing key (loaded from HSM/config in production)
 }
 
+// credentialRepository captures the storage operations required by
+// CredentialService. It allows unit tests to inject lightweight mocks.
+type credentialRepository interface {
+	Create(ctx context.Context, rec repository.CredentialRecord) error
+	GetByID(ctx context.Context, id string) (*repository.CredentialRecord, error)
+	Revoke(ctx context.Context, id, reason string) error
+}
+
 // New creates a CredentialService.
 // privateKey is the issuer's Ed25519 private key for signing credentials.
-func New(repo *repository.Repository, chain blockchain.BlockchainAdapter, issuerDID string, privateKey ed25519.PrivateKey) *CredentialService {
+func New(repo credentialRepository, chain blockchain.BlockchainAdapter, issuerDID string, privateKey ed25519.PrivateKey) *CredentialService {
 	return &CredentialService{
 		repo:      repo,
 		chain:     chain,

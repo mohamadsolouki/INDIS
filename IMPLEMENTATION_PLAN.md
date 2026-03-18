@@ -11,30 +11,30 @@
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| **Shared libs** (`pkg/crypto`, `pkg/did`, `pkg/vc`, `pkg/i18n`) | ✅ Implemented | No unit tests yet |
+| **Shared libs** (`pkg/crypto`, `pkg/did`, `pkg/vc`, `pkg/i18n`) | ✅ Implemented | Unit tests present in each package |
 | **Proto definitions** (9 services) | ✅ Generated | `api/gen/go/` |
-| **Identity service** | 🟡 Scaffold | Handler→Service→Repo compiles; no tests; MockAdapter |
-| **Credential service** | 🟡 Scaffold | 11 VC types; ephemeral key; no tests |
-| **Enrollment service** | 🟡 Scaffold | 3 pathways; DID generation wired; no tests |
+| **Identity service** | 🟡 Scaffold | Handler→Service→Repo; service-level tests present; MockAdapter |
+| **Credential service** | 🟡 Scaffold+ | 11 VC types; service tests present; consumes `enrollment.completed` |
+| **Enrollment service** | 🟡 Scaffold+ | 3 pathways; DID generation; service tests present; publishes `enrollment.completed` |
 | **Biometric service** | 🟡 Scaffold | AES-GCM template encrypt; dedup is a stub |
 | **Audit service** | 🟡 Scaffold | Hash-chain logic; append-only; no tests |
 | **Notification service** | 🟡 Scaffold | 3-tier expiry alerts; no actual delivery |
 | **Electoral service** | 🟡 Scaffold | Nullifier double-vote guard; ZK is a stub |
 | **Justice service** | 🟡 Scaffold | ZK citizenship proof is a stub |
-| **Gateway service** | 🟡 Scaffold | HTTP→gRPC proxy; rate limiter; insecure transport |
+| **Gateway service** | 🟡 Scaffold+ | HTTP→gRPC proxy; rate limiter; backend transport mode configurable (`plaintext`/`tls`) |
 | **ZK service** (Rust) | 🔴 Stub | Traits defined; no proof generation/verification |
 | **AI service** (Python) | 🔴 Stub | FastAPI skeleton; no ML models loaded |
 | **Blockchain adapter** | 🔴 Mock | `MockAdapter` logs calls; no real chain |
-| **DB migrations** | ✅ SQL files | Not applied; no runner |
+| **DB migrations** | 🟡 Partial | SQL files + `pkg/migrate` runner exist; not wired into all services |
 | **ZK circuits** (Circom) | 🔴 Placeholder | No constraint logic |
-| **Tests** | 🔴 None | Zero test files |
+| **Tests** | 🟡 Partial | Core package tests + identity/enrollment/credential service tests |
 | **Mobile apps** | 🔴 None | iOS / Android / HarmonyOS |
 | **PWA frontend** | 🔴 None | React + TypeScript |
 | **Government portal** | 🔴 None | GraphQL + admin dashboard |
 | **Verifier terminal** | 🔴 None | QR scan + ZK display |
-| **mTLS / service mesh** | 🔴 None | Using `insecure.NewCredentials()` |
-| **Kafka event streaming** | 🔴 None | No cross-service events |
-| **Redis caching** | 🔴 None | No revocation/session cache |
+| **mTLS / service mesh** | 🟡 Partial | TLS helpers + cert script exist; rollout to all service listeners pending |
+| **Kafka event streaming** | 🟡 Partial | `pkg/events` in place; enrollment→credential flow wired |
+| **Redis caching** | 🟡 Partial | `pkg/cache` revocation cache exists; credential service wiring pending |
 | **Kubernetes / Helm** | 🔴 None | Only docker-compose in Makefile |
 | **CI/CD** | 🔴 None | No GitLab CI or ArgoCD config |
 | **Observability** | 🔴 None | No Prometheus metrics or traces |
@@ -60,6 +60,17 @@ Tiers are ordered by the PRD hard deadlines:
 
 ### T1.1 — Integration Tests for Core Services
 
+**Status (2026-03-18):** Partial complete.
+
+Implemented now:
+- `services/identity/internal/service/service_test.go`
+- `services/credential/internal/service/service_test.go`
+- `services/enrollment/internal/service/service_test.go`
+- `pkg/crypto/crypto_test.go`
+- `pkg/did/did_test.go`
+- `pkg/vc/vc_test.go`
+- `pkg/i18n/i18n_test.go`
+
 **Why first:** Tests catch regressions and document expected behavior. Every subsequent Tier builds on these.
 
 **Files to create:**
@@ -79,6 +90,8 @@ Tiers are ordered by the PRD hard deadlines:
 
 ### T1.2 — Database Migration Runner
 
+**Status (2026-03-18):** Partial complete — `pkg/migrate/migrate.go` exists; startup wiring still pending per service.
+
 The 7 SQL migration files exist but are never applied. Services start against an empty database.
 
 **Approach:** Add a `migrate.go` helper to each service that runs pending SQL files from `db/migrations/` on startup (or use `golang-migrate/migrate`).
@@ -91,6 +104,19 @@ The 7 SQL migration files exist but are never applied. Services start against an
 
 ### T1.3 — Kafka Event Wiring
 
+**Status (2026-03-18):** Partial complete.
+
+Implemented now:
+- `pkg/events/events.go`
+- `pkg/events/producer.go`
+- `pkg/events/consumer.go`
+- Enrollment service publishes `indis.enrollment.completed` in `CompleteEnrollment`
+- Credential service consumes `indis.enrollment.completed` and auto-issues citizenship/age-range/voter-eligibility credentials
+
+Pending from this item:
+- `credential.revoked` pipeline to audit + notification
+- `identity.deactivated` pipeline to credential revocation
+
 The enrollment service creates a DID but never tells the credential service to issue credentials. This gap means no credentials are ever issued after enrollment.
 
 **Events needed:**
@@ -100,7 +126,7 @@ The enrollment service creates a DID but never tells the credential service to i
 
 **Files to create:**
 - `pkg/events/events.go` — event type definitions and Kafka topic names
-- `pkg/events/producer.go` — thin wrapper around `confluent-kafka-go` producer
+- `pkg/events/producer.go` — thin wrapper around `segmentio/kafka-go` producer
 - `pkg/events/consumer.go` — consumer loop with handler registration
 - Wire producer into: enrollment service (emit `enrollment.completed`)
 - Wire consumer into: credential service (consume `enrollment.completed`)
@@ -119,6 +145,8 @@ The PRD requires revocation propagation ≤ 60 seconds (FR-002.R1). Currently no
 ---
 
 ### T1.5 — mTLS Between Services
+
+**Status (2026-03-18):** Partial complete — `scripts/gen-certs.sh` and `pkg/tls/tls.go` are present; gateway backend transport is now configurable and supports TLS modes.
 
 Currently all gRPC connections use `insecure.NewCredentials()`. Production requires mTLS.
 

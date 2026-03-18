@@ -37,6 +37,10 @@ func main() {
 		cfg.NotificationAddr,
 		cfg.ElectoralAddr,
 		cfg.JusticeAddr,
+		proxy.TransportConfig{
+			Mode:   cfg.BackendTLSMode,
+			CAFile: cfg.BackendCAFile,
+		},
 	)
 	if err != nil {
 		log.Fatalf("proxy: %v", err)

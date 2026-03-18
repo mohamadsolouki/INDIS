@@ -3,6 +3,7 @@ package service_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/IranProsperityProject/INDIS/pkg/blockchain"
 	"github.com/IranProsperityProject/INDIS/services/enrollment/internal/service"
@@ -42,6 +43,12 @@ func (m *mockChain) LogVerificationEvent(_ context.Context, _ blockchain.Anonymi
 	return &blockchain.TxReceipt{}, nil
 }
 func (m *mockChain) GetBlockHeight(_ context.Context) (uint64, error) { return 1, nil }
+func (m *mockChain) GetValidatorStatus(_ context.Context) ([]blockchain.ValidatorStatus, error) {
+	return nil, nil
+}
+func (m *mockChain) EstimateTxTime(_ context.Context) (time.Duration, error) {
+	return 100 * time.Millisecond, nil
+}
 
 // ── Input validation tests (do not need a real DB) ───────────────────────────
 

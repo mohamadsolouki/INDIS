@@ -4,6 +4,7 @@ package proxy
 import (
 	"fmt"
 
+	indistls "github.com/IranProsperityProject/INDIS/pkg/tls"
 	identityv1 "github.com/IranProsperityProject/INDIS/api/gen/go/identity/v1"
 	credentialv1 "github.com/IranProsperityProject/INDIS/api/gen/go/credential/v1"
 	enrollmentv1 "github.com/IranProsperityProject/INDIS/api/gen/go/enrollment/v1"
@@ -13,8 +14,15 @@ import (
 	electoralv1 "github.com/IranProsperityProject/INDIS/api/gen/go/electoral/v1"
 	justicev1 "github.com/IranProsperityProject/INDIS/api/gen/go/justice/v1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
+
+// TransportConfig controls how gateway dials backend gRPC services.
+type TransportConfig struct {
+	Mode   string
+	CAFile string
+}
 
 // Clients holds gRPC client stubs for all backend services.
 type Clients struct {
@@ -33,10 +41,26 @@ type Clients struct {
 // New dials all backend services and returns a Clients bundle.
 // Call Close() when done.
 func New(identityAddr, credentialAddr, enrollmentAddr, biometricAddr,
-	auditAddr, notificationAddr, electoralAddr, justiceAddr string) (*Clients, error) {
+	auditAddr, notificationAddr, electoralAddr, justiceAddr string, transportCfg TransportConfig) (*Clients, error) {
+
+	var clientCreds credentials.TransportCredentials
+	switch transportCfg.Mode {
+	case "", "plaintext":
+		clientCreds = insecure.NewCredentials()
+	case "tls":
+		creds, err := indistls.LoadClientTLS(transportCfg.CAFile)
+		if err != nil {
+			return nil, fmt.Errorf("load backend TLS credentials: %w", err)
+		}
+		clientCreds = creds
+	case "tls_insecure_skip_verify":
+		clientCreds = indistls.LoadClientTLSInsecureSkipVerify()
+	default:
+		return nil, fmt.Errorf("unsupported transport mode %q", transportCfg.Mode)
+	}
 
 	dial := func(addr string) (*grpc.ClientConn, error) {
-		conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(clientCreds))
 		if err != nil {
 			return nil, fmt.Errorf("dial %s: %w", addr, err)
 		}

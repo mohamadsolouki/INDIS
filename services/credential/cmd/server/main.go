@@ -50,6 +50,12 @@ func main() {
 	svc := service.New(repo, chain, cfg.IssuerDID, privateKey)
 	h := handler.New(svc)
 
+	go func() {
+		if err := runEnrollmentCompletedConsumer(ctx, cfg.KafkaBrokers, cfg.KafkaGroupID, svc); err != nil && ctx.Err() == nil {
+			log.Printf("enrollment consumer stopped: %v", err)
+		}
+	}()
+
 	addr := fmt.Sprintf(":%d", cfg.GRPCPort)
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -71,5 +77,6 @@ func main() {
 	<-quit
 
 	log.Printf("Shutting down INDIS credential service...")
+	cancel()
 	grpcServer.GracefulStop()
 }
