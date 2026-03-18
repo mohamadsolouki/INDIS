@@ -37,6 +37,7 @@ type CredentialService struct {
 	issuerDID  string
 	privateKey ed25519.PrivateKey // issuer signing key (loaded from HSM/config in production)
 	events     credentialEventPublisher
+	cache      credentialRevocationCache
 }
 
 // credentialRepository captures the storage operations required by
@@ -50,6 +51,11 @@ type credentialRepository interface {
 
 type credentialEventPublisher interface {
 	Publish(ctx context.Context, topic string, event any) error
+}
+
+type credentialRevocationCache interface {
+	Revoke(ctx context.Context, credentialID string) error
+	IsRevoked(ctx context.Context, credentialID string) (bool, error)
 }
 
 // New creates a CredentialService.
@@ -66,6 +72,11 @@ func New(repo credentialRepository, chain blockchain.BlockchainAdapter, issuerDI
 // SetEventPublisher wires an optional event publisher for outbound events.
 func (s *CredentialService) SetEventPublisher(p credentialEventPublisher) {
 	s.events = p
+}
+
+// SetRevocationCache wires an optional revocation cache implementation.
+func (s *CredentialService) SetRevocationCache(c credentialRevocationCache) {
+	s.cache = c
 }
 
 // protoTypeToVC maps proto enum ints to pkg/vc CredentialType strings.
@@ -191,6 +202,9 @@ func (s *CredentialService) RevokeCredential(ctx context.Context, credentialID, 
 		}
 		_ = s.events.Publish(ctx, events.TopicCredentialRevoked, event)
 	}
+	if s.cache != nil {
+		_ = s.cache.Revoke(ctx, credentialID)
+	}
 
 	return txID, nil
 }
@@ -223,6 +237,9 @@ func (s *CredentialService) RevokeCredentialsBySubjectDID(ctx context.Context, s
 			}
 			_ = s.events.Publish(ctx, events.TopicCredentialRevoked, event)
 		}
+		if s.cache != nil {
+			_ = s.cache.Revoke(ctx, rec.ID)
+		}
 	}
 
 	return revokedCount, nil
@@ -230,6 +247,17 @@ func (s *CredentialService) RevokeCredentialsBySubjectDID(ctx context.Context, s
 
 // CheckRevocationStatus returns the revocation state of a credential.
 func (s *CredentialService) CheckRevocationStatus(ctx context.Context, credentialID string) (*RevocationStatusResult, error) {
+	if s.cache != nil {
+		revoked, err := s.cache.IsRevoked(ctx, credentialID)
+		if err == nil && revoked {
+			return &RevocationStatusResult{
+				Revoked:   true,
+				Reason:    "cached_revocation",
+				RevokedAt: "",
+			}, nil
+		}
+	}
+
 	rec, err := s.repo.GetByID(ctx, credentialID)
 	if errors.Is(err, repository.ErrNotFound) {
 		return nil, fmt.Errorf("service: credential not found: %s", credentialID)

@@ -29,25 +29,29 @@ type Config struct {
 	//   - plaintext: no TLS (local/dev compatibility)
 	//   - tls: verify backend certs using BackendCAFile
 	//   - tls_insecure_skip_verify: TLS encryption without cert verification (dev only)
-	BackendTLSMode string
-	BackendCAFile  string
+	BackendTLSMode        string
+	BackendCAFile         string
+	BackendClientCertFile string
+	BackendClientKeyFile  string
 }
 
 // Load reads configuration from environment variables with sane defaults.
 func Load() (*Config, error) {
 	cfg := &Config{
-		HTTPPort:         envInt("HTTP_PORT", 8080),
-		IdentityAddr:     envStr("IDENTITY_ADDR", "localhost:50051"),
-		CredentialAddr:   envStr("CREDENTIAL_ADDR", "localhost:50052"),
-		EnrollmentAddr:   envStr("ENROLLMENT_ADDR", "localhost:50053"),
-		BiometricAddr:    envStr("BIOMETRIC_ADDR", "localhost:50054"),
-		AuditAddr:        envStr("AUDIT_ADDR", "localhost:50055"),
-		NotificationAddr: envStr("NOTIFICATION_ADDR", "localhost:50056"),
-		ElectoralAddr:    envStr("ELECTORAL_ADDR", "localhost:50057"),
-		JusticeAddr:      envStr("JUSTICE_ADDR", "localhost:50058"),
-		RateLimitRPS:     envInt("RATE_LIMIT_RPS", 100),
-		BackendTLSMode:   envStr("BACKEND_TLS_MODE", "plaintext"),
-		BackendCAFile:    envStr("BACKEND_CA_FILE", ""),
+		HTTPPort:              envInt("HTTP_PORT", 8080),
+		IdentityAddr:          envStr("IDENTITY_ADDR", "localhost:50051"),
+		CredentialAddr:        envStr("CREDENTIAL_ADDR", "localhost:50052"),
+		EnrollmentAddr:        envStr("ENROLLMENT_ADDR", "localhost:50053"),
+		BiometricAddr:         envStr("BIOMETRIC_ADDR", "localhost:50054"),
+		AuditAddr:             envStr("AUDIT_ADDR", "localhost:50055"),
+		NotificationAddr:      envStr("NOTIFICATION_ADDR", "localhost:50056"),
+		ElectoralAddr:         envStr("ELECTORAL_ADDR", "localhost:50057"),
+		JusticeAddr:           envStr("JUSTICE_ADDR", "localhost:50058"),
+		RateLimitRPS:          envInt("RATE_LIMIT_RPS", 100),
+		BackendTLSMode:        envStr("BACKEND_TLS_MODE", "plaintext"),
+		BackendCAFile:         envStr("BACKEND_CA_FILE", ""),
+		BackendClientCertFile: envStr("BACKEND_CLIENT_CERT_FILE", ""),
+		BackendClientKeyFile:  envStr("BACKEND_CLIENT_KEY_FILE", ""),
 	}
 
 	if cfg.RateLimitRPS <= 0 {
@@ -63,6 +67,13 @@ func Load() (*Config, error) {
 
 	if cfg.BackendTLSMode == "tls" && cfg.BackendCAFile == "" {
 		return nil, fmt.Errorf("BACKEND_CA_FILE is required when BACKEND_TLS_MODE=tls")
+	}
+
+	if (cfg.BackendClientCertFile == "") != (cfg.BackendClientKeyFile == "") {
+		return nil, fmt.Errorf("BACKEND_CLIENT_CERT_FILE and BACKEND_CLIENT_KEY_FILE must be set together")
+	}
+	if cfg.BackendTLSMode != "tls" && cfg.BackendClientCertFile != "" {
+		return nil, fmt.Errorf("BACKEND_CLIENT_CERT_FILE requires BACKEND_TLS_MODE=tls")
 	}
 
 	return cfg, nil

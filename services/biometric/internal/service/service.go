@@ -2,11 +2,15 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"strings"
 	"time"
 
 	indiscrypto "github.com/IranProsperityProject/INDIS/pkg/crypto"
@@ -17,11 +21,18 @@ import (
 type BiometricService struct {
 	repo       *repository.Repository
 	encryptKey []byte // 32-byte AES-256 key, loaded from HSM in production
+	aiServiceURL string
+	httpClient   *http.Client
 }
 
 // New creates a BiometricService with the given AES-256 encryption key.
-func New(repo *repository.Repository, encryptKey []byte) *BiometricService {
-	return &BiometricService{repo: repo, encryptKey: encryptKey}
+func New(repo *repository.Repository, encryptKey []byte, aiServiceURL string) *BiometricService {
+	return &BiometricService{
+		repo:         repo,
+		encryptKey:   encryptKey,
+		aiServiceURL: strings.TrimRight(aiServiceURL, "/"),
+		httpClient:   &http.Client{Timeout: 3 * time.Second},
+	}
 }
 
 func generateTemplateID() (string, error) {
@@ -63,10 +74,14 @@ func (s *BiometricService) StoreTemplate(ctx context.Context, enrollmentID strin
 // In production this calls services/ai via gRPC (PRD §FR-004: FMR ≤ 0.0001%).
 // The 90-second SLA is enforced by the AI service; this wrapper adds a timeout guard.
 func (s *BiometricService) CheckDuplicate(ctx context.Context, enrollmentID string, _ int32, rawTemplate []byte) (isDuplicate bool, matchedDID, deduplicationMS string, matchScore float64, err error) {
-	// TODO: call services/ai DeduplicateBiometric gRPC endpoint.
-	// For now: check if any existing template for this enrollment matches exactly
-	// (placeholder logic — real comparison requires the AI embeddings model).
-	_ = rawTemplate
+	if s.aiServiceURL != "" {
+		isDup, did, ms, score, aiErr := s.callAIDedup(ctx, enrollmentID, rawTemplate)
+		if aiErr == nil {
+			return isDup, did, ms, score, nil
+		}
+	}
+
+	// Fallback stub logic when AI service is unavailable.
 	start := time.Now()
 
 	existing, listErr := s.repo.ListByEnrollment(ctx, enrollmentID)
@@ -81,6 +96,53 @@ func (s *BiometricService) CheckDuplicate(ctx context.Context, enrollmentID stri
 
 	elapsed := fmt.Sprintf("%d", time.Since(start).Milliseconds())
 	return false, "", elapsed, 0.0, nil
+}
+
+type dedupRequest struct {
+	EnrollmentID    string `json:"enrollment_id"`
+	Modality        string `json:"modality"`
+	TemplateDataB64 string `json:"template_data_b64"`
+}
+
+type dedupResponse struct {
+	IsDuplicate     bool    `json:"is_duplicate"`
+	Confidence      float64 `json:"confidence"`
+	MatchedDID      string  `json:"matched_did"`
+	DeduplicationMS string  `json:"deduplication_ms"`
+}
+
+func (s *BiometricService) callAIDedup(ctx context.Context, enrollmentID string, rawTemplate []byte) (bool, string, string, float64, error) {
+	payload := dedupRequest{
+		EnrollmentID:    enrollmentID,
+		Modality:        "unspecified",
+		TemplateDataB64: base64.StdEncoding.EncodeToString(rawTemplate),
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return false, "", "", 0, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.aiServiceURL+"/v1/biometric/deduplicate", bytes.NewReader(body))
+	if err != nil {
+		return false, "", "", 0, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return false, "", "", 0, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return false, "", "", 0, fmt.Errorf("ai dedup status: %s", resp.Status)
+	}
+
+	var out dedupResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return false, "", "", 0, err
+	}
+
+	return out.IsDuplicate, out.MatchedDID, out.DeduplicationMS, out.Confidence, nil
 }
 
 // DeleteTemplate permanently soft-deletes a template (right to erasure).

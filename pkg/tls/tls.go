@@ -79,6 +79,35 @@ func LoadClientTLS(caFile string) (credentials.TransportCredentials, error) {
 	return credentials.NewTLS(cfg), nil
 }
 
+// LoadClientMTLS loads client-side TLS credentials for a gRPC client and
+// presents a client certificate for mutual authentication.
+//
+// caFile is the PEM-encoded CA certificate used to verify the server
+// certificate. certFile and keyFile are the PEM-encoded client certificate and
+// private key.
+func LoadClientMTLS(caFile, certFile, keyFile string) (credentials.TransportCredentials, error) {
+	caPEM, err := os.ReadFile(caFile)
+	if err != nil {
+		return nil, fmt.Errorf("tls: read CA file %q: %w", caFile, err)
+	}
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(caPEM) {
+		return nil, fmt.Errorf("tls: no valid certificates found in CA file %q", caFile)
+	}
+
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return nil, fmt.Errorf("tls: load client key pair: %w", err)
+	}
+
+	cfg := &tls.Config{
+		RootCAs:      pool,
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS13,
+	}
+	return credentials.NewTLS(cfg), nil
+}
+
 // LoadClientTLSInsecureSkipVerify returns client TLS credentials that skip
 // server certificate verification entirely.
 //

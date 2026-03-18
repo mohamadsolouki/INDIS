@@ -38,8 +38,10 @@ func main() {
 		cfg.ElectoralAddr,
 		cfg.JusticeAddr,
 		proxy.TransportConfig{
-			Mode:   cfg.BackendTLSMode,
-			CAFile: cfg.BackendCAFile,
+			Mode:           cfg.BackendTLSMode,
+			CAFile:         cfg.BackendCAFile,
+			ClientCertFile: cfg.BackendClientCertFile,
+			ClientKeyFile:  cfg.BackendClientKeyFile,
 		},
 	)
 	if err != nil {

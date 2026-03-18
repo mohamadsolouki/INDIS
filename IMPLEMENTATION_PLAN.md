@@ -32,9 +32,9 @@
 | **PWA frontend** | 🔴 None | React + TypeScript |
 | **Government portal** | 🔴 None | GraphQL + admin dashboard |
 | **Verifier terminal** | 🔴 None | QR scan + ZK display |
-| **mTLS / service mesh** | 🟡 Partial | TLS helpers + cert script exist; rollout to all service listeners pending |
+| **mTLS / service mesh** | 🟡 Partial+ | TLS helpers + cert script exist; all Go gRPC servers now support `GRPC_TLS_MODE` and cert env wiring |
 | **Kafka event streaming** | ✅ Implemented (Tier 1 baseline) | `enrollment.completed`, `credential.revoked`, `identity.deactivated` wired across core services |
-| **Redis caching** | 🟡 Partial | `pkg/cache` revocation cache exists; credential service wiring pending |
+| **Redis caching** | ✅ Implemented (Tier 1 baseline) | `pkg/cache` wired into credential revocation + revocation status checks |
 | **Kubernetes / Helm** | 🔴 None | Only docker-compose in Makefile |
 | **CI/CD** | 🔴 None | No GitLab CI or ArgoCD config |
 | **Observability** | 🔴 None | No Prometheus metrics or traces |
@@ -136,6 +136,15 @@ The enrollment service creates a DID but never tells the credential service to i
 
 ### T1.4 — Redis Revocation Cache
 
+**Status (2026-03-18):** Complete for Tier 1 baseline.
+
+Implemented now:
+- `pkg/cache/revocation.go`
+- `pkg/cache/redis.go`
+- Credential service initializes Redis revocation cache at startup
+- Credential service writes revoked IDs to cache on `RevokeCredential` and subject-wide revocation paths
+- Credential service checks cache first in `CheckRevocationStatus` with DB fallback
+
 The PRD requires revocation propagation ≤ 60 seconds (FR-002.R1). Currently nothing caches revocation status.
 
 **Files to create:**
@@ -147,7 +156,18 @@ The PRD requires revocation propagation ≤ 60 seconds (FR-002.R1). Currently no
 
 ### T1.5 — mTLS Between Services
 
-**Status (2026-03-18):** Partial complete — `scripts/gen-certs.sh` and `pkg/tls/tls.go` are present; gateway backend transport is now configurable and supports TLS modes.
+**Status (2026-03-18):** Partial+ complete — `scripts/gen-certs.sh` and `pkg/tls/tls.go` are present; all Go gRPC servers support TLS mode + cert env wiring; gateway backend transport now supports optional client-certificate presentation for mTLS.
+
+Implemented now:
+- gRPC server TLS mode support added to all Go services (`identity`, `credential`, `enrollment`, `biometric`, `audit`, `notification`, `electoral`, `justice`)
+- Shared env contract:
+  - `GRPC_TLS_MODE=plaintext|tls`
+  - `TLS_CERT_FILE`, `TLS_KEY_FILE` required when `GRPC_TLS_MODE=tls`
+  - `TLS_CA_FILE` optional (when set, server enforces client cert verification)
+
+Remaining for full mTLS completion:
+- Ensure all present/future gRPC client call paths use the client-certificate flow when backend services require client auth (gateway path now supports it)
+- Centralized per-service cert path configuration in service config structs/docs
 
 Currently all gRPC connections use `insecure.NewCredentials()`. Production requires mTLS.
 
@@ -157,11 +177,26 @@ Currently all gRPC connections use `insecure.NewCredentials()`. Production requi
 - `scripts/gen-certs.sh` — generates CA + per-service TLS certs (dev only)
 - `pkg/tls/tls.go` — `LoadServerTLS(certFile, keyFile, caFile)` and `LoadClientTLS(caFile)` helpers
 - Update `cmd/server/main.go` in each service to use `grpc.Creds(tls.LoadServerTLS(...))`
-- Update `proxy/proxy.go` in gateway to use `grpc.Creds(tls.LoadClientTLS(...))`
+- Update `proxy/proxy.go` in gateway to support `LoadClientTLS(...)` and `LoadClientMTLS(...)`
 
 ---
 
 ### T1.6 — Minimal AI Biometric Deduplication
+
+**Status (2026-03-18):** Partial+ complete (development baseline).
+
+Implemented now:
+- `services/ai/src/biometric/dedup.py` — in-memory cosine-similarity dedup service
+- `services/ai/src/biometric/models.py` — request/response models
+- `services/ai/src/biometric/router.py` — `POST /v1/biometric/deduplicate`
+- `services/ai/src/main.py` wired with biometric router
+- `services/biometric/internal/service/service.go` calls AI dedup endpoint over HTTP with timeout and safe fallback behavior
+- `services/biometric/internal/config/config.go` adds `AI_SERVICE_URL`
+
+Remaining for full completion:
+- Replace in-memory placeholder vectors with production-quality biometric embeddings/model pipeline
+- Move from HTTP placeholder integration to the final internal gRPC contract if required by final architecture
+- Add AI/biometric integration tests (success, timeout, malformed payload, fallback path)
 
 The biometric service stubs the `CheckDuplicate` call. The enrollment service cannot complete without dedup.
 

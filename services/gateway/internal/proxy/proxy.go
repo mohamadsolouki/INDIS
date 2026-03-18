@@ -4,15 +4,15 @@ package proxy
 import (
 	"fmt"
 
-	indistls "github.com/IranProsperityProject/INDIS/pkg/tls"
-	identityv1 "github.com/IranProsperityProject/INDIS/api/gen/go/identity/v1"
-	credentialv1 "github.com/IranProsperityProject/INDIS/api/gen/go/credential/v1"
-	enrollmentv1 "github.com/IranProsperityProject/INDIS/api/gen/go/enrollment/v1"
-	biometricv1 "github.com/IranProsperityProject/INDIS/api/gen/go/biometric/v1"
 	auditv1 "github.com/IranProsperityProject/INDIS/api/gen/go/audit/v1"
-	notificationv1 "github.com/IranProsperityProject/INDIS/api/gen/go/notification/v1"
+	biometricv1 "github.com/IranProsperityProject/INDIS/api/gen/go/biometric/v1"
+	credentialv1 "github.com/IranProsperityProject/INDIS/api/gen/go/credential/v1"
 	electoralv1 "github.com/IranProsperityProject/INDIS/api/gen/go/electoral/v1"
+	enrollmentv1 "github.com/IranProsperityProject/INDIS/api/gen/go/enrollment/v1"
+	identityv1 "github.com/IranProsperityProject/INDIS/api/gen/go/identity/v1"
 	justicev1 "github.com/IranProsperityProject/INDIS/api/gen/go/justice/v1"
+	notificationv1 "github.com/IranProsperityProject/INDIS/api/gen/go/notification/v1"
+	indistls "github.com/IranProsperityProject/INDIS/pkg/tls"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -20,8 +20,10 @@ import (
 
 // TransportConfig controls how gateway dials backend gRPC services.
 type TransportConfig struct {
-	Mode   string
-	CAFile string
+	Mode           string
+	CAFile         string
+	ClientCertFile string
+	ClientKeyFile  string
 }
 
 // Clients holds gRPC client stubs for all backend services.
@@ -48,7 +50,15 @@ func New(identityAddr, credentialAddr, enrollmentAddr, biometricAddr,
 	case "", "plaintext":
 		clientCreds = insecure.NewCredentials()
 	case "tls":
-		creds, err := indistls.LoadClientTLS(transportCfg.CAFile)
+		var (
+			creds credentials.TransportCredentials
+			err   error
+		)
+		if transportCfg.ClientCertFile != "" {
+			creds, err = indistls.LoadClientMTLS(transportCfg.CAFile, transportCfg.ClientCertFile, transportCfg.ClientKeyFile)
+		} else {
+			creds, err = indistls.LoadClientTLS(transportCfg.CAFile)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("load backend TLS credentials: %w", err)
 		}

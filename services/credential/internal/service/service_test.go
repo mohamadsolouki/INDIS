@@ -77,6 +77,23 @@ type mockChain struct {
 	revokeErr error
 }
 
+type mockRevocationCache struct {
+	revoked map[string]bool
+}
+
+func newMockRevocationCache() *mockRevocationCache {
+	return &mockRevocationCache{revoked: make(map[string]bool)}
+}
+
+func (m *mockRevocationCache) Revoke(_ context.Context, credentialID string) error {
+	m.revoked[credentialID] = true
+	return nil
+}
+
+func (m *mockRevocationCache) IsRevoked(_ context.Context, credentialID string) (bool, error) {
+	return m.revoked[credentialID], nil
+}
+
 func (m *mockChain) RegisterDID(_ context.Context, _ string, _ blockchain.DIDDocument) (*blockchain.TxReceipt, error) {
 	return &blockchain.TxReceipt{TxID: "did-tx"}, nil
 }
@@ -214,6 +231,8 @@ func TestRevokeCredential_Success(t *testing.T) {
 	repo := newMockRepo()
 	repo.records["cred-1"] = repository.CredentialRecord{ID: "cred-1"}
 	svc := newServiceForTest(t, repo, &mockChain{})
+	cache := newMockRevocationCache()
+	svc.SetRevocationCache(cache)
 
 	txID, err := svc.RevokeCredential(context.Background(), "cred-1", "expired", "did:indis:revoker")
 	if err != nil {
@@ -221,6 +240,9 @@ func TestRevokeCredential_Success(t *testing.T) {
 	}
 	if txID != "revoke-tx" {
 		t.Fatalf("expected tx id revoke-tx, got %q", txID)
+	}
+	if !cache.revoked["cred-1"] {
+		t.Fatal("expected revoked credential to be cached")
 	}
 }
 
@@ -277,5 +299,23 @@ func TestCheckRevocationStatus_NotFound(t *testing.T) {
 	_, err := svc.CheckRevocationStatus(context.Background(), "missing")
 	if err == nil {
 		t.Fatal("expected not found error, got nil")
+	}
+}
+
+func TestCheckRevocationStatus_UsesCache(t *testing.T) {
+	svc := newServiceForTest(t, newMockRepo(), &mockChain{})
+	cache := newMockRevocationCache()
+	cache.revoked["cred-cached"] = true
+	svc.SetRevocationCache(cache)
+
+	status, err := svc.CheckRevocationStatus(context.Background(), "cred-cached")
+	if err != nil {
+		t.Fatalf("CheckRevocationStatus returned error: %v", err)
+	}
+	if !status.Revoked {
+		t.Fatal("expected revoked=true from cache")
+	}
+	if status.Reason != "cached_revocation" {
+		t.Fatalf("expected reason cached_revocation, got %q", status.Reason)
 	}
 }

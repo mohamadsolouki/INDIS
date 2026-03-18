@@ -8,13 +8,17 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	credentialv1 "github.com/IranProsperityProject/INDIS/api/gen/go/credential/v1"
 	"github.com/IranProsperityProject/INDIS/pkg/blockchain"
+	"github.com/IranProsperityProject/INDIS/pkg/cache"
 	"github.com/IranProsperityProject/INDIS/pkg/events"
+	indistls "github.com/IranProsperityProject/INDIS/pkg/tls"
 	"github.com/IranProsperityProject/INDIS/services/credential/internal/config"
 	"github.com/IranProsperityProject/INDIS/services/credential/internal/handler"
 	"github.com/IranProsperityProject/INDIS/services/credential/internal/repository"
@@ -50,6 +54,20 @@ func main() {
 	chain := blockchain.NewMockAdapter()
 	svc := service.New(repo, chain, cfg.IssuerDID, privateKey)
 
+	if redisAddr := redisAddrFromConfig(cfg.RedisURL); redisAddr != "" {
+		revocationCache, cacheErr := cache.NewRedisRevocationCache(redisAddr)
+		if cacheErr != nil {
+			log.Printf("revocation cache disabled: %v", cacheErr)
+		} else {
+			svc.SetRevocationCache(revocationCache)
+			defer func() {
+				if cerr := revocationCache.Close(); cerr != nil {
+					log.Printf("revocation cache close: %v", cerr)
+				}
+			}()
+		}
+	}
+
 	producer, err := events.NewProducer(cfg.KafkaBrokers)
 	if err != nil {
 		log.Printf("events producer disabled: %v", err)
@@ -76,7 +94,11 @@ func main() {
 		log.Fatalf("listen: %v", err)
 	}
 
-	grpcServer := grpc.NewServer()
+	grpcOpts, err := serverTransportOptionsFromEnv()
+	if err != nil {
+		log.Fatalf("grpc transport options: %v", err)
+	}
+	grpcServer := grpc.NewServer(grpcOpts...)
 	credentialv1.RegisterCredentialServiceServer(grpcServer, h)
 
 	go func() {
@@ -93,4 +115,41 @@ func main() {
 	log.Printf("Shutting down INDIS credential service...")
 	cancel()
 	grpcServer.GracefulStop()
+}
+
+func redisAddrFromConfig(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	if strings.Contains(raw, "://") {
+		u, err := url.Parse(raw)
+		if err != nil {
+			return ""
+		}
+		return u.Host
+	}
+	return raw
+}
+
+func serverTransportOptionsFromEnv() ([]grpc.ServerOption, error) {
+	mode := os.Getenv("GRPC_TLS_MODE")
+	if mode == "" || mode == "plaintext" {
+		return nil, nil
+	}
+	if mode != "tls" {
+		return nil, fmt.Errorf("GRPC_TLS_MODE must be plaintext or tls, got %q", mode)
+	}
+
+	certFile := os.Getenv("TLS_CERT_FILE")
+	keyFile := os.Getenv("TLS_KEY_FILE")
+	caFile := os.Getenv("TLS_CA_FILE")
+	if certFile == "" || keyFile == "" {
+		return nil, fmt.Errorf("TLS_CERT_FILE and TLS_KEY_FILE are required when GRPC_TLS_MODE=tls")
+	}
+
+	creds, err := indistls.LoadServerTLS(certFile, keyFile, caFile)
+	if err != nil {
+		return nil, err
+	}
+	return []grpc.ServerOption{grpc.Creds(creds)}, nil
 }

@@ -12,6 +12,7 @@ import (
 
 	biometricv1 "github.com/IranProsperityProject/INDIS/api/gen/go/biometric/v1"
 	indiscrypto "github.com/IranProsperityProject/INDIS/pkg/crypto"
+	indistls "github.com/IranProsperityProject/INDIS/pkg/tls"
 	"github.com/IranProsperityProject/INDIS/services/biometric/internal/config"
 	"github.com/IranProsperityProject/INDIS/services/biometric/internal/handler"
 	"github.com/IranProsperityProject/INDIS/services/biometric/internal/repository"
@@ -43,7 +44,7 @@ func main() {
 	}
 
 	repo := repository.New(pool)
-	svc := service.New(repo, encryptKey)
+	svc := service.New(repo, encryptKey, cfg.AIServiceURL)
 	h := handler.New(svc)
 
 	addr := fmt.Sprintf(":%d", cfg.GRPCPort)
@@ -52,7 +53,11 @@ func main() {
 		log.Fatalf("listen: %v", err)
 	}
 
-	grpcServer := grpc.NewServer()
+	grpcOpts, err := serverTransportOptionsFromEnv()
+	if err != nil {
+		log.Fatalf("grpc transport options: %v", err)
+	}
+	grpcServer := grpc.NewServer(grpcOpts...)
 	biometricv1.RegisterBiometricServiceServer(grpcServer, h)
 
 	go func() {
@@ -68,4 +73,27 @@ func main() {
 
 	log.Printf("Shutting down INDIS biometric service...")
 	grpcServer.GracefulStop()
+}
+
+func serverTransportOptionsFromEnv() ([]grpc.ServerOption, error) {
+	mode := os.Getenv("GRPC_TLS_MODE")
+	if mode == "" || mode == "plaintext" {
+		return nil, nil
+	}
+	if mode != "tls" {
+		return nil, fmt.Errorf("GRPC_TLS_MODE must be plaintext or tls, got %q", mode)
+	}
+
+	certFile := os.Getenv("TLS_CERT_FILE")
+	keyFile := os.Getenv("TLS_KEY_FILE")
+	caFile := os.Getenv("TLS_CA_FILE")
+	if certFile == "" || keyFile == "" {
+		return nil, fmt.Errorf("TLS_CERT_FILE and TLS_KEY_FILE are required when GRPC_TLS_MODE=tls")
+	}
+
+	creds, err := indistls.LoadServerTLS(certFile, keyFile, caFile)
+	if err != nil {
+		return nil, err
+	}
+	return []grpc.ServerOption{grpc.Creds(creds)}, nil
 }

@@ -18,9 +18,11 @@ Gateway reads configuration from environment variables.
 - `RATE_LIMIT_RPS` default: `100`
 - `BACKEND_TLS_MODE` default: `plaintext`
 	- `plaintext`: no TLS to backends (local compatibility)
-	- `tls`: verify backend certificates using `BACKEND_CA_FILE`
+	- `tls`: verify backend certificates using `BACKEND_CA_FILE` (and optionally present a client cert for mTLS)
 	- `tls_insecure_skip_verify`: TLS without cert verification (development only)
 - `BACKEND_CA_FILE`: required only when `BACKEND_TLS_MODE=tls`
+- `BACKEND_CLIENT_CERT_FILE`: optional PEM client cert for gateway->backend mTLS (`BACKEND_TLS_MODE=tls` only)
+- `BACKEND_CLIENT_KEY_FILE`: optional PEM client key for gateway->backend mTLS (`BACKEND_TLS_MODE=tls` only)
 
 ## Structure
 
