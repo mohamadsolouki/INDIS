@@ -77,11 +77,11 @@ The system must achieve the following outcomes within its first **180 days** of 
 
 Every design decision is governed by the following principles in **strict priority order**:
 
-1. 🔐 **Privacy by Architecture** — Privacy is a mathematical guarantee, not a policy promise
-2. 🇮🇷 **Sovereignty First** — No foreign entity has administrative access to Iranian citizen data
-3. 🤝 **Inclusion Without Exception** — Every Iranian has a path to enrollment regardless of geography, literacy, or documentation status
-4. 🛡️ **Adversarial Security** — Designed assuming active subversion attempts by regime remnants and foreign actors
-5. 👁️ **Transparent System, Private Citizens** — Code and protocols are public; citizen data is not
+1. **Privacy by Architecture** — Privacy is a mathematical guarantee, not a policy promise
+2. **Sovereignty First** — No foreign entity has administrative access to Iranian citizen data
+3. **Inclusion Without Exception** — Every Iranian has a path to enrollment regardless of geography, literacy, or documentation status
+4. **Adversarial Security** — Designed assuming active subversion attempts by regime remnants and foreign actors
+5. **Transparent System, Private Citizens** — Code and protocols are public; citizen data is not
 6. **فارسی اول / Persian First** — Every interface designed RTL and Persian as the primary experience
 
 ---

@@ -2,27 +2,74 @@
 package main
 
 import (
+	"context"
+	"crypto/ed25519"
+	"crypto/rand"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
+
+	credentialv1 "github.com/IranProsperityProject/INDIS/api/gen/go/credential/v1"
+	"github.com/IranProsperityProject/INDIS/pkg/blockchain"
+	"github.com/IranProsperityProject/INDIS/services/credential/internal/config"
+	"github.com/IranProsperityProject/INDIS/services/credential/internal/handler"
+	"github.com/IranProsperityProject/INDIS/services/credential/internal/repository"
+	"github.com/IranProsperityProject/INDIS/services/credential/internal/service"
+	"google.golang.org/grpc"
 )
 
 func main() {
 	log.Printf("Starting INDIS credential service...")
 
-	// TODO: Load configuration
-	// TODO: Initialize dependencies (DB, cache, blockchain adapter)
-	// TODO: Register gRPC handlers
-	// TODO: Start gRPC/HTTP server
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("config: %v", err)
+	}
 
-	fmt.Printf("INDIS credential service is ready\n")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	// Graceful shutdown
+	pool, err := repository.NewPool(ctx, cfg.DatabaseURL)
+	if err != nil {
+		log.Fatalf("database: %v", err)
+	}
+	defer pool.Close()
+
+	// In production the signing key is loaded from HSM (FIPS 140-2 Level 3).
+	// For development a fresh ephemeral key is generated on startup.
+	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		log.Fatalf("key generation: %v", err)
+	}
+
+	repo := repository.New(pool)
+	chain := blockchain.NewMockAdapter()
+	svc := service.New(repo, chain, cfg.IssuerDID, privateKey)
+	h := handler.New(svc)
+
+	addr := fmt.Sprintf(":%d", cfg.GRPCPort)
+	lis, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Fatalf("listen: %v", err)
+	}
+
+	grpcServer := grpc.NewServer()
+	credentialv1.RegisterCredentialServiceServer(grpcServer, h)
+
+	go func() {
+		log.Printf("gRPC server listening on %s", addr)
+		if err := grpcServer.Serve(lis); err != nil {
+			log.Printf("gRPC server error: %v", err)
+		}
+	}()
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
 	log.Printf("Shutting down INDIS credential service...")
+	grpcServer.GracefulStop()
 }
