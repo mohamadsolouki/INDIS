@@ -124,7 +124,7 @@ func (m *mockChain) AnchorCredential(_ context.Context, _ blockchain.Hash, _ str
 	return &blockchain.TxReceipt{TxID: "mock-tx-anchor"}, nil
 }
 func (m *mockChain) VerifyAnchor(_ context.Context, _ blockchain.Hash) (*blockchain.AnchorStatus, error) {
-	return &blockchain.AnchorStatus{Anchored: true}, nil
+	return &blockchain.AnchorStatus{Exists: true}, nil
 }
 func (m *mockChain) RevokeCredential(_ context.Context, _ string, _ blockchain.RevocationReason) (*blockchain.TxReceipt, error) {
 	return &blockchain.TxReceipt{TxID: "mock-tx-revoke"}, nil
@@ -140,6 +140,12 @@ func (m *mockChain) LogVerificationEvent(_ context.Context, _ blockchain.Anonymi
 }
 func (m *mockChain) GetBlockHeight(_ context.Context) (uint64, error) {
 	return 100, nil
+}
+func (m *mockChain) GetValidatorStatus(_ context.Context) ([]blockchain.ValidatorStatus, error) {
+	return nil, nil
+}
+func (m *mockChain) EstimateTxTime(_ context.Context) (time.Duration, error) {
+	return 100 * time.Millisecond, nil
 }
 
 // newTestService creates an IdentityService backed by an in-memory mock repo.

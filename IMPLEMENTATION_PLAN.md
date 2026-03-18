@@ -13,12 +13,12 @@
 |-----------|--------|-------|
 | **Shared libs** (`pkg/crypto`, `pkg/did`, `pkg/vc`, `pkg/i18n`) | ✅ Implemented | Unit tests present in each package |
 | **Proto definitions** (9 services) | ✅ Generated | `api/gen/go/` |
-| **Identity service** | 🟡 Scaffold | Handler→Service→Repo; service-level tests present; MockAdapter |
-| **Credential service** | 🟡 Scaffold+ | 11 VC types; service tests present; consumes `enrollment.completed` |
+| **Identity service** | 🟡 Scaffold+ | Handler→Service→Repo; service-level tests present; publishes `identity.deactivated`; MockAdapter |
+| **Credential service** | 🟡 Scaffold+ | 11 VC types; service tests present; consumes `enrollment.completed` + `identity.deactivated`; publishes `credential.revoked` |
 | **Enrollment service** | 🟡 Scaffold+ | 3 pathways; DID generation; service tests present; publishes `enrollment.completed` |
 | **Biometric service** | 🟡 Scaffold | AES-GCM template encrypt; dedup is a stub |
-| **Audit service** | 🟡 Scaffold | Hash-chain logic; append-only; no tests |
-| **Notification service** | 🟡 Scaffold | 3-tier expiry alerts; no actual delivery |
+| **Audit service** | 🟡 Scaffold+ | Hash-chain logic; append-only; consumes `credential.revoked` for audit appends |
+| **Notification service** | 🟡 Scaffold+ | 3-tier expiry alerts; consumes `credential.revoked` for holder alerts |
 | **Electoral service** | 🟡 Scaffold | Nullifier double-vote guard; ZK is a stub |
 | **Justice service** | 🟡 Scaffold | ZK citizenship proof is a stub |
 | **Gateway service** | 🟡 Scaffold+ | HTTP→gRPC proxy; rate limiter; backend transport mode configurable (`plaintext`/`tls`) |
@@ -33,7 +33,7 @@
 | **Government portal** | 🔴 None | GraphQL + admin dashboard |
 | **Verifier terminal** | 🔴 None | QR scan + ZK display |
 | **mTLS / service mesh** | 🟡 Partial | TLS helpers + cert script exist; rollout to all service listeners pending |
-| **Kafka event streaming** | 🟡 Partial | `pkg/events` in place; enrollment→credential flow wired |
+| **Kafka event streaming** | ✅ Implemented (Tier 1 baseline) | `enrollment.completed`, `credential.revoked`, `identity.deactivated` wired across core services |
 | **Redis caching** | 🟡 Partial | `pkg/cache` revocation cache exists; credential service wiring pending |
 | **Kubernetes / Helm** | 🔴 None | Only docker-compose in Makefile |
 | **CI/CD** | 🔴 None | No GitLab CI or ArgoCD config |
@@ -60,7 +60,7 @@ Tiers are ordered by the PRD hard deadlines:
 
 ### T1.1 — Integration Tests for Core Services
 
-**Status (2026-03-18):** Partial complete.
+**Status (2026-03-18):** Complete for Tier 1 baseline.
 
 Implemented now:
 - `services/identity/internal/service/service_test.go`
@@ -112,10 +112,11 @@ Implemented now:
 - `pkg/events/consumer.go`
 - Enrollment service publishes `indis.enrollment.completed` in `CompleteEnrollment`
 - Credential service consumes `indis.enrollment.completed` and auto-issues citizenship/age-range/voter-eligibility credentials
-
-Pending from this item:
-- `credential.revoked` pipeline to audit + notification
-- `identity.deactivated` pipeline to credential revocation
+- Identity service publishes `indis.identity.deactivated` on DID deactivation
+- Credential service consumes `indis.identity.deactivated` and revokes all active credentials for subject DID
+- Credential service publishes `indis.credential.revoked` on revocation
+- Audit service consumes `indis.credential.revoked` and appends hash-chained audit entries
+- Notification service consumes `indis.credential.revoked` and queues holder push notifications
 
 The enrollment service creates a DID but never tells the credential service to issue credentials. This gap means no credentials are ever issued after enrollment.
 

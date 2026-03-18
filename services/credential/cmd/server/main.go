@@ -14,6 +14,7 @@ import (
 
 	credentialv1 "github.com/IranProsperityProject/INDIS/api/gen/go/credential/v1"
 	"github.com/IranProsperityProject/INDIS/pkg/blockchain"
+	"github.com/IranProsperityProject/INDIS/pkg/events"
 	"github.com/IranProsperityProject/INDIS/services/credential/internal/config"
 	"github.com/IranProsperityProject/INDIS/services/credential/internal/handler"
 	"github.com/IranProsperityProject/INDIS/services/credential/internal/repository"
@@ -48,6 +49,19 @@ func main() {
 	repo := repository.New(pool)
 	chain := blockchain.NewMockAdapter()
 	svc := service.New(repo, chain, cfg.IssuerDID, privateKey)
+
+	producer, err := events.NewProducer(cfg.KafkaBrokers)
+	if err != nil {
+		log.Printf("events producer disabled: %v", err)
+	} else {
+		svc.SetEventPublisher(producer)
+		defer func() {
+			if cerr := producer.Close(); cerr != nil {
+				log.Printf("events producer close: %v", cerr)
+			}
+		}()
+	}
+
 	h := handler.New(svc)
 
 	go func() {

@@ -39,6 +39,12 @@ func main() {
 	svc := service.New(repo)
 	h := handler.New(svc)
 
+	go func() {
+		if err := runCredentialRevokedConsumer(ctx, cfg.KafkaBrokers, cfg.KafkaGroupID, svc); err != nil && ctx.Err() == nil {
+			log.Printf("credential revoked consumer stopped: %v", err)
+		}
+	}()
+
 	addr := fmt.Sprintf(":%d", cfg.GRPCPort)
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -60,5 +66,6 @@ func main() {
 	<-quit
 
 	log.Printf("Shutting down INDIS notification service...")
+	cancel()
 	grpcServer.GracefulStop()
 }

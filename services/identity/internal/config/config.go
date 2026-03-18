@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 )
 
 // Config holds the configuration for the identity service.
@@ -17,6 +18,8 @@ type Config struct {
 	DatabaseURL string
 	// RedisURL is the Redis connection string.
 	RedisURL string
+	// KafkaBrokers is the broker list for event publishing.
+	KafkaBrokers []string
 }
 
 // Load reads configuration from environment variables with hardcoded defaults.
@@ -27,6 +30,7 @@ func Load() (*Config, error) {
 		HTTPPort:    8080,
 		DatabaseURL: "postgres://indis:indis_dev_password@localhost:5432/indis_identity?sslmode=disable",
 		RedisURL:    "redis://localhost:6379/0",
+		KafkaBrokers: []string{"localhost:9092"},
 	}
 
 	if v := os.Getenv("GRPC_PORT"); v != "" {
@@ -51,6 +55,21 @@ func Load() (*Config, error) {
 	if v := os.Getenv("REDIS_URL"); v != "" {
 		cfg.RedisURL = v
 	}
+	if v := os.Getenv("KAFKA_BROKERS"); v != "" {
+		cfg.KafkaBrokers = splitAndTrim(v)
+	}
 
 	return cfg, nil
+}
+
+func splitAndTrim(csv string) []string {
+	parts := strings.Split(csv, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		trimmed := strings.TrimSpace(p)
+		if trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
 }

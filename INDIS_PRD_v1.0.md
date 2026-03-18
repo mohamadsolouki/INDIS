@@ -2,7 +2,7 @@
 # Product Requirements Document — Iran National Digital Identity System (INDIS)
 
 > **نسخه / Version:** 1.0  
-> **تاریخ / Date:** ۲۵۸۵ / 2026  
+> **تاریخ / Date:** ۲۵۸۴-۲۵۸۵ / 2026  
 > **طبقه‌بندی / Classification:** Strategic Planning — Public Draft  
 > **زبان اصلی / Primary Language:** فارسی (Persian) — English Co-Primary  
 > **وضعیت / Status:** Draft for Stakeholder Review

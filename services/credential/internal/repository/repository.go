@@ -110,3 +110,33 @@ func (r *Repository) Revoke(ctx context.Context, id, reason string) error {
 	}
 	return nil
 }
+
+// ListActiveBySubjectDID returns non-revoked credentials for a DID subject.
+func (r *Repository) ListActiveBySubjectDID(ctx context.Context, subjectDID string) ([]CredentialRecord, error) {
+	q := `
+		SELECT id, subject_did, issuer_did, type, data, revoked, revoke_reason, revoked_at, created_at
+		FROM credentials
+		WHERE subject_did = $1 AND revoked = FALSE
+	`
+	rows, err := r.pool.Query(ctx, q, subjectDID)
+	if err != nil {
+		return nil, fmt.Errorf("repository: list active credentials: %w", err)
+	}
+	defer rows.Close()
+
+	var out []CredentialRecord
+	for rows.Next() {
+		var rec CredentialRecord
+		if err := rows.Scan(
+			&rec.ID, &rec.SubjectDID, &rec.IssuerDID, &rec.Type,
+			&rec.Data, &rec.Revoked, &rec.RevokeReason, &rec.RevokedAt, &rec.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("repository: scan active credential: %w", err)
+		}
+		out = append(out, rec)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("repository: iterate active credentials: %w", err)
+	}
+	return out, nil
+}

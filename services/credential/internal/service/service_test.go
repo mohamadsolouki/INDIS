@@ -62,6 +62,16 @@ func (m *mockRepo) Revoke(_ context.Context, id, reason string) error {
 	return nil
 }
 
+func (m *mockRepo) ListActiveBySubjectDID(_ context.Context, subjectDID string) ([]repository.CredentialRecord, error) {
+	var out []repository.CredentialRecord
+	for _, rec := range m.records {
+		if rec.SubjectDID == subjectDID && !rec.Revoked {
+			out = append(out, rec)
+		}
+	}
+	return out, nil
+}
+
 type mockChain struct {
 	anchorErr error
 	revokeErr error

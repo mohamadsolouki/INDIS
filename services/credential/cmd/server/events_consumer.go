@@ -49,5 +49,32 @@ func runEnrollmentCompletedConsumer(ctx context.Context, brokers []string, group
 		return nil
 	})
 
+	consumer.Subscribe(events.TopicIdentityDeactivated, func(handlerCtx context.Context, _ string, data []byte) error {
+		var event events.IdentityDeactivatedEvent
+		if err := json.Unmarshal(data, &event); err != nil {
+			return err
+		}
+		if event.DID == "" {
+			return nil
+		}
+
+		reason := event.Reason
+		if reason == "" {
+			reason = "identity_deactivated"
+		}
+		revokedBy := event.DeactivatedBy
+		if revokedBy == "" {
+			revokedBy = "identity-service"
+		}
+
+		revokedCount, err := svc.RevokeCredentialsBySubjectDID(handlerCtx, event.DID, reason, revokedBy)
+		if err != nil {
+			log.Printf("event identity deactivation handling failed did=%s err=%v", event.DID, err)
+			return nil
+		}
+		log.Printf("identity deactivation processed did=%s revoked_credentials=%d", event.DID, revokedCount)
+		return nil
+	})
+
 	return consumer.Run(ctx)
 }

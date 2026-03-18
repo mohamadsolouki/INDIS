@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/IranProsperityProject/INDIS/pkg/blockchain"
+	"github.com/IranProsperityProject/INDIS/pkg/events"
 	"github.com/IranProsperityProject/INDIS/pkg/vc"
 	"github.com/IranProsperityProject/INDIS/services/credential/internal/repository"
 )
@@ -35,6 +36,7 @@ type CredentialService struct {
 	chain      blockchain.BlockchainAdapter
 	issuerDID  string
 	privateKey ed25519.PrivateKey // issuer signing key (loaded from HSM/config in production)
+	events     credentialEventPublisher
 }
 
 // credentialRepository captures the storage operations required by
@@ -43,6 +45,11 @@ type credentialRepository interface {
 	Create(ctx context.Context, rec repository.CredentialRecord) error
 	GetByID(ctx context.Context, id string) (*repository.CredentialRecord, error)
 	Revoke(ctx context.Context, id, reason string) error
+	ListActiveBySubjectDID(ctx context.Context, subjectDID string) ([]repository.CredentialRecord, error)
+}
+
+type credentialEventPublisher interface {
+	Publish(ctx context.Context, topic string, event any) error
 }
 
 // New creates a CredentialService.
@@ -54,6 +61,11 @@ func New(repo credentialRepository, chain blockchain.BlockchainAdapter, issuerDI
 		issuerDID: issuerDID,
 		privateKey: privateKey,
 	}
+}
+
+// SetEventPublisher wires an optional event publisher for outbound events.
+func (s *CredentialService) SetEventPublisher(p credentialEventPublisher) {
+	s.events = p
 }
 
 // protoTypeToVC maps proto enum ints to pkg/vc CredentialType strings.
@@ -143,6 +155,14 @@ func (s *CredentialService) VerifyCredential(_ context.Context, _ []byte, _ []by
 
 // RevokeCredential revokes a credential and records it on the blockchain.
 func (s *CredentialService) RevokeCredential(ctx context.Context, credentialID, reason, _ string) (string, error) {
+	rec, err := s.repo.GetByID(ctx, credentialID)
+	if errors.Is(err, repository.ErrNotFound) {
+		return "", fmt.Errorf("service: credential not found: %s", credentialID)
+	}
+	if err != nil {
+		return "", fmt.Errorf("service: get credential before revoke: %w", err)
+	}
+
 	if err := s.repo.Revoke(ctx, credentialID, reason); err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			return "", fmt.Errorf("service: credential not found: %s", credentialID)
@@ -159,7 +179,53 @@ func (s *CredentialService) RevokeCredential(ctx context.Context, credentialID, 
 	if receipt != nil {
 		txID = receipt.TxID
 	}
+
+	if s.events != nil {
+		event := events.CredentialRevokedEvent{
+			CredentialID:   credentialID,
+			SubjectDID:     rec.SubjectDID,
+			CredentialType: rec.Type,
+			RevokedBy:      s.issuerDID,
+			Reason:         reason,
+			OccurredAt:     time.Now().UTC(),
+		}
+		_ = s.events.Publish(ctx, events.TopicCredentialRevoked, event)
+	}
+
 	return txID, nil
+}
+
+// RevokeCredentialsBySubjectDID revokes all active credentials for a DID.
+// It returns the number of credentials successfully revoked.
+func (s *CredentialService) RevokeCredentialsBySubjectDID(ctx context.Context, subjectDID, reason, revokedBy string) (int, error) {
+	active, err := s.repo.ListActiveBySubjectDID(ctx, subjectDID)
+	if err != nil {
+		return 0, fmt.Errorf("service: list active credentials: %w", err)
+	}
+
+	revokedCount := 0
+	for _, rec := range active {
+		if err := s.repo.Revoke(ctx, rec.ID, reason); err != nil {
+			continue
+		}
+		revokedCount++
+
+		_, _ = s.chain.RevokeCredential(ctx, rec.ID, blockchain.RevocationReason(reason))
+
+		if s.events != nil {
+			event := events.CredentialRevokedEvent{
+				CredentialID:   rec.ID,
+				SubjectDID:     rec.SubjectDID,
+				CredentialType: rec.Type,
+				RevokedBy:      revokedBy,
+				Reason:         reason,
+				OccurredAt:     time.Now().UTC(),
+			}
+			_ = s.events.Publish(ctx, events.TopicCredentialRevoked, event)
+		}
+	}
+
+	return revokedCount, nil
 }
 
 // CheckRevocationStatus returns the revocation state of a credential.

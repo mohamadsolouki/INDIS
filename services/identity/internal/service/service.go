@@ -11,6 +11,7 @@ import (
 
 	"github.com/IranProsperityProject/INDIS/pkg/blockchain"
 	"github.com/IranProsperityProject/INDIS/pkg/did"
+	"github.com/IranProsperityProject/INDIS/pkg/events"
 	"github.com/IranProsperityProject/INDIS/services/identity/internal/repository"
 )
 
@@ -34,11 +35,28 @@ type DeactivateResult struct {
 type IdentityService struct {
 	repo  *repository.Repository
 	chain blockchain.BlockchainAdapter
+	events identityEventPublisher
+}
+
+type identityEventPublisher interface {
+	Publish(ctx context.Context, topic string, event any) error
 }
 
 // New creates an IdentityService.
 func New(repo *repository.Repository, chain blockchain.BlockchainAdapter) *IdentityService {
 	return &IdentityService{repo: repo, chain: chain}
+}
+
+func (s *IdentityService) ensureRepo() error {
+	if s.repo == nil {
+		return fmt.Errorf("service: repository is not configured")
+	}
+	return nil
+}
+
+// SetEventPublisher wires an optional event producer.
+func (s *IdentityService) SetEventPublisher(p identityEventPublisher) {
+	s.events = p
 }
 
 // RegisterIdentity registers a new DID.
@@ -47,6 +65,10 @@ func New(repo *repository.Repository, chain blockchain.BlockchainAdapter) *Ident
 // anchor does not roll back the database write; a background reconciler
 // would re-anchor on the next sweep.
 func (s *IdentityService) RegisterIdentity(ctx context.Context, didStr string, doc *did.Document) (*RegisterResult, error) {
+	if err := s.ensureRepo(); err != nil {
+		return nil, err
+	}
+
 	d, err := did.Parse(didStr)
 	if err != nil {
 		return nil, fmt.Errorf("service: invalid DID: %w", err)
@@ -102,6 +124,10 @@ func (s *IdentityService) RegisterIdentity(ctx context.Context, didStr string, d
 
 // ResolveIdentity fetches the DID Document for a given DID.
 func (s *IdentityService) ResolveIdentity(ctx context.Context, didStr string) (*ResolveResult, error) {
+	if err := s.ensureRepo(); err != nil {
+		return nil, err
+	}
+
 	if _, err := did.Parse(didStr); err != nil {
 		return nil, fmt.Errorf("service: invalid DID: %w", err)
 	}
@@ -117,7 +143,11 @@ func (s *IdentityService) ResolveIdentity(ctx context.Context, didStr string) (*
 
 // DeactivateIdentity deactivates a DID (e.g. on death or fraud detection).
 // Ref: PRD §FR-001.3
-func (s *IdentityService) DeactivateIdentity(ctx context.Context, didStr string, _ string) (*DeactivateResult, error) {
+func (s *IdentityService) DeactivateIdentity(ctx context.Context, didStr string, reason string) (*DeactivateResult, error) {
+	if err := s.ensureRepo(); err != nil {
+		return nil, err
+	}
+
 	if _, err := did.Parse(didStr); err != nil {
 		return nil, fmt.Errorf("service: invalid DID: %w", err)
 	}
@@ -130,7 +160,27 @@ func (s *IdentityService) DeactivateIdentity(ctx context.Context, didStr string,
 	receipt, err := s.chain.DeactivateDID(ctx, didStr)
 	if err != nil {
 		// Best-effort blockchain call — reconciler will retry.
+		if s.events != nil {
+			event := events.IdentityDeactivatedEvent{
+				DID:           didStr,
+				DeactivatedBy: "identity-service",
+				Reason:        reason,
+				OccurredAt:    time.Now().UTC(),
+			}
+			_ = s.events.Publish(ctx, events.TopicIdentityDeactivated, event)
+		}
 		return &DeactivateResult{TxID: ""}, nil
 	}
+
+	if s.events != nil {
+		event := events.IdentityDeactivatedEvent{
+			DID:           didStr,
+			DeactivatedBy: "identity-service",
+			Reason:        reason,
+			OccurredAt:    time.Now().UTC(),
+		}
+		_ = s.events.Publish(ctx, events.TopicIdentityDeactivated, event)
+	}
+
 	return &DeactivateResult{TxID: receipt.TxID}, nil
 }
