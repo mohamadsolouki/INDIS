@@ -160,6 +160,7 @@ The PRD requires revocation propagation ≤ 60 seconds (FR-002.R1). Currently no
 
 Implemented now:
 - gRPC server TLS mode support added to all Go services (`identity`, `credential`, `enrollment`, `biometric`, `audit`, `notification`, `electoral`, `justice`)
+- Server-side TLS env parsing is centralized in `pkg/tls.ServerOptionsFromEnv()` and reused by all Go service entrypoints
 - Shared env contract:
   - `GRPC_TLS_MODE=plaintext|tls`
   - `TLS_CERT_FILE`, `TLS_KEY_FILE` required when `GRPC_TLS_MODE=tls`
@@ -175,7 +176,7 @@ Currently all gRPC connections use `insecure.NewCredentials()`. Production requi
 
 **Files to create:**
 - `scripts/gen-certs.sh` — generates CA + per-service TLS certs (dev only)
-- `pkg/tls/tls.go` — `LoadServerTLS(certFile, keyFile, caFile)` and `LoadClientTLS(caFile)` helpers
+- `pkg/tls/tls.go` — `LoadServerTLS(...)`, `ServerOptionsFromEnv()`, `LoadClientTLS(...)`, `LoadClientMTLS(...)` helpers
 - Update `cmd/server/main.go` in each service to use `grpc.Creds(tls.LoadServerTLS(...))`
 - Update `proxy/proxy.go` in gateway to support `LoadClientTLS(...)` and `LoadClientMTLS(...)`
 
