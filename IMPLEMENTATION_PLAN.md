@@ -27,7 +27,7 @@
 | **Blockchain adapter** | 🔴 Mock | `MockAdapter` logs calls; no real chain |
 | **DB migrations** | 🟡 Partial+ | `pkg/migrate` now auto-runs at startup in all DB-backed Go services using `MIGRATIONS_DIR` override or repo auto-discovery |
 | **ZK circuits** (Circom) | 🔴 Placeholder | No constraint logic |
-| **Tests** | 🟡 Partial | Core package tests + identity/enrollment/credential service tests |
+| **Tests** | 🟡 Partial+ | Core package tests + identity/enrollment/credential + biometric service tests + AI dedup endpoint tests |
 | **Mobile apps** | 🟡 Partial | Android baseline skeleton added under `clients/mobile/android`; iOS / HarmonyOS pending |
 | **PWA frontend** | 🔴 None | React + TypeScript |
 | **Government portal** | 🔴 None | GraphQL + admin dashboard |
@@ -205,11 +205,13 @@ Implemented now:
 - `services/ai/src/main.py` wired with biometric router
 - `services/biometric/internal/service/service.go` calls AI dedup endpoint over HTTP with timeout and safe fallback behavior
 - `services/biometric/internal/config/config.go` adds `AI_SERVICE_URL`
+- `services/biometric/internal/service/service_test.go` adds AI/biometric integration-style tests for success, timeout, malformed AI response, and fallback behavior
+- `services/ai/tests/test_biometric_router.py` adds endpoint tests for success round-trip, duplicate detection, and malformed payload handling
+- `services/ai/pyproject.toml` dev dependency list now includes `httpx` for FastAPI `TestClient`
 
 Remaining for full completion:
 - Replace in-memory placeholder vectors with production-quality biometric embeddings/model pipeline
 - Move from HTTP placeholder integration to the final internal gRPC contract if required by final architecture
-- Add AI/biometric integration tests (success, timeout, malformed payload, fallback path)
 
 The biometric service stubs the `CheckDuplicate` call. The enrollment service cannot complete without dedup.
 

@@ -19,14 +19,21 @@ import (
 
 // BiometricService handles template encryption, storage, and deduplication.
 type BiometricService struct {
-	repo       *repository.Repository
-	encryptKey []byte // 32-byte AES-256 key, loaded from HSM in production
+	repo         TemplateRepository
+	encryptKey   []byte // 32-byte AES-256 key, loaded from HSM in production
 	aiServiceURL string
 	httpClient   *http.Client
 }
 
+// TemplateRepository is the subset of repository behavior used by service logic.
+type TemplateRepository interface {
+	Store(ctx context.Context, rec repository.TemplateRecord) error
+	ListByEnrollment(ctx context.Context, enrollmentID string) ([]repository.TemplateRecord, error)
+	SoftDelete(ctx context.Context, templateID string) error
+}
+
 // New creates a BiometricService with the given AES-256 encryption key.
-func New(repo *repository.Repository, encryptKey []byte, aiServiceURL string) *BiometricService {
+func New(repo TemplateRepository, encryptKey []byte, aiServiceURL string) *BiometricService {
 	return &BiometricService{
 		repo:         repo,
 		encryptKey:   encryptKey,
