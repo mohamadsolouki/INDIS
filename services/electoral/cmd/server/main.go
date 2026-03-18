@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	electoralv1 "github.com/IranProsperityProject/INDIS/api/gen/go/electoral/v1"
 	indismetrics "github.com/IranProsperityProject/INDIS/pkg/metrics"
@@ -53,7 +54,7 @@ func main() {
 	}
 
 	repo := repository.New(pool)
-	svc := service.New(repo, cfg.ZKProofURL)
+	svc := service.NewWithNonceReplayWindow(repo, cfg.ZKProofURL, time.Duration(cfg.RemoteNonceWindowMinutes)*time.Minute)
 	h := handler.New(svc)
 
 	addr := fmt.Sprintf(":%d", cfg.GRPCPort)

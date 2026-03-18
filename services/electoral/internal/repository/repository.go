@@ -29,7 +29,13 @@ type BallotRecord struct {
 	ElectionID    string
 	NullifierHash string
 	EncryptedVote []byte
+	ZKProof       []byte
 	BlockHeight   string
+	RemoteNetwork *string
+	ClientAttestationHash *string
+	TransportNonceHash    *string
+	ClientSubmittedAt     *time.Time
+	AcceptedAt            *time.Time
 	CastAt        time.Time
 }
 
@@ -85,11 +91,40 @@ func (r *Repository) NullifierExists(ctx context.Context, electionID, nullifierH
 	return exists, nil
 }
 
+func (r *Repository) TransportNonceExistsSince(ctx context.Context, electionID, nonceHash string, since time.Time) (bool, error) {
+	var exists bool
+	q := `SELECT EXISTS(
+		SELECT 1
+		FROM ballots
+		WHERE election_id = $1
+		  AND transport_nonce_hash = $2
+		  AND COALESCE(accepted_at, cast_at) >= $3
+	)`
+	if err := r.pool.QueryRow(ctx, q, electionID, nonceHash, since).Scan(&exists); err != nil {
+		return false, fmt.Errorf("repository: check transport nonce: %w", err)
+	}
+	return exists, nil
+}
+
 func (r *Repository) CastBallot(ctx context.Context, rec BallotRecord) error {
-	q := `INSERT INTO ballots (receipt_hash, election_id, nullifier_hash, encrypted_vote, block_height, cast_at)
-	      VALUES ($1,$2,$3,$4,$5,$6)`
+	q := `INSERT INTO ballots (
+			receipt_hash,
+			election_id,
+			nullifier_hash,
+			encrypted_vote,
+			zk_proof,
+			block_height,
+			remote_network,
+			client_attestation_hash,
+			transport_nonce_hash,
+			client_submitted_at,
+			accepted_at,
+			cast_at
+	      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
 	_, err := r.pool.Exec(ctx, q, rec.ReceiptHash, rec.ElectionID, rec.NullifierHash,
-		rec.EncryptedVote, rec.BlockHeight, rec.CastAt)
+		rec.EncryptedVote, rec.ZKProof, rec.BlockHeight, rec.RemoteNetwork,
+		rec.ClientAttestationHash, rec.TransportNonceHash, rec.ClientSubmittedAt,
+		rec.AcceptedAt, rec.CastAt)
 	if err != nil {
 		return fmt.Errorf("repository: cast ballot: %w", err)
 	}

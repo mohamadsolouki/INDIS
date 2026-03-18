@@ -48,6 +48,16 @@ func (m *MockElectoralRepository) NullifierExists(ctx context.Context, electionI
 	return false, nil
 }
 
+func (m *MockElectoralRepository) TransportNonceExistsSince(ctx context.Context, electionID, nonceHash string, since time.Time) (bool, error) {
+	_ = since
+	for _, ballot := range m.ballots {
+		if ballot.ElectionID == electionID && ballot.TransportNonceHash != nil && *ballot.TransportNonceHash == nonceHash {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (m *MockElectoralRepository) CastBallot(ctx context.Context, rec repository.BallotRecord) error {
 	m.ballots[rec.ReceiptHash] = &rec
 	return nil

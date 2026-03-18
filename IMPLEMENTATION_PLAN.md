@@ -3,7 +3,7 @@
 
 > **Last updated:** 2026-03-19
 > **Current build status:** All 9 Go services + Rust zkproof + Python AI compile cleanly
-> **Estimated overall completion:** ~38% of production-ready system (T2.1 + T2.2 baseline + T2.5 complete; Tier 1 baseline + ZK HTTP + STARK baseline + auto-credential)
+> **Estimated overall completion:** ~31% of production-ready system (Tier 2 baselines implemented with configurable nonce lifecycle policy)
 
 ---
 
@@ -428,13 +428,16 @@ Implemented now:
   - `VerifyEligibility` posts STARK verification payload to `POST /verify`
   - rejects eligibility when ZK verifier returns `valid=false`
   - preserves double-vote guard by checking nullifier reuse after proof validation
+- `CastBallot` now requires and verifies ballot ZK proof before persistence:
+  - rejects requests with missing `zk_proof`
+  - calls `POST /verify` using election ID + nullifier hash anchor before accepting encrypted ballot
+  - rejects ballot on invalid proof response
 - Added service-level integration tests for ZK wiring and double-vote guard behavior:
   - `services/electoral/internal/service/service_test.go`
-  - scenarios: ZK success, invalid proof rejection, nullifier reuse rejection, ZK unavailable error path
+  - scenarios: ZK success, invalid eligibility proof rejection, nullifier reuse rejection, invalid ballot proof rejection, ZK unavailable error path
 
 Remaining for full completion:
 - Point electoral service to the final production ZK service contract (current integration targets HTTP `/verify` baseline)
-- Add `CastBallot` pre-verification coupling once remote ballot/expanded proof payload contract is finalized
 
 The `services/electoral` currently stubs proof verification. Connect it to `services/zkproof`.
 
@@ -460,11 +463,11 @@ Implemented now:
   - rejects testimony persistence when proof generation/verification fails
 - Added justice service integration-style tests:
   - `services/justice/internal/service/service_test.go`
-  - scenarios: prove+verify success, invalid proof rejection, ZK unavailable path
+  - scenarios: prove+verify success, invalid proof rejection, ZK unavailable path, full submit→link→amnesty service flow, case-status resolution by receipt token, applicant DID validation for amnesty requests
 
 Remaining for full completion:
 - Align payloads with final zkproof production contract (current baseline uses generic JSON `/prove` + `/verify`)
-- Add explicit linkage/validation tests for amnesty workflow interactions with proof requirements when policy is finalized
+- Add policy-specific proof-linkage constraints for amnesty decisions once judicial policy contract is finalized
 
 Same pattern as T2.3 for anonymous testimony citizenship proof (Bulletproofs).
 
@@ -503,6 +506,73 @@ Implemented:
 
 ### T2.6 — Remote Voting Infrastructure
 
+**Status (2026-03-19):** Partial+ complete (backend contract + service baseline).
+
+Implemented now:
+- Extended electoral proto contract with remote voting RPC/messages:
+  - `SubmitRemoteBallot(SubmitRemoteBallotRequest) returns (SubmitRemoteBallotResponse)`
+  - request includes encrypted vote, ZK proof, client attestation, submission timestamp, network, and transport nonce
+  - response returns receipt hash, block height, and server acceptance time
+- Regenerated Go protobuf/grpc bindings via `./scripts/proto-gen.sh`:
+  - `api/gen/go/electoral/v1/electoral.pb.go`
+  - `api/gen/go/electoral/v1/electoral_grpc.pb.go`
+- Added dedicated remote ballot gRPC handler:
+  - `services/electoral/internal/handler/remote_ballot.go`
+- Added service-layer remote submission path with replay-window guard and integrity binding:
+  - `services/electoral/internal/service/service.go`
+  - validates required fields + RFC3339 timestamp
+  - rejects stale submissions older than 10 minutes
+  - binds attestation/nonce/submission metadata into payload-integrity hash before ballot persistence
+- Added remote-voting persistence metadata at DB/repository level:
+  - new migration `db/migrations/008_add_remote_ballot_metadata.sql`
+  - ballots now persist `remote_network`, `client_attestation_hash`, `transport_nonce_hash`, `client_submitted_at`, `accepted_at`
+  - repository insert path updated in `services/electoral/internal/repository/repository.go`
+- Added schema-alignment migration for electoral repository contract compatibility:
+  - new migration `db/migrations/009_align_electoral_schema_with_service.sql`
+  - aligns electoral table columns/types expected by service (`elections.id/election_id` text IDs, `name/opens_at/closes_at/admin_did` fields)
+- Added nonce replay protection persistence and enforcement:
+  - new migration `db/migrations/010_add_remote_nonce_uniqueness.sql` adds unique index on `(election_id, transport_nonce_hash)`
+  - repository now supports time-bounded nonce lookup via `TransportNonceExistsSince(...)`
+  - remote ballot flow rejects replayed nonces before persistence
+  - service tests include explicit nonce replay rejection scenario
+- Added configurable nonce lifecycle policy:
+  - electoral config now supports `REMOTE_NONCE_WINDOW_MINUTES` (default: 60)
+  - server boot passes configured replay window into service initialization
+  - remote nonce replay checks are enforced only inside the configured time window
+  - service tests include acceptance path for nonces outside replay window
+- Added timestamp-skew hardening for remote ballot replay window:
+  - remote submissions are rejected when `submitted_at` is more than 2 minutes in the future
+  - replay-window check now uses a single captured server timestamp for consistency
+  - service tests include explicit future timestamp rejection scenario
+- Added repository-backed integration test scaffold for remote metadata persistence:
+  - `services/electoral/internal/repository/repository_integration_test.go`
+  - runs against a real Postgres DSN when `ELECTORAL_TEST_DATABASE_URL` is provided
+  - validates migration application + remote ballot metadata persistence + nullifier uniqueness behavior
+- Added gRPC-level remote voting integration test path:
+  - `services/electoral/internal/handler/remote_ballot_integration_test.go`
+  - exercises `RegisterElection` + `SubmitRemoteBallot` through gRPC handler/service boundary
+  - uses real repository persistence and mock ZK `/verify` endpoint
+  - verifies replayed nonce rejection path from gRPC client perspective
+- Added concurrent load/replay pressure integration scenario:
+  - `services/electoral/internal/handler/remote_ballot_integration_test.go`
+  - parallel remote ballot submissions with mixed unique/replayed nonces
+  - validates replay rejections under concurrent pressure
+  - verifies persisted `ballot_count` matches successful submission count
+- Strengthened remote-ballot validation and persistence assertions:
+  - `client_attestation` and `transport_nonce` are now required
+  - `services/electoral/internal/service/service_test.go` validates metadata is persisted
+- Added service tests for remote voting path:
+  - `services/electoral/internal/service/service_test.go`
+  - success path + expired timestamp rejection
+- Verified with `cd services/electoral && go test ./... -count=1`
+
+Remaining for full completion:
+- Replace placeholder ballot integrity composition with formal ElGamal-on-Ristretto255 ballot envelope and canonical serialization
+- Add always-on CI integration test environment for repository-backed remote ballot tests (current DSN-driven test is opt-in)
+- Add sustained long-duration soak tests (minutes/hours) and higher-scale stress profiles for remote voting
+- Add operational cleanup/archival policy for nonce-bearing ballot metadata after retention window
+- Add signed server-time sync guidance for remote clients to minimize false positives in skew validation
+
 The PRD requires both in-person and remote voting. Remote voting needs:
 
 **Files to create:**
@@ -513,6 +583,23 @@ The PRD requires both in-person and remote voting. Remote voting needs:
 ---
 
 ### T2.7 — Integration Tests: Electoral + Justice Full Flows
+
+**Status (2026-03-19):** ✅ Complete (service-level full-flow baseline).
+
+Implemented now:
+- `services/electoral/internal/service/service_test.go`
+  - added end-to-end service flow test: register election → verify eligibility via ZK endpoint → cast ballot → reject second ballot for same nullifier
+  - strengthened fake repository behavior to persist in-memory nullifier usage so double-vote detection is asserted correctly
+- `services/justice/internal/service/service_test.go`
+  - added full justice flow test: submit testimony (prove+verify citizenship) → link follow-up testimony via receipt token → initiate amnesty case
+  - added case-status resolution test via receipt token to ensure lookup path and timestamp formatting work as expected
+- Verified with targeted package tests:
+  - `cd services/electoral && go test ./internal/service -count=1`
+  - `cd services/justice && go test ./internal/service -count=1`
+
+Remaining for full completion:
+- Add cross-service integration test harness with real Postgres + ZK HTTP server + gRPC handlers (currently service-layer with fakes/mocks)
+- Add repository-backed remote-voting integration tests (current remote tests are service-layer)
 
 - `services/electoral/internal/service/service_test.go` — register election → verify eligibility → cast ballot → double-vote rejection
 - `services/justice/internal/service/service_test.go` — submit testimony → link testimony → amnesty workflow

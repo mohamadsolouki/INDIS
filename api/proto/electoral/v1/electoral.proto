@@ -17,6 +17,10 @@ service ElectoralService {
   // CastBallot records an encrypted ballot for a registered election.
   rpc CastBallot(CastBallotRequest) returns (CastBallotResponse);
 
+  // SubmitRemoteBallot records a remotely submitted encrypted ballot.
+  // Remote payloads include client integrity metadata and submission timestamp.
+  rpc SubmitRemoteBallot(SubmitRemoteBallotRequest) returns (SubmitRemoteBallotResponse);
+
   // GetElectionStatus returns the current status of an election.
   rpc GetElectionStatus(GetElectionStatusRequest) returns (GetElectionStatusResponse);
 
@@ -55,6 +59,23 @@ message CastBallotRequest {
 message CastBallotResponse {
   string receipt_hash   = 1; // allows voter to verify their ballot was counted
   string block_height   = 2; // blockchain height when ballot was anchored
+}
+
+message SubmitRemoteBallotRequest {
+  string election_id            = 1;
+  string nullifier_hash         = 2;
+  bytes  encrypted_vote         = 3; // ElGamal-encrypted ballot payload
+  bytes  zk_proof               = 4; // remote ballot validity + eligibility proof
+  bytes  client_attestation     = 5; // signed device/app attestation evidence
+  string submitted_at           = 6; // RFC3339 timestamp from client
+  string network                = 7; // e.g., mobile, broadband, satellite
+  bytes  transport_nonce        = 8; // anti-replay nonce
+}
+
+message SubmitRemoteBallotResponse {
+  string receipt_hash           = 1;
+  string block_height           = 2;
+  string accepted_at            = 3; // RFC3339 timestamp from server
 }
 
 message GetElectionStatusRequest {
