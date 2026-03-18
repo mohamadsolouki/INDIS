@@ -12,6 +12,7 @@ type Config struct {
 	GRPCPort    int
 	MetricsPort int
 	DatabaseURL string
+	ZKProofURL  string
 }
 
 // Load reads configuration from environment variables with hardcoded defaults.
@@ -20,6 +21,7 @@ func Load() (*Config, error) {
 		GRPCPort:    50057,
 		MetricsPort: 9107,
 		DatabaseURL: "postgres://indis:indis_dev_password@localhost:5432/indis_electoral?sslmode=disable",
+		ZKProofURL:  "http://localhost:8088",
 	}
 	if v := os.Getenv("GRPC_PORT"); v != "" {
 		p, err := strconv.Atoi(v)
@@ -37,6 +39,9 @@ func Load() (*Config, error) {
 	}
 	if v := os.Getenv("DATABASE_URL"); v != "" {
 		cfg.DatabaseURL = v
+	}
+	if v := os.Getenv("ZKPROOF_URL"); v != "" {
+		cfg.ZKProofURL = v
 	}
 	return cfg, nil
 }

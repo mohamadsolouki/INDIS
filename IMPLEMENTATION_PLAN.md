@@ -19,7 +19,7 @@
 | **Biometric service** | 🟡 Scaffold | AES-GCM template encrypt; dedup is a stub |
 | **Audit service** | 🟡 Scaffold+ | Hash-chain logic; append-only; consumes `credential.revoked` for audit appends |
 | **Notification service** | 🟡 Scaffold+ | 3-tier expiry alerts; consumes `credential.revoked` for holder alerts |
-| **Electoral service** | 🟡 Scaffold | Nullifier double-vote guard; ZK is a stub |
+| **Electoral service** | 🟡 Scaffold+ | Nullifier double-vote guard + configurable ZK verify endpoint integration (`POST /verify`) |
 | **Justice service** | 🟡 Scaffold | ZK citizenship proof is a stub |
 | **Gateway service** | 🟡 Scaffold+ | HTTP→gRPC proxy; rate limiter; backend transport mode configurable (`plaintext`/`tls`) |
 | **ZK service** (Rust) | 🔴 Stub | Traits defined; no proof generation/verification |
@@ -374,6 +374,24 @@ zkproof-core/src/
 ---
 
 ### T2.3 — Wire Electoral Service to ZK Service
+
+**Status (2026-03-19):** Partial+ complete (development baseline).
+
+Implemented now:
+- Added ZK service configuration in electoral service config:
+  - `ZKPROOF_URL` env var (default: `http://localhost:8088`)
+  - wired in `services/electoral/internal/config/config.go`
+- Electoral service now calls ZK verifier endpoint before eligibility acceptance:
+  - `VerifyEligibility` posts STARK verification payload to `POST /verify`
+  - rejects eligibility when ZK verifier returns `valid=false`
+  - preserves double-vote guard by checking nullifier reuse after proof validation
+- Added service-level integration tests for ZK wiring and double-vote guard behavior:
+  - `services/electoral/internal/service/service_test.go`
+  - scenarios: ZK success, invalid proof rejection, nullifier reuse rejection, ZK unavailable error path
+
+Remaining for full completion:
+- Point electoral service to the final production ZK service contract (current integration targets HTTP `/verify` baseline)
+- Add `CastBallot` pre-verification coupling once remote ballot/expanded proof payload contract is finalized
 
 The `services/electoral` currently stubs proof verification. Connect it to `services/zkproof`.
 

@@ -53,7 +53,7 @@ func main() {
 	}
 
 	repo := repository.New(pool)
-	svc := service.New(repo)
+	svc := service.New(repo, cfg.ZKProofURL)
 	h := handler.New(svc)
 
 	addr := fmt.Sprintf(":%d", cfg.GRPCPort)
