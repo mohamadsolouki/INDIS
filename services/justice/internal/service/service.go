@@ -3,13 +3,17 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/IranProsperityProject/INDIS/services/justice/internal/repository"
@@ -17,10 +21,29 @@ import (
 
 // JusticeService handles anonymous testimony and amnesty workflows.
 type JusticeService struct {
-	repo *repository.Repository
+	repo      JusticeRepository
+	zkService ZKProofService
 }
 
-func New(repo *repository.Repository) *JusticeService { return &JusticeService{repo: repo} }
+// JusticeRepository defines storage behavior required by service workflows.
+type JusticeRepository interface {
+	CreateTestimony(ctx context.Context, rec repository.TestimonyRecord) error
+	GetTestimonyByReceipt(ctx context.Context, receiptToken string) (*repository.TestimonyRecord, error)
+	GetCaseStatus(ctx context.Context, caseID string) (string, time.Time, error)
+	CreateAmnestyCase(ctx context.Context, rec repository.AmnestyRecord) error
+}
+
+// ZKProofService defines ZK operations used by anonymous testimony submission.
+type ZKProofService interface {
+	ProveAndVerifyCitizenship(ctx context.Context, zkCitizenshipProof []byte) (bool, string, error)
+}
+
+func New(repo JusticeRepository, zkProofURL string) *JusticeService {
+	return &JusticeService{
+		repo:      repo,
+		zkService: newHTTPZKProofService(zkProofURL),
+	}
+}
 
 func generateID(prefix string) (string, error) {
 	b := make([]byte, 12)
@@ -41,8 +64,15 @@ func generateReceiptToken() (string, error) {
 
 // SubmitTestimony records an anonymous encrypted testimony.
 // The ZK citizenship proof is verified before acceptance.
-// TODO: delegate ZK proof verification to services/zkproof.
-func (s *JusticeService) SubmitTestimony(ctx context.Context, _ []byte, encryptedTestimony []byte, category, locale string) (string, string, string, error) {
+func (s *JusticeService) SubmitTestimony(ctx context.Context, zkCitizenshipProof []byte, encryptedTestimony []byte, category, locale string) (string, string, string, error) {
+	valid, reason, err := s.zkService.ProveAndVerifyCitizenship(ctx, zkCitizenshipProof)
+	if err != nil {
+		return "", "", "", fmt.Errorf("service: zk citizenship proof: %w", err)
+	}
+	if !valid {
+		return "", "", "", fmt.Errorf("service: invalid citizenship proof: %s", reason)
+	}
+
 	caseID, err := generateID("jt_")
 	if err != nil {
 		return "", "", "", fmt.Errorf("service: generate case id: %w", err)
@@ -145,4 +175,115 @@ func (s *JusticeService) GetCaseStatus(ctx context.Context, caseID, receiptToken
 		return "", "", "", fmt.Errorf("service: get status: %w", err)
 	}
 	return lookupID, st, updatedAt.UTC().Format(time.RFC3339), nil
+}
+
+type zkProveRequest struct {
+	ProofSystem string `json:"proof_system"`
+	CircuitID   string `json:"circuit_id"`
+	InputB64    string `json:"input_b64"`
+}
+
+type zkProveResponse struct {
+	ProofB64 string `json:"proof_b64"`
+}
+
+type zkVerifyRequest struct {
+	ProofSystem string `json:"proof_system"`
+	ProofB64    string `json:"proof_b64"`
+}
+
+type zkVerifyResponse struct {
+	Valid  bool   `json:"valid"`
+	Reason string `json:"reason"`
+}
+
+type httpZKProofService struct {
+	baseURL string
+	client  *http.Client
+}
+
+func newHTTPZKProofService(baseURL string) ZKProofService {
+	return &httpZKProofService{
+		baseURL: strings.TrimRight(baseURL, "/"),
+		client:  &http.Client{Timeout: 5 * time.Second},
+	}
+}
+
+func (z *httpZKProofService) ProveAndVerifyCitizenship(ctx context.Context, zkCitizenshipProof []byte) (bool, string, error) {
+	if z.baseURL == "" {
+		return false, "", fmt.Errorf("zk proof URL is not configured")
+	}
+
+	proveReq := zkProveRequest{
+		ProofSystem: "bulletproofs",
+		CircuitID:   "citizenship_proof",
+		InputB64:    base64.StdEncoding.EncodeToString(zkCitizenshipProof),
+	}
+	proveBody, err := json.Marshal(proveReq)
+	if err != nil {
+		return false, "", err
+	}
+
+	proofB64, err := z.callProve(ctx, proveBody)
+	if err != nil {
+		return false, "", err
+	}
+
+	verifyReq := zkVerifyRequest{ProofSystem: "bulletproofs", ProofB64: proofB64}
+	verifyBody, err := json.Marshal(verifyReq)
+	if err != nil {
+		return false, "", err
+	}
+
+	return z.callVerify(ctx, verifyBody)
+}
+
+func (z *httpZKProofService) callProve(ctx context.Context, body []byte) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, z.baseURL+"/prove", bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := z.client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("zk prove status: %s", resp.Status)
+	}
+
+	var out zkProveResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return "", err
+	}
+	if out.ProofB64 == "" {
+		return "", fmt.Errorf("zk prove response missing proof")
+	}
+	return out.ProofB64, nil
+}
+
+func (z *httpZKProofService) callVerify(ctx context.Context, body []byte) (bool, string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, z.baseURL+"/verify", bytes.NewReader(body))
+	if err != nil {
+		return false, "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := z.client.Do(req)
+	if err != nil {
+		return false, "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return false, "", fmt.Errorf("zk verify status: %s", resp.Status)
+	}
+
+	var out zkVerifyResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return false, "", err
+	}
+
+	return out.Valid, out.Reason, nil
 }

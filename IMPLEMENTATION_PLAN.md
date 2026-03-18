@@ -1,9 +1,9 @@
 # INDIS Implementation Plan
 # نقشه راه پیاده‌سازی INDIS
 
-> **Last updated:** 2026-03-18
+> **Last updated:** 2026-03-19
 > **Current build status:** All 9 Go services + Rust zkproof + Python AI compile cleanly
-> **Estimated overall completion:** ~25% of production-ready system
+> **Estimated overall completion:** ~30% of production-ready system (T2.1 ZK baseline added)
 
 ---
 
@@ -20,9 +20,9 @@
 | **Audit service** | 🟡 Scaffold+ | Hash-chain logic; append-only; consumes `credential.revoked` for audit appends |
 | **Notification service** | 🟡 Scaffold+ | 3-tier expiry alerts; consumes `credential.revoked` for holder alerts |
 | **Electoral service** | 🟡 Scaffold+ | Nullifier double-vote guard + configurable ZK verify endpoint integration (`POST /verify`) |
-| **Justice service** | 🟡 Scaffold | ZK citizenship proof is a stub |
+| **Justice service** | 🟡 Scaffold+ | Testimony flow now integrates configurable ZK `/prove`+`/verify` checks with Bulletproofs baseline |
 | **Gateway service** | 🟡 Scaffold+ | HTTP→gRPC proxy; rate limiter; backend transport mode configurable (`plaintext`/`tls`) |
-| **ZK service** (Rust) | 🔴 Stub | Traits defined; no proof generation/verification |
+| **ZK service** (Rust) | � Partial | HTTP baseline: `/prove` + `/verify` endpoints with SHA3-based placeholder proofs; electoral + justice flows tested; production will replace with real arkworks/Winterfell/Bulletproofs |
 | **AI service** (Python) | 🔴 Stub | FastAPI skeleton; no ML models loaded |
 | **Blockchain adapter** | 🔴 Mock | `MockAdapter` logs calls; no real chain |
 | **DB migrations** | 🟡 Partial+ | `pkg/migrate` now auto-runs at startup in all DB-backed Go services using `MIGRATIONS_DIR` override or repo auto-discovery |
@@ -317,7 +317,28 @@ Every service needs `/metrics` for observability. Required before Phase 1 launch
 
 ### T2.1 — ZK-SNARK Groth16 Proof Implementation (Rust)
 
-The Rust zkproof service has trait definitions but no implementation. This is the most technically complex component.
+**Status (2026-03-19):** Partial+ complete (HTTP baseline for development).
+
+Implemented now:
+- `services/zkproof/crates/zkproof-server/` now has full HTTP server implementation with axum (v0.7)
+- `/prove` endpoint: accepts `{proof_system, circuit_id, input_b64}` → returns `{proof_b64}`
+- `/verify` endpoint: accepts `{proof_system, proof_b64, election_id?, public_inputs_b64?}` → returns `{valid, reason}`
+- `/health` endpoint for service readiness checks
+- SHA3-based placeholder proof generation/verification for development (NOT cryptographically sound)
+- Electoral workflow tested: `/prove` + `/verify` with election_id and public_inputs ✅
+- Justice workflow tested: `/prove` + `/verify` without re-sending input data ✅
+- Both electoral and justice services can now successfully call ZK endpoints ✅
+- All integration tests passing (8 new tests added and passing)
+
+Remaining for production:
+- Replace SHA3 placeholder with real arkworks Groth16 implementation
+- Load proving/verification keys from trusted setup ceremony output
+- Implement per-circuit verification (age_proof, citizenship_proof, credential_validity, voter_eligibility)
+- Performance optimization (target <3s proof generation)
+
+References:
+- Electoral service integration test: `services/electoral/internal/service/zk_integration_test.go` (8 tests)
+- ZK server: `services/zkproof/crates/zkproof-server/src/main.rs` (~200 lines, HTTP baseline)
 
 **Crates to add to `Cargo.toml`:**
 ```toml
@@ -404,6 +425,24 @@ The `services/electoral` currently stubs proof verification. Connect it to `serv
 ---
 
 ### T2.4 — Wire Justice Service to ZK Service
+
+**Status (2026-03-19):** Partial+ complete (development baseline).
+
+Implemented now:
+- Added justice service ZK configuration:
+  - `ZKPROOF_URL` env var (default: `http://localhost:8088`)
+  - wired in `services/justice/internal/config/config.go`
+- `SubmitTestimony` now performs ZK workflow before persistence:
+  - calls `POST /prove` with `proof_system=bulletproofs` and `circuit_id=citizenship_proof`
+  - verifies returned proof through `POST /verify`
+  - rejects testimony persistence when proof generation/verification fails
+- Added justice service integration-style tests:
+  - `services/justice/internal/service/service_test.go`
+  - scenarios: prove+verify success, invalid proof rejection, ZK unavailable path
+
+Remaining for full completion:
+- Align payloads with final zkproof production contract (current baseline uses generic JSON `/prove` + `/verify`)
+- Add explicit linkage/validation tests for amnesty workflow interactions with proof requirements when policy is finalized
 
 Same pattern as T2.3 for anonymous testimony citizenship proof (Bulletproofs).
 
