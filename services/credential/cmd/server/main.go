@@ -19,6 +19,7 @@ import (
 	"github.com/IranProsperityProject/INDIS/pkg/cache"
 	"github.com/IranProsperityProject/INDIS/pkg/events"
 	indismetrics "github.com/IranProsperityProject/INDIS/pkg/metrics"
+	indismigrate "github.com/IranProsperityProject/INDIS/pkg/migrate"
 	indistls "github.com/IranProsperityProject/INDIS/pkg/tls"
 	"github.com/IranProsperityProject/INDIS/services/credential/internal/config"
 	"github.com/IranProsperityProject/INDIS/services/credential/internal/handler"
@@ -49,6 +50,14 @@ func main() {
 		log.Fatalf("database: %v", err)
 	}
 	defer pool.Close()
+
+	migrationsDir, err := indismigrate.ResolveMigrationsDir("")
+	if err != nil {
+		log.Fatalf("migrations: %v", err)
+	}
+	if err := indismigrate.Migrate(ctx, pool, migrationsDir); err != nil {
+		log.Fatalf("migrations apply: %v", err)
+	}
 
 	// In production the signing key is loaded from HSM (FIPS 140-2 Level 3).
 	// For development a fresh ephemeral key is generated on startup.
@@ -137,4 +146,3 @@ func redisAddrFromConfig(raw string) string {
 	}
 	return raw
 }
-

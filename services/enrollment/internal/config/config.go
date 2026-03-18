@@ -10,22 +10,22 @@ import (
 
 // Config holds the configuration for the enrollment service.
 type Config struct {
-	GRPCPort    int
-	MetricsPort int
-	HTTPPort    int
-	DatabaseURL string
-	RedisURL    string
+	GRPCPort     int
+	MetricsPort  int
+	HTTPPort     int
+	DatabaseURL  string
+	RedisURL     string
 	KafkaBrokers []string
 }
 
 // Load reads configuration from environment variables with hardcoded defaults.
 func Load() (*Config, error) {
 	cfg := &Config{
-		GRPCPort:    50053,
-		MetricsPort: 9103,
-		HTTPPort:    8082,
-		DatabaseURL: "postgres://indis:indis_dev_password@localhost:5432/indis_enrollment?sslmode=disable",
-		RedisURL:    "redis://localhost:6379/2",
+		GRPCPort:     50053,
+		MetricsPort:  9103,
+		HTTPPort:     8082,
+		DatabaseURL:  "postgres://indis:indis_dev_password@localhost:5432/indis_enrollment?sslmode=disable",
+		RedisURL:     "redis://localhost:6379/2",
 		KafkaBrokers: []string{"localhost:9092"},
 	}
 	if v := os.Getenv("GRPC_PORT"); v != "" {

@@ -25,7 +25,7 @@
 | **ZK service** (Rust) | 🔴 Stub | Traits defined; no proof generation/verification |
 | **AI service** (Python) | 🔴 Stub | FastAPI skeleton; no ML models loaded |
 | **Blockchain adapter** | 🔴 Mock | `MockAdapter` logs calls; no real chain |
-| **DB migrations** | 🟡 Partial | SQL files + `pkg/migrate` runner exist; not wired into all services |
+| **DB migrations** | 🟡 Partial+ | `pkg/migrate` now auto-runs at startup in all DB-backed Go services using `MIGRATIONS_DIR` override or repo auto-discovery |
 | **ZK circuits** (Circom) | 🔴 Placeholder | No constraint logic |
 | **Tests** | 🟡 Partial | Core package tests + identity/enrollment/credential service tests |
 | **Mobile apps** | 🔴 None | iOS / Android / HarmonyOS |
@@ -90,9 +90,21 @@ Implemented now:
 
 ### T1.2 — Database Migration Runner
 
-**Status (2026-03-18):** Partial complete — `pkg/migrate/migrate.go` exists; startup wiring still pending per service.
+**Status (2026-03-18):** Partial+ complete (Tier 1 baseline).
 
-The 7 SQL migration files exist but are never applied. Services start against an empty database.
+Implemented now:
+- Wired startup migration execution into all DB-backed Go services before handler/service boot (`identity`, `credential`, `enrollment`, `biometric`, `audit`, `notification`, `electoral`, `justice`)
+- Added `pkg/migrate/resolve.go` with migrations directory resolution order:
+  - explicit path
+  - `MIGRATIONS_DIR` environment variable
+  - auto-discovery by walking upward to find `db/migrations`
+- Services now fail fast on migration resolution/apply errors to prevent booting against an uninitialized schema
+
+Remaining for full completion:
+- Add a dedicated migration-only operational command/job for production rollout workflows (decoupled from service startup)
+- Add service startup/integration tests that assert migrations are applied on clean databases
+
+The 7 SQL migration files now apply automatically during startup for DB-backed Go services.
 
 **Approach:** Add a `migrate.go` helper to each service that runs pending SQL files from `db/migrations/` on startup (or use `golang-migrate/migrate`).
 

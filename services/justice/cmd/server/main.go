@@ -12,6 +12,7 @@ import (
 
 	justicev1 "github.com/IranProsperityProject/INDIS/api/gen/go/justice/v1"
 	indismetrics "github.com/IranProsperityProject/INDIS/pkg/metrics"
+	indismigrate "github.com/IranProsperityProject/INDIS/pkg/migrate"
 	indistls "github.com/IranProsperityProject/INDIS/pkg/tls"
 	"github.com/IranProsperityProject/INDIS/services/justice/internal/config"
 	"github.com/IranProsperityProject/INDIS/services/justice/internal/handler"
@@ -42,6 +43,14 @@ func main() {
 		log.Fatalf("database: %v", err)
 	}
 	defer pool.Close()
+
+	migrationsDir, err := indismigrate.ResolveMigrationsDir("")
+	if err != nil {
+		log.Fatalf("migrations: %v", err)
+	}
+	if err := indismigrate.Migrate(ctx, pool, migrationsDir); err != nil {
+		log.Fatalf("migrations apply: %v", err)
+	}
 
 	repo := repository.New(pool)
 	svc := service.New(repo)

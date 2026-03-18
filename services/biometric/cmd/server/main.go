@@ -13,6 +13,7 @@ import (
 	biometricv1 "github.com/IranProsperityProject/INDIS/api/gen/go/biometric/v1"
 	indiscrypto "github.com/IranProsperityProject/INDIS/pkg/crypto"
 	indismetrics "github.com/IranProsperityProject/INDIS/pkg/metrics"
+	indismigrate "github.com/IranProsperityProject/INDIS/pkg/migrate"
 	indistls "github.com/IranProsperityProject/INDIS/pkg/tls"
 	"github.com/IranProsperityProject/INDIS/services/biometric/internal/config"
 	"github.com/IranProsperityProject/INDIS/services/biometric/internal/handler"
@@ -43,6 +44,14 @@ func main() {
 		log.Fatalf("database: %v", err)
 	}
 	defer pool.Close()
+
+	migrationsDir, err := indismigrate.ResolveMigrationsDir("")
+	if err != nil {
+		log.Fatalf("migrations: %v", err)
+	}
+	if err := indismigrate.Migrate(ctx, pool, migrationsDir); err != nil {
+		log.Fatalf("migrations apply: %v", err)
+	}
 
 	// In production the AES key is loaded from the HSM (FIPS 140-2 Level 3).
 	encryptKey, err := indiscrypto.GenerateRandomKey(32)

@@ -9,7 +9,7 @@ import (
 
 // Config holds the configuration for the gateway service.
 type Config struct {
-	HTTPPort int
+	HTTPPort    int
 	MetricsPort int
 
 	// Backend service addresses (host:port)

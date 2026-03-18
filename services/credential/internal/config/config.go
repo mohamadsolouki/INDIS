@@ -16,7 +16,7 @@ type Config struct {
 	DatabaseURL string
 	RedisURL    string
 	// IssuerDID is the DID used when issuing credentials as the system authority.
-	IssuerDID string
+	IssuerDID    string
 	KafkaBrokers []string
 	KafkaGroupID string
 }
@@ -24,12 +24,12 @@ type Config struct {
 // Load reads configuration from environment variables with hardcoded defaults.
 func Load() (*Config, error) {
 	cfg := &Config{
-		GRPCPort:    50052,
-		MetricsPort: 9102,
-		HTTPPort:    8081,
-		DatabaseURL: "postgres://indis:indis_dev_password@localhost:5432/indis_credential?sslmode=disable",
-		RedisURL:    "redis://localhost:6379/1",
-		IssuerDID:   "did:indis:system",
+		GRPCPort:     50052,
+		MetricsPort:  9102,
+		HTTPPort:     8081,
+		DatabaseURL:  "postgres://indis:indis_dev_password@localhost:5432/indis_credential?sslmode=disable",
+		RedisURL:     "redis://localhost:6379/1",
+		IssuerDID:    "did:indis:system",
 		KafkaBrokers: []string{"localhost:9092"},
 		KafkaGroupID: "credential-service",
 	}

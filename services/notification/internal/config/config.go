@@ -10,9 +10,9 @@ import (
 
 // Config holds the configuration for the notification service.
 type Config struct {
-	GRPCPort    int
-	MetricsPort int
-	DatabaseURL string
+	GRPCPort     int
+	MetricsPort  int
+	DatabaseURL  string
 	KafkaBrokers []string
 	KafkaGroupID string
 }
@@ -20,9 +20,9 @@ type Config struct {
 // Load reads configuration from environment variables with hardcoded defaults.
 func Load() (*Config, error) {
 	cfg := &Config{
-		GRPCPort:    50056,
-		MetricsPort: 9106,
-		DatabaseURL: "postgres://indis:indis_dev_password@localhost:5432/indis_notification?sslmode=disable",
+		GRPCPort:     50056,
+		MetricsPort:  9106,
+		DatabaseURL:  "postgres://indis:indis_dev_password@localhost:5432/indis_notification?sslmode=disable",
 		KafkaBrokers: []string{"localhost:9092"},
 		KafkaGroupID: "notification-service",
 	}

@@ -28,11 +28,11 @@ type Config struct {
 // This follows 12-factor app methodology (https://12factor.net/config).
 func Load() (*Config, error) {
 	cfg := &Config{
-		GRPCPort:    50051,
-		MetricsPort: 9101,
-		HTTPPort:    8080,
-		DatabaseURL: "postgres://indis:indis_dev_password@localhost:5432/indis_identity?sslmode=disable",
-		RedisURL:    "redis://localhost:6379/0",
+		GRPCPort:     50051,
+		MetricsPort:  9101,
+		HTTPPort:     8080,
+		DatabaseURL:  "postgres://indis:indis_dev_password@localhost:5432/indis_identity?sslmode=disable",
+		RedisURL:     "redis://localhost:6379/0",
 		KafkaBrokers: []string{"localhost:9092"},
 	}
 

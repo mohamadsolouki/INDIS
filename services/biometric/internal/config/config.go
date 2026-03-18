@@ -9,18 +9,18 @@ import (
 
 // Config holds the configuration for the biometric service.
 type Config struct {
-	GRPCPort    int
-	MetricsPort int
-	DatabaseURL string
+	GRPCPort     int
+	MetricsPort  int
+	DatabaseURL  string
 	AIServiceURL string
 }
 
 // Load reads configuration from environment variables with hardcoded defaults.
 func Load() (*Config, error) {
 	cfg := &Config{
-		GRPCPort:    50054,
-		MetricsPort: 9104,
-		DatabaseURL: "postgres://indis:indis_dev_password@localhost:5432/indis_biometric?sslmode=disable",
+		GRPCPort:     50054,
+		MetricsPort:  9104,
+		DatabaseURL:  "postgres://indis:indis_dev_password@localhost:5432/indis_biometric?sslmode=disable",
 		AIServiceURL: "http://localhost:8000",
 	}
 	if v := os.Getenv("GRPC_PORT"); v != "" {
