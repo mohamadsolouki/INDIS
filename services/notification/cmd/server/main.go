@@ -2,27 +2,63 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
+
+	notificationv1 "github.com/IranProsperityProject/INDIS/api/gen/go/notification/v1"
+	"github.com/IranProsperityProject/INDIS/services/notification/internal/config"
+	"github.com/IranProsperityProject/INDIS/services/notification/internal/handler"
+	"github.com/IranProsperityProject/INDIS/services/notification/internal/repository"
+	"github.com/IranProsperityProject/INDIS/services/notification/internal/service"
+	"google.golang.org/grpc"
 )
 
 func main() {
 	log.Printf("Starting INDIS notification service...")
 
-	// TODO: Load configuration
-	// TODO: Initialize dependencies (DB, cache, blockchain adapter)
-	// TODO: Register gRPC handlers
-	// TODO: Start gRPC/HTTP server
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("config: %v", err)
+	}
 
-	fmt.Printf("INDIS notification service is ready\n")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	// Graceful shutdown
+	pool, err := repository.NewPool(ctx, cfg.DatabaseURL)
+	if err != nil {
+		log.Fatalf("database: %v", err)
+	}
+	defer pool.Close()
+
+	repo := repository.New(pool)
+	svc := service.New(repo)
+	h := handler.New(svc)
+
+	addr := fmt.Sprintf(":%d", cfg.GRPCPort)
+	lis, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Fatalf("listen: %v", err)
+	}
+
+	grpcServer := grpc.NewServer()
+	notificationv1.RegisterNotificationServiceServer(grpcServer, h)
+
+	go func() {
+		log.Printf("gRPC server listening on %s", addr)
+		if err := grpcServer.Serve(lis); err != nil {
+			log.Printf("gRPC server error: %v", err)
+		}
+	}()
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
 	log.Printf("Shutting down INDIS notification service...")
+	grpcServer.GracefulStop()
 }

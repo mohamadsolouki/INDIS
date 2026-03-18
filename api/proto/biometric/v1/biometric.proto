@@ -1,0 +1,65 @@
+// INDIS — Biometric Service API
+// Biometric template management and deduplication (PRD §FR-004)
+// Templates are stored encrypted (AES-256-GCM) — originals never reconstructable.
+syntax = "proto3";
+
+package indis.biometric.v1;
+
+option go_package = "github.com/IranProsperityProject/INDIS/api/gen/go/biometric/v1";
+
+// BiometricService manages encrypted biometric templates and deduplication.
+service BiometricService {
+  // StoreTemplate encrypts and stores a biometric template for an enrollment.
+  rpc StoreTemplate(StoreTemplateRequest) returns (StoreTemplateResponse);
+
+  // CheckDuplicate runs deduplication against the full population template set.
+  // Returns a match if FMR threshold is exceeded (PRD FR-004: FMR ≤ 0.0001%).
+  rpc CheckDuplicate(CheckDuplicateRequest) returns (CheckDuplicateResponse);
+
+  // DeleteTemplate permanently deletes a biometric template (right to erasure).
+  rpc DeleteTemplate(DeleteTemplateRequest) returns (DeleteTemplateResponse);
+}
+
+// Modality identifies the biometric type.
+enum Modality {
+  MODALITY_UNSPECIFIED  = 0;
+  MODALITY_FACIAL       = 1;
+  MODALITY_FINGERPRINT  = 2;
+  MODALITY_IRIS         = 3;
+  MODALITY_VOICE        = 4;
+}
+
+message StoreTemplateRequest {
+  string   enrollment_id = 1;
+  Modality modality      = 2;
+  bytes    template_data = 3; // raw biometric data — encrypted at rest by service
+  bool     liveness_verified = 4; // ISO/IEC 30107-3 liveness check passed
+}
+
+message StoreTemplateResponse {
+  string template_id = 1; // opaque ID referencing the stored template
+}
+
+message CheckDuplicateRequest {
+  string   enrollment_id = 1;
+  Modality modality      = 2;
+  bytes    template_data = 3;
+}
+
+message CheckDuplicateResponse {
+  bool   is_duplicate     = 1;
+  string matched_did      = 2; // set only if is_duplicate == true
+  double match_score      = 3; // 0.0–1.0; returned even for non-duplicates for audit
+  string deduplication_ms = 4; // elapsed time in ms
+}
+
+message DeleteTemplateRequest {
+  string template_id    = 1;
+  string enrollment_id  = 2;
+  string reason         = 3;
+}
+
+message DeleteTemplateResponse {
+  bool   deleted    = 1;
+  string deleted_at = 2; // RFC3339
+}

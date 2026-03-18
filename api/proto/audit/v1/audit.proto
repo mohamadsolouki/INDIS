@@ -1,0 +1,85 @@
+// INDIS — Audit Service API
+// Append-only, cryptographically signed audit log — 10-year retention (PRD §FR-007)
+syntax = "proto3";
+
+package indis.audit.v1;
+
+option go_package = "github.com/IranProsperityProject/INDIS/api/gen/go/audit/v1";
+
+// AuditService records and queries tamper-evident audit events.
+service AuditService {
+  // AppendEvent writes a new audit event to the append-only log.
+  rpc AppendEvent(AppendEventRequest) returns (AppendEventResponse);
+
+  // QueryEvents retrieves audit events matching the given filter.
+  rpc QueryEvents(QueryEventsRequest) returns (QueryEventsResponse);
+
+  // GetEventByID retrieves a single audit event by its ID.
+  rpc GetEventByID(GetEventByIDRequest) returns (GetEventByIDResponse);
+}
+
+// EventCategory classifies the type of auditable action.
+enum EventCategory {
+  EVENT_CATEGORY_UNSPECIFIED   = 0;
+  EVENT_CATEGORY_IDENTITY      = 1; // DID register / resolve / deactivate
+  EVENT_CATEGORY_CREDENTIAL    = 2; // VC issue / revoke / verify
+  EVENT_CATEGORY_ENROLLMENT    = 3; // Enrollment lifecycle
+  EVENT_CATEGORY_BIOMETRIC     = 4; // Biometric capture / match
+  EVENT_CATEGORY_ELECTORAL     = 5; // Voter eligibility check / ballot
+  EVENT_CATEGORY_JUSTICE       = 6; // Testimony / amnesty case
+  EVENT_CATEGORY_ADMIN         = 7; // Operator actions
+  EVENT_CATEGORY_SYSTEM        = 8; // Infrastructure events
+}
+
+message AppendEventRequest {
+  EventCategory category    = 1;
+  string        action      = 2;  // e.g. "did.register", "credential.revoke"
+  string        actor_did   = 3;  // DID of the operator (empty for system)
+  string        subject_did = 4;  // DID of the affected citizen (empty if N/A)
+  string        resource_id = 5;  // Credential ID, enrollment ID, etc.
+  string        service_id  = 6;  // Originating service name
+  bytes         metadata    = 7;  // JSON, no PII (PRD §FR-007)
+}
+
+message AppendEventResponse {
+  string event_id      = 1;
+  string prev_hash     = 2; // SHA-256 of previous log entry (hash chain)
+  string timestamp     = 3; // RFC3339
+}
+
+message QueryEventsRequest {
+  string actor_did    = 1;
+  string subject_did  = 2;
+  EventCategory category = 3;
+  string from_time    = 4; // RFC3339, inclusive
+  string to_time      = 5; // RFC3339, inclusive
+  int32  limit        = 6; // default 100, max 1000
+  string page_token   = 7;
+}
+
+message AuditEvent {
+  string        event_id     = 1;
+  EventCategory category     = 2;
+  string        action       = 3;
+  string        actor_did    = 4;
+  string        subject_did  = 5;
+  string        resource_id  = 6;
+  string        service_id   = 7;
+  bytes         metadata     = 8;
+  string        prev_hash    = 9;
+  string        entry_hash   = 10; // SHA-256(this entry)
+  string        timestamp    = 11;
+}
+
+message QueryEventsResponse {
+  repeated AuditEvent events         = 1;
+  string              next_page_token = 2;
+}
+
+message GetEventByIDRequest {
+  string event_id = 1;
+}
+
+message GetEventByIDResponse {
+  AuditEvent event = 1;
+}

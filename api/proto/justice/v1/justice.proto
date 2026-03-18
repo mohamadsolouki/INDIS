@@ -1,0 +1,83 @@
+// INDIS — Transitional Justice Service API
+// Anonymous testimony and conditional amnesty workflows (PRD §FR-011)
+// Strategic deadline: anonymous testimony system operational by Day 60
+syntax = "proto3";
+
+package indis.justice.v1;
+
+option go_package = "github.com/IranProsperityProject/INDIS/api/gen/go/justice/v1";
+
+// JusticeService manages anonymous testimony and conditional amnesty workflows.
+service JusticeService {
+  // SubmitTestimony records an anonymous testimony.
+  // Witness proves Iranian citizenship via ZK proof without revealing identity.
+  rpc SubmitTestimony(SubmitTestimonyRequest) returns (SubmitTestimonyResponse);
+
+  // LinkTestimony links a follow-up testimony to a prior submission
+  // without revealing identity (using the original cryptographic receipt).
+  rpc LinkTestimony(LinkTestimonyRequest) returns (LinkTestimonyResponse);
+
+  // InitiateAmnesty begins the conditional amnesty workflow.
+  // Full identity required — applicant cannot use ZK anonymity (PRD §FR-011).
+  rpc InitiateAmnesty(InitiateAmnestyRequest) returns (InitiateAmnestyResponse);
+
+  // GetCaseStatus returns the status of an amnesty or testimony case.
+  rpc GetCaseStatus(GetCaseStatusRequest) returns (GetCaseStatusResponse);
+}
+
+// CaseStatus represents the lifecycle state of a justice case.
+enum CaseStatus {
+  CASE_STATUS_UNSPECIFIED  = 0;
+  CASE_STATUS_RECEIVED     = 1;
+  CASE_STATUS_UNDER_REVIEW = 2;
+  CASE_STATUS_REFERRED     = 3;  // Referred to tribunal
+  CASE_STATUS_CLOSED       = 4;
+}
+
+message SubmitTestimonyRequest {
+  bytes  zk_citizenship_proof = 1; // Proves Iranian citizenship, no identity revealed
+  bytes  encrypted_testimony  = 2; // Testimony encrypted to court public key
+  string category             = 3; // e.g. "human_rights_violation", "property_seizure"
+  string locale               = 4;
+}
+
+message SubmitTestimonyResponse {
+  string receipt_token  = 1; // Opaque token for linking follow-up testimony
+  string case_id        = 2; // Anonymous case reference number
+  string submitted_at   = 3; // RFC3339
+}
+
+message LinkTestimonyRequest {
+  string receipt_token        = 1; // From original SubmitTestimony
+  bytes  encrypted_testimony  = 2;
+  string locale               = 3;
+}
+
+message LinkTestimonyResponse {
+  string case_id      = 1;
+  string linked_at    = 2; // RFC3339
+}
+
+message InitiateAmnestyRequest {
+  string applicant_did        = 1; // Full verified DID (no anonymity)
+  bytes  encrypted_declaration = 2; // Declaration encrypted to judicial multi-party key
+  string category             = 3;
+}
+
+message InitiateAmnestyResponse {
+  string case_id      = 1;
+  string receipt      = 2; // Cryptographic receipt for tracking
+  string submitted_at = 3;
+}
+
+message GetCaseStatusRequest {
+  string case_id      = 1;
+  string receipt_token = 2; // Either case_id or receipt_token required
+}
+
+message GetCaseStatusResponse {
+  string     case_id    = 1;
+  CaseStatus status     = 2;
+  string     updated_at = 3;
+  string     message    = 4; // Public status message (no case details)
+}

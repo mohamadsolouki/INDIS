@@ -603,7 +603,7 @@ The primary screen SHALL display a digital identity card styled in **Iranian cul
 
 ```
 ┌────────────────────────────────────────────────┐
-│  سیستم هویت دیجیتال ملی ایران          🇮🇷     │
+│  سیستم هویت دیجیتال ملی ایران               │
 │  Iran National Digital Identity System          │
 ├────────────────────────────────────────────────┤
 │                                                  │

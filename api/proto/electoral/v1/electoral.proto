@@ -1,0 +1,82 @@
+// INDIS — Electoral Service API
+// ZK-STARK voter verification and ballot management (PRD §FR-010)
+// Hard deadline: operational before the constitutional referendum (≤ 4 months post-transition)
+syntax = "proto3";
+
+package indis.electoral.v1;
+
+option go_package = "github.com/IranProsperityProject/INDIS/api/gen/go/electoral/v1";
+
+// ElectoralService manages voter eligibility and ballot operations.
+// All ballots are verifiable without revealing voter identity (PRD §FR-010).
+service ElectoralService {
+  // VerifyEligibility checks if a citizen is eligible to vote in an election.
+  // Uses ZK proof so verifier learns only a boolean — not the citizen's DID.
+  rpc VerifyEligibility(VerifyEligibilityRequest) returns (VerifyEligibilityResponse);
+
+  // CastBallot records an encrypted ballot for a registered election.
+  rpc CastBallot(CastBallotRequest) returns (CastBallotResponse);
+
+  // GetElectionStatus returns the current status of an election.
+  rpc GetElectionStatus(GetElectionStatusRequest) returns (GetElectionStatusResponse);
+
+  // RegisterElection creates a new election event (admin only).
+  rpc RegisterElection(RegisterElectionRequest) returns (RegisterElectionResponse);
+}
+
+// ElectionStatus represents the lifecycle state of an election.
+enum ElectionStatus {
+  ELECTION_STATUS_UNSPECIFIED = 0;
+  ELECTION_STATUS_SCHEDULED   = 1;
+  ELECTION_STATUS_OPEN        = 2;
+  ELECTION_STATUS_CLOSED      = 3;
+  ELECTION_STATUS_TALLIED     = 4;
+}
+
+message VerifyEligibilityRequest {
+  string election_id    = 1;
+  bytes  zk_proof       = 2; // STARK proof of voter eligibility (no DID revealed)
+  bytes  public_inputs  = 3; // nullifier hash + election_id (prevents double-vote)
+}
+
+message VerifyEligibilityResponse {
+  bool   eligible       = 1;
+  string nullifier_hash = 2; // stored to prevent double-voting
+  string reason         = 3; // populated if eligible == false
+}
+
+message CastBallotRequest {
+  string election_id    = 1;
+  string nullifier_hash = 2; // from VerifyEligibility
+  bytes  encrypted_vote = 3; // ElGamal-encrypted ballot
+  bytes  zk_proof       = 4; // STARK proof: ballot is valid + voter is eligible
+}
+
+message CastBallotResponse {
+  string receipt_hash   = 1; // allows voter to verify their ballot was counted
+  string block_height   = 2; // blockchain height when ballot was anchored
+}
+
+message GetElectionStatusRequest {
+  string election_id = 1;
+}
+
+message GetElectionStatusResponse {
+  string         election_id   = 1;
+  string         name          = 2;
+  ElectionStatus status        = 3;
+  string         opens_at      = 4; // RFC3339
+  string         closes_at     = 5; // RFC3339
+  int64          ballot_count  = 6; // only populated after CLOSED
+}
+
+message RegisterElectionRequest {
+  string name       = 1;
+  string opens_at   = 2; // RFC3339
+  string closes_at  = 3; // RFC3339
+  string admin_did  = 4;
+}
+
+message RegisterElectionResponse {
+  string election_id = 1;
+}

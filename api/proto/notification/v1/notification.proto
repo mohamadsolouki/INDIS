@@ -1,0 +1,74 @@
+// INDIS — Notification Service API
+// Multi-channel notification delivery: SMS, push, email (PRD §FR-002.R4)
+syntax = "proto3";
+
+package indis.notification.v1;
+
+option go_package = "github.com/IranProsperityProject/INDIS/api/gen/go/notification/v1";
+
+// NotificationService dispatches alerts to citizens via multiple channels.
+service NotificationService {
+  // Send dispatches a notification immediately.
+  rpc Send(SendRequest) returns (SendResponse);
+
+  // ScheduleExpiryAlert schedules credential expiry reminders.
+  // Reminders are sent at 30 days, 7 days, and 1 day before expiry (PRD §FR-002.R4).
+  rpc ScheduleExpiryAlert(ScheduleExpiryAlertRequest) returns (ScheduleExpiryAlertResponse);
+
+  // CancelAlert cancels a previously scheduled alert.
+  rpc CancelAlert(CancelAlertRequest) returns (CancelAlertResponse);
+}
+
+// Channel identifies the delivery mechanism.
+enum Channel {
+  CHANNEL_UNSPECIFIED = 0;
+  CHANNEL_SMS         = 1;
+  CHANNEL_PUSH        = 2;
+  CHANNEL_EMAIL       = 3;
+}
+
+// NotificationType classifies the event that triggered the notification.
+enum NotificationType {
+  NOTIFICATION_TYPE_UNSPECIFIED     = 0;
+  NOTIFICATION_TYPE_CREDENTIAL_EXPIRY = 1;
+  NOTIFICATION_TYPE_CREDENTIAL_ISSUED = 2;
+  NOTIFICATION_TYPE_CREDENTIAL_REVOKED = 3;
+  NOTIFICATION_TYPE_ENROLLMENT_UPDATE  = 4;
+  NOTIFICATION_TYPE_SECURITY_ALERT     = 5;
+  NOTIFICATION_TYPE_SYSTEM              = 6;
+}
+
+message SendRequest {
+  string           recipient_did  = 1;
+  Channel          channel        = 2;
+  NotificationType type           = 3;
+  string           locale         = 4; // "fa", "en", etc.
+  string           subject        = 5; // email subject / push title
+  string           body           = 6; // message body (no PII beyond DID)
+  map<string,string> template_vars = 7; // variables for message template
+}
+
+message SendResponse {
+  string notification_id = 1;
+  string status          = 2; // "queued" | "delivered" | "failed"
+}
+
+message ScheduleExpiryAlertRequest {
+  string recipient_did   = 1;
+  string credential_id   = 2;
+  string credential_type = 3;
+  string expires_at      = 4; // RFC3339 — when the credential expires
+  string locale          = 5;
+}
+
+message ScheduleExpiryAlertResponse {
+  repeated string alert_ids = 1; // one per scheduled reminder (30d/7d/1d)
+}
+
+message CancelAlertRequest {
+  string alert_id = 1;
+}
+
+message CancelAlertResponse {
+  bool cancelled = 1;
+}
