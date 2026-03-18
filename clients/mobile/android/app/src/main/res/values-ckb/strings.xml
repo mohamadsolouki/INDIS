@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">ئیندیس</string>
+    <string name="enrollment_title">تۆمارکردن</string>
+    <string name="wallet_title">جزدانی باڵگەنامە</string>
+    <string name="verify_title">پشتڕاستکردنەوە</string>
+    <string name="settings_title">ڕێکخستنەکان</string>
+</resources>

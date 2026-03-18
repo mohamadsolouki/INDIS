@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">INDIS</string>
+    <string name="enrollment_title">Enrollment</string>
+    <string name="wallet_title">Credential Wallet</string>
+    <string name="verify_title">Verification</string>
+    <string name="settings_title">Settings</string>
+</resources>

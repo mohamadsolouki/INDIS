@@ -28,7 +28,7 @@
 | **DB migrations** | 🟡 Partial+ | `pkg/migrate` now auto-runs at startup in all DB-backed Go services using `MIGRATIONS_DIR` override or repo auto-discovery |
 | **ZK circuits** (Circom) | 🔴 Placeholder | No constraint logic |
 | **Tests** | 🟡 Partial | Core package tests + identity/enrollment/credential service tests |
-| **Mobile apps** | 🔴 None | iOS / Android / HarmonyOS |
+| **Mobile apps** | 🟡 Partial | Android baseline skeleton added under `clients/mobile/android`; iOS / HarmonyOS pending |
 | **PWA frontend** | 🔴 None | React + TypeScript |
 | **Government portal** | 🔴 None | GraphQL + admin dashboard |
 | **Verifier terminal** | 🔴 None | QR scan + ZK display |
@@ -225,6 +225,27 @@ The biometric service stubs the `CheckDuplicate` call. The enrollment service ca
 ---
 
 ### T1.7 — Android Mobile App Skeleton (Persian RTL)
+
+**Status (2026-03-18):** Partial+ complete (Tier 1 baseline).
+
+Implemented now:
+- Created Android project scaffold at `clients/mobile/android` with root Gradle files (`settings.gradle`, `build.gradle`, `gradle.properties`) and `app` module config
+- Added app manifest + application bootstrap (`IndisApplication`) with RTL locale baseline (`fa`) and `supportsRtl=true`
+- Added UI skeletons: enrollment, wallet, verification, settings activities/fragments and starter RTL-friendly layouts
+- Added data/domain placeholders:
+  - repositories (`IdentityRepository`, `CredentialRepository`)
+  - network client (`GatewayApiClient`)
+  - local encrypted-wallet placeholder (`EncryptedWalletDatabase`)
+  - on-device DID helper (`DIDManager`) using Android Keystore + `did:indis:<hex(sha256(pubkey)[:20])>` derivation
+  - ZK verification placeholder (`ZKProofManager`)
+  - i18n utilities (`PersianNumerals`, baseline `PersianCalendar`)
+- Added localized resources: `values/`, `values-fa/`, `values-ckb/`, plus font directory placeholder for Vazirmatn assets
+
+Remaining for full completion:
+- Port full Solar Hijri algorithm parity from `pkg/i18n` into Android (current calendar utility is baseline only)
+- Wire real Retrofit gateway calls, Room encrypted schema, and end-to-end enrollment/wallet/verification flows
+- Add JNI bridge for local Groth16 proof generation/verification and secure key lifecycle policies
+- Add Gradle wrapper + CI build/test for Android module, plus iOS/HarmonyOS client implementations
 
 Without a mobile app there is no self-enrollment path. The Android app is the highest-priority client.
 

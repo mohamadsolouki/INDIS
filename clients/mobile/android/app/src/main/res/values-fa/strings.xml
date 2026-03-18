@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">ایندیس</string>
+    <string name="enrollment_title">ثبت نام</string>
+    <string name="wallet_title">کیف اعتبارنامه</string>
+    <string name="verify_title">راستی آزمایی</string>
+    <string name="settings_title">تنظیمات</string>
+</resources>
