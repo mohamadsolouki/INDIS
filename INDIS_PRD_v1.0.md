@@ -2,7 +2,7 @@
 # Product Requirements Document — Iran National Digital Identity System (INDIS)
 
 > **نسخه / Version:** 1.0  
-> **تاریخ / Date:** ۱۴۰۵ / 2026  
+> **تاریخ / Date:** ۲۵۸۵ / 2026  
 > **طبقه‌بندی / Classification:** Strategic Planning — Public Draft  
 > **زبان اصلی / Primary Language:** فارسی (Persian) — English Co-Primary  
 > **وضعیت / Status:** Draft for Stakeholder Review
@@ -68,7 +68,7 @@ The system must achieve the following outcomes within its first **180 days** of 
 | **Referendum Readiness** | Political Chapter — referendum within 4 months | Verified voter roll operational before referendum date |
 | **Pension Ghost Elimination** | Macroeconomic Chapter — fiscal stabilisation | Ghost beneficiary rate reduced by ≥80% within 90 days |
 | **Personnel Vetting** | Military Chapter — vetting by Day 40 | 100% of priority personnel credentialed by Day 40 |
-| **Justice Infrastructure** | Transitional Justice — Truth Commission | Anonymous testimony system operational by Day 60 |
+| **Justice Infrastructure** | Transitional Justice — Truth Commission | Anonymous testimony system operational by Day 60 (Phase 2) |
 | **Service Continuity** | Government Essential Functions | Single auth layer replacing fragmented legacy systems |
 
 ---
@@ -686,7 +686,61 @@ Both **in-person** (QR scan at polling station) and **remote voting** (cryptogra
 
 ---
 
-## 3.4 Verifier Application / برنامه تأییدکننده
+## 3.4 Audit, Physical Card, USSD, and Accessibility / ممیزی، کارت فیزیکی، USSD و دسترس‌پذیری
+
+### FR-014: Audit Service / سرویس ممیزی
+
+The audit service provides tamper-evident logging for all identity and credential operations.
+
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| FR-014.1 | Every identity operation (register, resolve, deactivate) SHALL generate an immutable audit entry | MUST |
+| FR-014.2 | Audit entries SHALL be cryptographically hash-chained: each entry's hash incorporates the previous entry's hash | MUST |
+| FR-014.3 | Audit entries SHALL record: action type, actor DID, subject DID, resource ID, timestamp, IP range | MUST |
+| FR-014.4 | Audit log SHALL be append-only at the database level (no UPDATE or DELETE permitted) | MUST |
+| FR-014.5 | Parliamentary Oversight Committee SHALL have read-only access to aggregate audit reports with no citizen PII | MUST |
+| FR-014.6 | Audit entries SHALL be queryable by: time range, actor DID, subject DID, action category | SHOULD |
+| FR-014.7 | Audit log integrity SHALL be verifiable by any party holding the public hash chain | MUST |
+
+### FR-015: USSD / SMS Fallback / مسیر پشتیبان USSD / پیامک
+
+For feature phone and no-connectivity access — essential for rural coverage.
+
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| FR-015.1 | System SHALL expose a USSD short code for basic credential status checks (e.g., `*ID#`) | MUST |
+| FR-015.2 | USSD flow SHALL verify voter eligibility: citizen enters national ID fragment + PIN, receives YES/NO | MUST |
+| FR-015.3 | USSD flow SHALL support pension payment eligibility check | MUST |
+| FR-015.4 | SMS OTP SHALL be supported as an authentication factor for low-capability devices | MUST |
+| FR-015.5 | USSD flows SHALL be available in Persian, Kurdish, Azerbaijani, Arabic | SHOULD |
+| FR-015.6 | USSD sessions SHALL NOT retain any citizen data after session end | MUST |
+
+### FR-016: Physical Identity Card / کارت هویت فیزیکی
+
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| FR-016.1 | Physical cards SHALL conform to **ICAO 9303** Machine Readable Travel Documents specification | MUST |
+| FR-016.2 | Cards SHALL include an **ISO 7816** contact chip and **ISO 14443** NFC interface | MUST |
+| FR-016.3 | Chip SHALL store the holder's DID document and public key only — no biometric raw data | MUST |
+| FR-016.4 | Offline verification of card SHALL be possible using a card-reader terminal with cached NIA public key | MUST |
+| FR-016.5 | Card SHALL display Persian name (Nastaliq), national ID (masked), photo, and validity date | MUST |
+| FR-016.6 | Card SHALL include a printed QR code for INDIS app scanning | SHOULD |
+| FR-016.7 | First issuance SHALL be free; replacement fee subject to policy decision (see Open Question 5) | MUST |
+
+### FR-017: Accessibility / دسترس‌پذیری
+
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| FR-017.1 | Citizen app SHALL comply with **WCAG 2.1 Level AA** | MUST |
+| FR-017.2 | Audio guidance SHALL be provided for all enrollment steps (screen-reader and dedicated audio mode) | MUST |
+| FR-017.3 | Alternative biometric pathways SHALL exist for persons with physical disabilities preventing standard capture | MUST |
+| FR-017.4 | Font sizes SHALL be adjustable; minimum body text 16sp on mobile | MUST |
+| FR-017.5 | Simplified enrollment mode SHALL exist for low-literacy users (icon-driven, minimal text) | SHOULD |
+| FR-017.6 | Assisted enrollment by an authorized agent SHALL be supported for users unable to self-enroll | MUST |
+
+---
+
+## 3.5 Verifier Application / برنامه تأییدکننده
 
 ### FR-012: Verifier Registration and Authorization
 
@@ -791,7 +845,22 @@ No citizen data displayed.        No reason displayed to verifier.
 | **Biometric Sovereignty** | Biometric data NEVER shared with any foreign entity under any circumstances |
 | **DPIA** | Published before each major component goes to production |
 
-## 4.5 Offline and Low-Connectivity Requirements
+## 4.5 Scalability and Load Testing Requirements / نیازمندی‌های مقیاس‌پذیری و تست بار
+
+| Milestone | Load Target | Test Requirement |
+|-----------|-------------|-----------------|
+| Phase 1 readiness | 2M enrolled; 100K verifications/day | Load test at 3× peak before launch |
+| Phase 2 (referendum) | 10M enrolled; 2M verifications/hour on election day | Load test at 5× peak; red team on electoral module |
+| Phase 3 national rollout | 50M enrolled; 500K bulk enrollments/day | Sustained 48-hour load test |
+| Phase 4 full coverage | 88M enrolled; 1M verifications/hour sustained | Annual capacity review |
+
+**Load Testing Requirements:**
+- All performance targets in §4.1 SHALL be validated by automated load tests before each phase launch
+- Load tests SHALL be run against a production-equivalent environment (same hardware class, same data volume)
+- Load test results SHALL be published publicly before Phase 2 (electoral) launch
+- Biometric deduplication SHALL be tested at full national population scale (88M) in an isolated environment before Phase 3
+
+## 4.6 Offline and Low-Connectivity Requirements
 
 | Capability | Detail |
 |------------|--------|
@@ -1028,7 +1097,7 @@ The final selection should evaluate candidate platforms against:
 │ API Gateway      │ Kong (open-source) or NGINX + custom        │
 │                  │ mTLS for all service-to-service calls        │
 ├──────────────────┼──────────────────────────────────────────────┤
-│ Identity DB      │ PostgreSQL 15+ (primary relational store)   │
+│ Identity DB      │ PostgreSQL 16 (primary relational store)    │
 │                  │ TimescaleDB extension (audit time-series)    │
 │                  │ Redis (session cache, revocation cache)      │
 ├──────────────────┼──────────────────────────────────────────────┤
@@ -1181,9 +1250,11 @@ PHASE 4                                                                  │█�
 
 ---
 
-## 7.4 Phase 2 — Electoral Preparation (Months 3–4)
+## 7.4 Phase 2 — Electoral Preparation + Justice Foundation (Months 3–4)
 
-> ⚠️ **HARD DEADLINE:** The constitutional referendum is required within 4 months of transition. The electoral module must be operational and independently audited before this date. This deadline is non-negotiable.
+> ⚠️ **HARD DEADLINES:**
+> - **Day 60:** Anonymous testimony system operational (Transitional Justice — Truth Commission, §1.3)
+> - **Month 4:** Electoral module operational and independently audited for constitutional referendum
 
 **Technical Milestones:**
 - [ ] Electoral module: fully operational and independently audited (STARK-ZK)
@@ -1192,6 +1263,8 @@ PHASE 4                                                                  │█�
 - [ ] International observer access tools: deployed
 - [ ] SMS/USSD verification fallback: operational for low-connectivity regions
 - [ ] Diaspora voting portal: operational through embassy network
+- [ ] **[Day 60]** Anonymous testimony system: operational (ZK citizenship proof + receipt tokens)
+- [ ] **[Day 60]** Conditional amnesty workflow: operational (full identity required, judicial escrow)
 
 **Electoral System Audit Requirements:**
 - Independent audit by minimum 2 internationally recognized firms
@@ -1329,6 +1402,8 @@ The following items require **policy decisions from the Transitional Government*
 | 8 | **Data Retention After Death** | 10 years / 25 years / Permanent | Database sizing and legal framework | 25 years recommended; aligns with transitional justice needs |
 | 9 | **Private Sector Verifier Fees** | Fee per verification / Annual license / Free | Revenue model for system sustainability | Annual license; graduated by organization size |
 | 10 | **ZK Trusted Setup** | National ceremony only / International multi-party | Legitimacy and security | International multi-party; include diaspora participants |
+| 11 | **API Versioning Policy** | URL versioning (/v1/, /v2/) / Header versioning / Both | Determines breaking-change contract for all integrators (banks, ministries) | URL versioning for public REST API; gRPC uses proto package versioning |
+| 12 | **Biometric SDK Procurement** | Open-source (BOZORTH3 + ArcFace) / Commercial (Neurotechnology, Aware) with audit rights / Build in-house | ±4–6 months if custom build required | Evaluate open-source first; commercial only if ISO accuracy targets unmet |
 
 ---
 
@@ -1373,8 +1448,9 @@ The following items require **policy decisions from the Transitional Government*
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
-| 0.1 | ۱۴۰۵/۰۱ | Initial Draft | First complete draft |
-| 1.0 | ۱۴۰۵/۰۱ | Review | Blockchain abstraction layer added; Hyperledger Fabric as candidate; Persian language requirements expanded; technology stack added |
+| 0.1 | ۲۵۸۵/۰۱ | Initial Draft | First complete draft |
+| 1.0 | ۲۵۸۵/۰۱ | Review | Blockchain abstraction layer added; Hyperledger Fabric as candidate; Persian language requirements expanded; technology stack added |
+| 1.1 | ۲۵۸۵/۱۲ | Engineering Review | Added FR-014 (Audit), FR-015 (USSD/SMS), FR-016 (Physical Card), FR-017 (Accessibility); fixed Day 60 Justice deadline alignment with Phase 2; upgraded PostgreSQL reference to v16; added §4.5 load testing NFRs; added Open Questions 11–12 |
 
 ---
 
@@ -1389,4 +1465,4 @@ The following items require **policy decisions from the Transitional Government*
 
 ---
 
-**IranProsperityProject.org | INDIS PRD v1.0 | ۱۴۰۵**
+**IranProsperityProject.org | INDIS PRD v1.0 | ۲۵۸۵**
