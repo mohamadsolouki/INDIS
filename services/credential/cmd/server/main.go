@@ -66,6 +66,12 @@ func main() {
 	chain := blockchain.NewMockAdapter()
 	svc := service.New(repo, chain, cfg.IssuerDID, privateKey)
 
+	// Wire zkproof service for ZK proof verification (PRD §FR-002).
+	if cfg.ZKProofURL != "" {
+		svc.SetZKProofURL(cfg.ZKProofURL)
+		log.Printf("ZK proof verification enabled: %s", cfg.ZKProofURL)
+	}
+
 	if redisAddr := redisAddrFromConfig(cfg.RedisURL); redisAddr != "" {
 		revocationCache, cacheErr := cache.NewRedisRevocationCache(redisAddr)
 		if cacheErr != nil {

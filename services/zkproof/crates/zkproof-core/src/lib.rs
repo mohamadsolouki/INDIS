@@ -20,11 +20,13 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+pub mod circuits;
 pub mod groth16;
 pub mod stark;
 
 pub use groth16::DevelopmentGroth16Engine;
 pub use stark::DevelopmentStarkEngine;
+pub use stark::WinterfellStarkEngine;
 
 /// Errors that can occur during ZK proof operations.
 #[derive(Error, Debug)]

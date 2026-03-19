@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"time"
 
+	biometricv1 "github.com/IranProsperityProject/INDIS/api/gen/go/biometric/v1"
 	"github.com/IranProsperityProject/INDIS/pkg/blockchain"
 	indiscrypto "github.com/IranProsperityProject/INDIS/pkg/crypto"
 	"github.com/IranProsperityProject/INDIS/pkg/did"
@@ -32,9 +33,10 @@ type CompleteResult struct {
 
 // EnrollmentService implements the three enrollment pathways (PRD §FR-001).
 type EnrollmentService struct {
-	repo  *repository.Repository
-	chain blockchain.BlockchainAdapter
-	events enrollmentEventPublisher
+	repo      *repository.Repository
+	chain     blockchain.BlockchainAdapter
+	events    enrollmentEventPublisher
+	biometric biometricv1.BiometricServiceClient
 }
 
 type enrollmentEventPublisher interface {
@@ -44,6 +46,12 @@ type enrollmentEventPublisher interface {
 // New creates an EnrollmentService.
 func New(repo *repository.Repository, chain blockchain.BlockchainAdapter) *EnrollmentService {
 	return &EnrollmentService{repo: repo, chain: chain}
+}
+
+// SetBiometricClient wires the gRPC biometric service client for deduplication.
+// When nil, SubmitBiometrics falls back to accepting all templates (dev only).
+func (s *EnrollmentService) SetBiometricClient(c biometricv1.BiometricServiceClient) {
+	s.biometric = c
 }
 
 func (s *EnrollmentService) ensureRepo() error {
@@ -113,7 +121,7 @@ func (s *EnrollmentService) InitiateEnrollment(ctx context.Context, pathwayInt i
 // SubmitBiometrics processes biometric data for an enrollment session.
 // Deduplication is delegated to services/ai; this service records the outcome.
 // In production the AI service is called via gRPC. For now we accept all biometrics.
-func (s *EnrollmentService) SubmitBiometrics(ctx context.Context, enrollmentID string, _, _, _ []byte) (bool, string, error) {
+func (s *EnrollmentService) SubmitBiometrics(ctx context.Context, enrollmentID string, faceTemplate, fingerTemplate, irisTemplate []byte) (bool, string, error) {
 	if err := s.ensureRepo(); err != nil {
 		return false, "", err
 	}
@@ -129,9 +137,30 @@ func (s *EnrollmentService) SubmitBiometrics(ctx context.Context, enrollmentID s
 		return false, "", fmt.Errorf("service: enrollment %s is not in pending state (current: %s)", enrollmentID, rec.Status)
 	}
 
-	// TODO: call services/ai gRPC deduplication endpoint.
 	passed := true
-	deduplicationMS := "12"
+	deduplicationMS := "0"
+
+	if s.biometric != nil {
+		// Delegate deduplication to the biometric service which in turn calls the AI service.
+		// Ref: PRD §FR-004 — FMR ≤ 0.0001%, SLA ≤ 90s.
+		dedupReq := &biometricv1.CheckDuplicateRequest{
+			EnrollmentId: enrollmentID,
+			Modality:     biometricv1.Modality_MODALITY_FACIAL,
+		}
+		// Use the first non-nil biometric template bytes passed in (face, finger, iris).
+		for _, b := range [][]byte{faceTemplate, fingerTemplate, irisTemplate} {
+			if len(b) > 0 {
+				dedupReq.TemplateData = b
+				break
+			}
+		}
+		resp, dedupErr := s.biometric.CheckDuplicate(ctx, dedupReq)
+		if dedupErr != nil {
+			return false, "", fmt.Errorf("service: biometric dedup call: %w", dedupErr)
+		}
+		passed = !resp.IsDuplicate
+		deduplicationMS = resp.DeduplicationMs
+	}
 
 	if err = s.repo.UpdateStatus(ctx, enrollmentID, repository.StatusBiometricsSubmitted, passed, 0); err != nil {
 		return false, "", fmt.Errorf("service: update biometrics status: %w", err)

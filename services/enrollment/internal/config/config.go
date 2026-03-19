@@ -10,23 +10,25 @@ import (
 
 // Config holds the configuration for the enrollment service.
 type Config struct {
-	GRPCPort     int
-	MetricsPort  int
-	HTTPPort     int
-	DatabaseURL  string
-	RedisURL     string
-	KafkaBrokers []string
+	GRPCPort            int
+	MetricsPort         int
+	HTTPPort            int
+	DatabaseURL         string
+	RedisURL            string
+	KafkaBrokers        []string
+	BiometricServiceAddr string // gRPC address of the biometric service
 }
 
 // Load reads configuration from environment variables with hardcoded defaults.
 func Load() (*Config, error) {
 	cfg := &Config{
-		GRPCPort:     50053,
-		MetricsPort:  9103,
-		HTTPPort:     8082,
-		DatabaseURL:  "postgres://indis:indis_dev_password@localhost:5432/indis_enrollment?sslmode=disable",
-		RedisURL:     "redis://localhost:6379/2",
-		KafkaBrokers: []string{"localhost:9092"},
+		GRPCPort:            50053,
+		MetricsPort:         9103,
+		HTTPPort:            8082,
+		DatabaseURL:         "postgres://indis:indis_dev_password@localhost:5432/indis_enrollment?sslmode=disable",
+		RedisURL:            "redis://localhost:6379/2",
+		KafkaBrokers:        []string{"localhost:9092"},
+		BiometricServiceAddr: "localhost:50054",
 	}
 	if v := os.Getenv("GRPC_PORT"); v != "" {
 		p, err := strconv.Atoi(v)
@@ -57,6 +59,9 @@ func Load() (*Config, error) {
 	}
 	if v := os.Getenv("KAFKA_BROKERS"); v != "" {
 		cfg.KafkaBrokers = splitAndTrim(v)
+	}
+	if v := os.Getenv("BIOMETRIC_SERVICE_ADDR"); v != "" {
+		cfg.BiometricServiceAddr = v
 	}
 	return cfg, nil
 }

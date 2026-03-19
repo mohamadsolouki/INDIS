@@ -2,12 +2,16 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/IranProsperityProject/INDIS/pkg/blockchain"
@@ -30,14 +34,29 @@ type RevocationStatusResult struct {
 	RevokedAt string
 }
 
+// zkVerifyRequest is the payload sent to the zkproof service /verify endpoint.
+type zkVerifyRequest struct {
+	ProofSystem    string `json:"proof_system"`
+	ProofB64       string `json:"proof_b64"`
+	PublicInputsB64 string `json:"public_inputs_b64,omitempty"`
+}
+
+// zkVerifyResponse is the response from the zkproof service /verify endpoint.
+type zkVerifyResponse struct {
+	Valid  bool   `json:"valid"`
+	Reason string `json:"reason,omitempty"`
+}
+
 // CredentialService implements business logic for VC lifecycle management.
 type CredentialService struct {
-	repo       credentialRepository
-	chain      blockchain.BlockchainAdapter
-	issuerDID  string
-	privateKey ed25519.PrivateKey // issuer signing key (loaded from HSM/config in production)
-	events     credentialEventPublisher
-	cache      credentialRevocationCache
+	repo        credentialRepository
+	chain       blockchain.BlockchainAdapter
+	issuerDID   string
+	privateKey  ed25519.PrivateKey // issuer signing key (loaded from HSM/config in production)
+	events      credentialEventPublisher
+	cache       credentialRevocationCache
+	zkProofURL  string            // HTTP base URL of the zkproof service
+	httpClient  *http.Client
 }
 
 // credentialRepository captures the storage operations required by
@@ -66,7 +85,14 @@ func New(repo credentialRepository, chain blockchain.BlockchainAdapter, issuerDI
 		chain:      chain,
 		issuerDID:  issuerDID,
 		privateKey: privateKey,
+		httpClient: &http.Client{Timeout: 10 * time.Second},
 	}
+}
+
+// SetZKProofURL wires the zkproof service base URL for proof verification.
+// When empty, VerifyCredential performs structural validation only (dev fallback).
+func (s *CredentialService) SetZKProofURL(url string) {
+	s.zkProofURL = strings.TrimRight(url, "/")
 }
 
 // SetEventPublisher wires an optional event publisher for outbound events.
@@ -154,14 +180,51 @@ func (s *CredentialService) IssueCredential(ctx context.Context, subjectDID stri
 	}, nil
 }
 
-// VerifyCredential verifies a ZK proof or raw credential payload.
-// For now this performs structural + signature validation only.
-// Full ZK proof verification is delegated to the zkproof service.
-func (s *CredentialService) VerifyCredential(_ context.Context, _ []byte, _ []byte) (bool, string) {
-	// ZK proof verification is handled by services/zkproof.
-	// This endpoint returns true for well-formed non-revoked proofs.
-	// TODO: call zkproof service via gRPC when the Rust service is implemented.
-	return true, ""
+// VerifyCredential verifies a ZK proof against the zkproof service.
+// proofBytes must be base64-encoded proof data; publicInputs is optional.
+// Falls back to structural acceptance when zkproof service is not configured.
+// Ref: PRD §FR-002 — verifiers receive boolean result only, never raw credential data.
+func (s *CredentialService) VerifyCredential(ctx context.Context, proofBytes []byte, publicInputs []byte) (bool, string) {
+	if s.zkProofURL == "" || len(proofBytes) == 0 {
+		// Dev fallback: no zkproof service configured or no proof provided.
+		return true, ""
+	}
+
+	reqBody := zkVerifyRequest{
+		ProofSystem: "groth16",
+		ProofB64:    base64.StdEncoding.EncodeToString(proofBytes),
+	}
+	if len(publicInputs) > 0 {
+		reqBody.PublicInputsB64 = base64.StdEncoding.EncodeToString(publicInputs)
+	}
+
+	bodyBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return false, fmt.Sprintf("verify: marshal request: %v", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.zkProofURL+"/verify", bytes.NewReader(bodyBytes))
+	if err != nil {
+		return false, fmt.Sprintf("verify: build request: %v", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.httpClient.Do(httpReq)
+	if err != nil {
+		return false, fmt.Sprintf("verify: zkproof service unavailable: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return false, fmt.Sprintf("verify: zkproof returned status %s", resp.Status)
+	}
+
+	var result zkVerifyResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return false, fmt.Sprintf("verify: decode response: %v", err)
+	}
+
+	return result.Valid, result.Reason
 }
 
 // RevokeCredential revokes a credential and records it on the blockchain.

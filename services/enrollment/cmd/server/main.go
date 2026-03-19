@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	biometricv1 "github.com/IranProsperityProject/INDIS/api/gen/go/biometric/v1"
 	enrollmentv1 "github.com/IranProsperityProject/INDIS/api/gen/go/enrollment/v1"
 	"github.com/IranProsperityProject/INDIS/pkg/blockchain"
 	"github.com/IranProsperityProject/INDIS/pkg/events"
@@ -21,6 +22,7 @@ import (
 	"github.com/IranProsperityProject/INDIS/services/enrollment/internal/repository"
 	"github.com/IranProsperityProject/INDIS/services/enrollment/internal/service"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -64,6 +66,18 @@ func main() {
 				log.Printf("events producer close: %v", cerr)
 			}
 		}()
+	}
+
+	// Connect to biometric service for deduplication (best-effort; non-fatal on failure).
+	if cfg.BiometricServiceAddr != "" {
+		bioConn, bioErr := grpc.NewClient(cfg.BiometricServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if bioErr != nil {
+			log.Printf("biometric service connection skipped: %v", bioErr)
+		} else {
+			svc.SetBiometricClient(biometricv1.NewBiometricServiceClient(bioConn))
+			defer bioConn.Close()
+			log.Printf("Biometric service connected: %s", cfg.BiometricServiceAddr)
+		}
 	}
 
 	h := handler.New(svc)

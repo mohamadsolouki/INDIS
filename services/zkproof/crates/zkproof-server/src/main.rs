@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use sha3::{Sha3_256, Digest};
 use tracing::info;
 use zkproof_circuits::VoterEligibilityStarkAir;
-use zkproof_core::{DevelopmentGroth16Engine, DevelopmentStarkEngine, Proof, ProofSystem};
+use zkproof_core::{DevelopmentGroth16Engine, WinterfellStarkEngine, Proof, ProofSystem};
 use zkproof_core::{ProofGenerator as _, ProofVerifier as _};
 
 /// HTTP request for proof generation.
@@ -188,7 +188,7 @@ fn generate_stark_proof(circuit_id: &str, input_b64: &str) -> Result<String, Str
             .map_err(|e| format!("invalid voter eligibility public inputs: {}", e))?;
     }
 
-    let engine = DevelopmentStarkEngine;
+    let engine = WinterfellStarkEngine;
     let proof = engine
         .generate(circuit_id, &[], &[input])
         .map_err(|e| format!("failed to generate STARK proof: {}", e))?;
@@ -229,7 +229,7 @@ fn verify_stark_proof(
         public_inputs: vec![public_input.clone()],
     };
 
-    let engine = DevelopmentStarkEngine;
+    let engine = WinterfellStarkEngine;
     let verification_key = election_id
         .map(|id| id.as_bytes().to_vec())
         .unwrap_or_default();

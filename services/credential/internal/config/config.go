@@ -19,6 +19,8 @@ type Config struct {
 	IssuerDID    string
 	KafkaBrokers []string
 	KafkaGroupID string
+	// ZKProofURL is the HTTP base URL of the Rust zkproof service.
+	ZKProofURL string
 }
 
 // Load reads configuration from environment variables with hardcoded defaults.
@@ -32,6 +34,7 @@ func Load() (*Config, error) {
 		IssuerDID:    "did:indis:system",
 		KafkaBrokers: []string{"localhost:9092"},
 		KafkaGroupID: "credential-service",
+		ZKProofURL:   "http://localhost:8088",
 	}
 	if v := os.Getenv("GRPC_PORT"); v != "" {
 		p, err := strconv.Atoi(v)
@@ -68,6 +71,9 @@ func Load() (*Config, error) {
 	}
 	if v := os.Getenv("KAFKA_GROUP_ID"); v != "" {
 		cfg.KafkaGroupID = v
+	}
+	if v := os.Getenv("ZKPROOF_URL"); v != "" {
+		cfg.ZKProofURL = v
 	}
 	return cfg, nil
 }
