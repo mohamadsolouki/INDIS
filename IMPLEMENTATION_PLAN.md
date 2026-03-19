@@ -55,7 +55,7 @@
 | **Android app** | 🟡 Skeleton | RTL baseline, Retrofit/Room stubs, DIDManager, ZKProofManager placeholder |
 | **iOS app** | 🔴 Not started | — |
 | **HarmonyOS app** | 🔴 Not started | — |
-| **Citizen PWA** | 🔴 Not started | React + TypeScript, RTL-first |
+| **Citizen PWA** | 🟡 In Progress | React 18 + TS + Vite, 41 source files, awaiting `npm install` |
 | **Gov portal frontend** | 🔴 Not started | React + GraphQL client |
 | **Verifier terminal PWA** | 🔴 Not started | QR scan + ZK display |
 
@@ -241,17 +241,41 @@ FABRIC_TLS_CA_CERT_PEM=<base64 PEM>
 
 ---
 
-### T3.6 — Citizen PWA 🔴 NOT STARTED
+### T3.6 — Citizen PWA 🟡 IN PROGRESS
 
-**Target:** `clients/web/citizen-pwa/`
+**Location:** `clients/web/citizen-pwa/`
+**Stack:** React 18 + TypeScript 5 + Vite 5 + Tailwind CSS 3 + `vite-plugin-pwa` (Workbox)
 
-React + TypeScript:
-- Persian RTL first (`react-i18next`, Vazirmatn font, Solar Hijri dates)
-- Offline capability: Service Worker + IndexedDB credential wallet
-- WebAuthn for on-device key generation (replaces Android Keystore for PWA)
-- QR code display for offline verification
-- Privacy Control Center (backed by `GET/POST /v1/privacy/*` gateway routes — already implemented)
-- Full enrollment flow using `api/openapi/openapi.yaml` as contract
+**Implemented (2026-03-20):** 41 source files
+
+| Module | Files | Notes |
+| ------ | ----- | ----- |
+| Project scaffold | `package.json`, configs | Vite + Tailwind + PWA plugin |
+| i18n (6 locales) | `src/i18n/` | fa/en/ckb/kmr/ar/az; `applyLocale()` sets `dir` attr |
+| Solar Hijri (TS) | `src/lib/solarHijri.ts` | Exact port of Go `pkg/i18n` jalaali algorithm |
+| Gateway API client | `src/api/client.ts` + `gateway.ts` | All 40+ endpoints typed |
+| JWT + WebAuthn | `src/auth/` | Device-bound keys per FR-001.4 |
+| Ed25519 (WebCrypto) | `src/crypto/ed25519.ts` | Non-extractable private key |
+| IndexedDB wallet | `src/wallet/` | `idb` library, 2 indexes |
+| Identity Card FR-007 | `src/components/IdentityCard/` | Islamic pattern bg, masked NID, credential badges |
+| Home page | `src/pages/Home/` | Card + enrollment CTA |
+| Enrollment wizard | `src/pages/Enrollment/` | 3-pathway, 5-step |
+| Privacy Center FR-008 | `src/pages/Privacy/` | 4-tab: history/sharing/consent/export |
+| Credential wallet | `src/pages/Wallet/` + `CredentialCard` | Filter chips, all 11 VC types |
+| QR display | `src/components/QRDisplay/` | Expand + PNG download |
+| Verify page | `src/pages/Verify/` | Approve/deny ZK requests |
+| Settings | `src/pages/Settings/` | Lang/numerals/calendar/font/theme |
+| Language switcher | `src/components/LanguageSwitcher/` | Full 6-locale radio group |
+| Layout | `src/components/Layout/` | Sticky header + bottom nav |
+
+**Start dev:** `cd clients/web/citizen-pwa && npm install && npm run dev`
+
+**Remaining:**
+
+- Login page (no `/login` yet — token expected via deep-link or SSO)
+- Real camera capture in enrollment biometric step
+- WebSocket/SSE for live verification request push
+- Playwright E2E tests
 
 ---
 
@@ -450,9 +474,10 @@ Swift / SwiftUI, RTL via `NSLocale`, Vazirmatn font, CryptoKit for Ed25519.
 
 ArkTS / ArkUI, requires HarmonyOS SDK.
 
-### Citizen PWA (`clients/web/citizen-pwa/`) — NOT STARTED
+### Citizen PWA (`clients/web/citizen-pwa/`) — 🟡 IN PROGRESS
 
-React + TypeScript, Service Worker, WebAuthn, IndexedDB.
+React 18 + TypeScript + Vite + Tailwind RTL. 41 source files implemented 2026-03-20.
+`cd clients/web/citizen-pwa && npm install && npm run dev`
 
 ### Gov Portal Frontend (`clients/web/gov-portal/`) — NOT STARTED
 
