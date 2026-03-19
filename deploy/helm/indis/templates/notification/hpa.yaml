@@ -1,0 +1,20 @@
+{{- if .Values.notification.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Release.Name }}-notification
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Release.Name }}-{{ .Values.global.domain | replace "." "-" }}-notification
+  minReplicas: {{ .Values.notification.autoscaling.minReplicas | default 1 }}
+  maxReplicas: {{ .Values.notification.autoscaling.maxReplicas | default 3 }}
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.notification.autoscaling.targetCPUUtilizationPercentage | default 80 }}
+{{- end }}

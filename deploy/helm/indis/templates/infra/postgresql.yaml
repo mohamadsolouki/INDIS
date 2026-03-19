@@ -24,8 +24,19 @@ spec:
           value: indis
         - name: POSTGRES_DB
           value: indis
+        volumeMounts:
+        - name: postgresql-data
+          mountPath: /var/lib/postgresql/data
         ports:
         - containerPort: 5432
+  volumeClaimTemplates:
+  - metadata:
+      name: postgresql-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 10Gi
 ---
 apiVersion: v1
 kind: Service

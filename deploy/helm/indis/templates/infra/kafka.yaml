@@ -22,8 +22,19 @@ spec:
           value: "{{ .Release.Name }}-zookeeper:2181"
         - name: KAFKA_ADVERTISED_LISTENERS
           value: PLAINTEXT://indis-kafka:9092
+        volumeMounts:
+        - name: kafka-data
+          mountPath: /var/lib/kafka/data
         ports:
         - containerPort: 9092
+  volumeClaimTemplates:
+  - metadata:
+      name: kafka-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 10Gi
 ---
 apiVersion: v1
 kind: Service

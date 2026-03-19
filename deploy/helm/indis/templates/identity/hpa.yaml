@@ -1,0 +1,20 @@
+{{- if .Values.identity.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Release.Name }}-identity
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Release.Name }}-{{ .Values.global.domain | replace "." "-" }}-identity
+  minReplicas: {{ .Values.identity.autoscaling.minReplicas | default 1 }}
+  maxReplicas: {{ .Values.identity.autoscaling.maxReplicas | default 3 }}
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.identity.autoscaling.targetCPUUtilizationPercentage | default 80 }}
+{{- end }}

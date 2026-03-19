@@ -21,3 +21,9 @@ variable "chart_version" {
   type        = string
   default     = "0.1.0"
 }
+
+variable "enable_baremetal_storage" {
+  description = "Enable creation of a bare-metal local storage class"
+  type        = bool
+  default     = true
+}

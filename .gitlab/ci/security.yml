@@ -1,0 +1,26 @@
+container_scanning:
+  stage: scan
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  variables:
+    TRIVY_NO_PROGRESS: "true"
+    TRIVY_CACHE_DIR: ".trivycache/"
+  script:
+    - trivy image --clear-cache
+    - trivy fs --security-checks vuln,config,secret .
+  cache:
+    key: trivy-cache
+    paths:
+      - .trivycache
+
+gosec:
+  stage: scan
+  image: securego/gosec:latest
+  script:
+    - gosec -fmt junit-xml -out gosec-results.xml ./...
+  artifacts:
+    reports:
+      junit: gosec-results.xml
+    paths:
+      - gosec-results.xml

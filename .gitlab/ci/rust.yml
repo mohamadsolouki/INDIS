@@ -1,0 +1,44 @@
+.rust-cache: &rust-cache
+  key:
+    files:
+      - services/zkproof/Cargo.lock
+  paths:
+    - services/zkproof/target/
+    - .cargo/registry/
+    - .cargo/git/
+
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/.cargo
+
+lint-rust:
+  stage: lint
+  image: rust:${RUST_VERSION}-slim
+  before_script:
+    - rustup component add clippy rustfmt
+  script:
+    - cd services/zkproof
+    - cargo fmt --all -- --check
+    - cargo clippy --all-targets --all-features -- -D warnings
+  cache:
+    <<: *rust-cache
+
+test-rust:
+  stage: test
+  image: rust:${RUST_VERSION}-slim
+  script:
+    - cd services/zkproof
+    - cargo test --all
+  cache:
+    <<: *rust-cache
+
+build-rust:
+  stage: build
+  image: rust:${RUST_VERSION}-slim
+  script:
+    - cd services/zkproof
+    - cargo build --release
+  artifacts:
+    paths:
+      - services/zkproof/target/release/zkproof-server
+  cache:
+    <<: *rust-cache

@@ -1,0 +1,13 @@
+deploy-staging:
+  stage: deploy-staging
+  image: alpine/helm:latest
+  environment:
+    name: staging
+  before_script:
+    - apk add --no-cache curl kubectl
+    - mkdir -p ~/.kube
+    - echo "$KUBECONFIG_STAGING" > ~/.kube/config
+  script:
+    - helm upgrade --install indis-staging ./deploy/helm/indis --namespace indis-staging --create-namespace --values ./deploy/helm/indis/values.yaml
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"

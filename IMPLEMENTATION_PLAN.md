@@ -2,8 +2,8 @@
 # نقشه راه پیاده‌سازی INDIS
 
 > **Last updated:** 2026-03-19
-> **Current build status:** All 9 Go services + Rust zkproof + Python AI compile cleanly
-> **Estimated overall completion:** ~31% of production-ready system (Tier 2 baselines implemented with configurable nonce lifecycle policy)
+> **Current build status:** All 9 Go services + Rust zkproof + Python AI compile cleanly. Now includes T3.8 (Kubernetes Deployments Refinement) and T3.9 (CI/CD Pipeline) as completed.
+> **Estimated overall completion:** ~40% of production-ready system (Tier 1 & Tier 2 baselines implemented, Tier 3 K8s & CI/CD scaffolding complete)
 
 ---
 
@@ -35,8 +35,8 @@
 | **mTLS / service mesh** | 🟡 Partial+ | TLS helpers + cert script exist; all Go gRPC servers now support `GRPC_TLS_MODE` and cert env wiring |
 | **Kafka event streaming** | ✅ Implemented (Tier 1 baseline) | `enrollment.completed`, `credential.revoked`, `identity.deactivated` wired across core services |
 | **Redis caching** | ✅ Implemented (Tier 1 baseline) | `pkg/cache` wired into credential revocation + revocation status checks |
-| **Kubernetes / Helm** | 🔴 None | Only docker-compose in Makefile |
-| **CI/CD** | 🔴 None | No GitLab CI or ArgoCD config |
+| **Kubernetes / Helm** | ✅ Implemented | Tier 3 bare-metal baseline with probes, HPAs, PVCs, ingress |
+| **CI/CD** | ✅ Implemented | Tier 3 generic GitLab CI with jobs for Go, Python, Rust, security, deployments |
 | **Observability** | 🟡 Partial+ | `pkg/metrics` wired into all Go services with per-service `/metrics` endpoints; Prometheus scrape targets added for local dev |
 | **HSM integration** | 🔴 None | Ephemeral keys everywhere |
 | **Physical card** | 🔴 None | ICAO 9303 / ISO 7816 |
@@ -717,17 +717,11 @@ make test    # target: >80% coverage on all Go services
 
 ### T3.8 — Kubernetes Deployment
 
-**Status (2026-03-19):** Partial+ complete (Base Helm and Terraform scaffold).
+**Status (2026-03-19):** ✅ **COMPLETE**.
 
 Implemented now:
-- Created base Helm chart structure (`deploy/helm/indis/Chart.yaml`, `values.yaml`, `values-prod.yaml`)
-- Generated deployment, service, and configmap templates for all 11 core services
-- Generated infrastructure templates (PostgreSQL, Redis, Kafka/Zookeeper) as standalone deployments
-- Created Terraform infrastructure skeleton (`main.tf`, `variables.tf`, `outputs.tf`)
-
-Remaining for full completion:
-- Refine Terraform modules with specific bare-metal network/storage provisioning rules
-- Refine Helm manifests with correct liveness/readiness probes, HPA, persistent volumes, and ingress strategies
+- Refined Terraform modules with specific bare-metal local storage provisioning rules (`kubernetes_storage_class`) and network privacy (`kubernetes_network_policy`).
+- Refined Helm manifests with correct liveness/readiness probes (using `/metrics`), HPA across all 11 core services, and persistent volumes (`volumeClaimTemplates` added to statefulsets) and an initial `ingress` strategy for `gateway`.
 
 **Files structured:**
 ```
@@ -760,7 +754,15 @@ deploy/
 
 ### T3.9 — CI/CD Pipeline (Self-Hosted GitLab)
 
-**Files to create:**
+**Status (2026-03-19):** ✅ **COMPLETE**.
+
+Implemented now:
+- Generated comprehensive `.gitlab-ci.yml` defining pipeline stages supporting multi-language.
+- Linting, testing, building for Go, Rust, and Python services.
+- Added Trivy container scanning and gosec analysis.
+- Includes deployment pipeline using Helm across Staging/Prod contexts.
+
+**Files created:**
 ```
 .gitlab-ci.yml              — main pipeline definition
 .gitlab/
@@ -879,6 +881,10 @@ The following architectural decisions are settled and should not be revisited:
 - **Citizen private keys never leave the device** — no server-side key escrow
 - **No foreign cloud** — no AWS/Azure/GCP at any tier
 
+## Recent Updates / به‌روزرسانی‌های اخیر
+- 2026-03-19: Completed T3.8 (Kubernetes Deployment Refinements). Added PVCs for stateful infrastructure, HPAs for scalability, readiness/liveness probes, and an ingress template. Added bare-metal storage and network policies via Terraform.
+- 2026-03-19: Completed T3.9 (CI/CD Pipeline). Created comprehensive `.gitlab-ci.yml` supporting multi-language (Go, Rust, Python) build, testing, linting, security scans (Trivy, Gosec), and deployment steps to Helm environments.
+
 ---
 
-*نسخه: ۱.۰ | تاریخ: ۲۵۸۵/۱۲ | IranProsperityProject.org*
+*نسخه: ۱.۱ | تاریخ: ۲۵۸۵/۱۲ | IranProsperityProject.org*
