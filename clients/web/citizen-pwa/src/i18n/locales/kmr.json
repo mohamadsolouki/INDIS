@@ -1,0 +1,6 @@
+{
+  "app": { "name": "Nasnameya Dîjîtal a Neteweyî", "tagline": "Pergala Nasnameya Dîjîtal a Neteweyî ya Iranê" },
+  "nav": { "home": "Mal", "wallet": "Berdan", "privacy": "Nepenî", "verify": "Verîfîkasyon", "settings": "Mîheng" },
+  "common": { "loading": "Bar dibe...", "error": "Çewtî", "retry": "Dîsa biceribîne", "close": "Bigire", "save": "Tomar bike", "cancel": "Betal bike", "confirm": "Piştrast bike", "yes": "Erê", "no": "Na", "offline": "Nedîmenî", "online": "Serhêl", "back": "Paş" },
+  "errors": { "network": "Çewtiya têkiliyê", "unauthorized": "Têkevin", "not_found": "Nehate dîtin", "server_error": "Çewtiya hundurî" }
+}

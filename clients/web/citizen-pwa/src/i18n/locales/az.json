@@ -1,0 +1,6 @@
+{
+  "app": { "name": "Milli Rəqəmsal Şəxsiyyət", "tagline": "İran Milli Rəqəmsal Şəxsiyyət Sistemi" },
+  "nav": { "home": "Ana Səhifə", "wallet": "Cüzdan", "privacy": "Məxfilik", "verify": "Doğrulama", "settings": "Parametrlər" },
+  "common": { "loading": "Yüklənir...", "error": "Xəta", "retry": "Yenidən cəhd et", "close": "Bağla", "save": "Saxla", "cancel": "İmtina", "confirm": "Təsdiqlə", "yes": "Bəli", "no": "Xeyr", "offline": "Oflayn", "online": "Onlayn", "back": "Geri" },
+  "errors": { "network": "Şəbəkə əlaqəsi xətası", "unauthorized": "Zəhmət olmasa daxil olun", "not_found": "Tapılmadı", "server_error": "Daxili server xətası" }
+}

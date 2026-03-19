@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    font-family: 'Vazirmatn', system-ui, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+    min-height: 100dvh;
+  }
+
+  /* RTL list items */
+  [dir="rtl"] ul, [dir="rtl"] ol {
+    padding-right: 1.5rem;
+    padding-left: 0;
+  }
+
+  /* Font size accessibility classes */
+  html.font-large  { font-size: 18px; }
+  html.font-xlarge { font-size: 22px; }
+
+  /* Smooth scrolling */
+  html { scroll-behavior: smooth; }
+}
+
+@layer utilities {
+  .hide-scrollbar::-webkit-scrollbar { display: none; }
+  .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}

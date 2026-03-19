@@ -1,0 +1,53 @@
+{
+  "app": { "name": "National Digital Identity", "tagline": "Iran National Digital Identity System" },
+  "nav": { "home": "Home", "wallet": "Wallet", "privacy": "Privacy", "verify": "Verify", "settings": "Settings" },
+  "home": {
+    "title": "Digital Identity Card", "status_verified": "Verified", "status_pending": "Pending", "status_inactive": "Inactive",
+    "national_id": "National ID", "show": "Show", "hide": "Hide", "qr_tap_hint": "Tap to reveal QR",
+    "credentials": "Credentials", "citizen": "Citizen", "voter": "Voter", "health": "Health Ins.", "employment": "Employment", "residence": "Residence", "military": "Military Svc."
+  },
+  "enrollment": {
+    "title": "Enrollment", "subtitle": "Digital Identity Enrollment",
+    "select_pathway": "Select Enrollment Pathway",
+    "pathway_standard": "Standard Enrollment", "pathway_standard_desc": "Documents + Biometrics",
+    "pathway_enhanced": "Enhanced Enrollment", "pathway_enhanced_desc": "Civil Registry + Biometrics",
+    "pathway_social": "Social Attestation", "pathway_social_desc": "3+ Community Co-attestors + Biometrics",
+    "document_capture": "Document Capture", "biometric_capture": "Biometric Capture",
+    "review": "Review & Confirm", "success": "Enrollment Complete",
+    "next": "Next", "back": "Back", "submit": "Submit", "cancel": "Cancel"
+  },
+  "wallet": {
+    "title": "Credential Wallet", "empty": "No credentials found", "offline_badge": "Offline",
+    "expires": "Expires", "issued": "Issued", "status_active": "Active", "status_revoked": "Revoked", "status_expired": "Expired"
+  },
+  "privacy": {
+    "title": "Privacy Control Center", "subtitle": "View and manage access to your data",
+    "history": "Verification History", "sharing": "Sharing", "consent": "Consent Rules", "export": "Data Export",
+    "no_history": "No verification events recorded", "verifier": "Verifier", "credential_type": "Credential Type",
+    "result": "Result", "timestamp": "Time",
+    "result_approved": "Approved", "result_denied": "Denied", "result_auto": "Auto",
+    "consent_always": "Always", "consent_ask": "Ask", "consent_never": "Never",
+    "add_rule": "Add Rule", "delete_rule": "Delete Rule",
+    "export_request": "Request Data Export", "export_pending": "Processing", "export_completed": "Ready to Download", "export_download": "Download"
+  },
+  "verify": {
+    "title": "Verify Credential", "scan_qr": "Scan QR", "pending_request": "Verification Request",
+    "approve": "Approve", "decline": "Decline", "no_requests": "No pending verification requests"
+  },
+  "settings": {
+    "title": "Settings", "language": "Language", "persian_numerals": "Persian Numerals",
+    "solar_hijri": "Solar Hijri Calendar", "font_size": "Font Size",
+    "font_normal": "Normal", "font_large": "Large", "font_xlarge": "X-Large",
+    "theme": "Theme", "theme_light": "Light", "theme_dark": "Dark", "theme_system": "System",
+    "about": "About", "version": "Version", "logout": "Log Out"
+  },
+  "common": {
+    "loading": "Loading...", "error": "Error", "retry": "Retry", "close": "Close",
+    "save": "Save", "cancel": "Cancel", "confirm": "Confirm", "yes": "Yes", "no": "No",
+    "offline": "Offline", "online": "Online", "back": "Back"
+  },
+  "errors": {
+    "network": "Network connection error", "unauthorized": "Please log in",
+    "not_found": "Item not found", "server_error": "Internal server error"
+  }
+}
