@@ -2,8 +2,8 @@
 # نقشه راه پیاده‌سازی INDIS
 
 > **Last updated:** 2026-03-19
-> **Current build status:** All 9 Go services + Rust zkproof + Python AI compile cleanly. Now includes T3.8 (Kubernetes Deployments Refinement) and T3.9 (CI/CD Pipeline) as completed.
-> **Estimated overall completion:** ~40% of production-ready system (Tier 1 & Tier 2 baselines implemented, Tier 3 K8s & CI/CD scaffolding complete)
+> **Current build status:** All 9 Go services + Rust zkproof + Python AI compile cleanly. Now includes T1.2 (Database Migration Runner) as complete for Tier 1 baseline, plus T2.1 (Groth16 development implementation), T3.8 (Kubernetes Deployments Refinement), and T3.9 (CI/CD Pipeline) as completed/advanced.
+> **Estimated overall completion:** ~47% of production-ready system (Tier 1 migration baseline now complete; Tier 2 core ZK/electoral/justice baselines implemented; Tier 3 K8s & CI/CD scaffolding complete)
 
 ---
 
@@ -22,10 +22,10 @@
 | **Electoral service** | 🟡 Scaffold+ | Nullifier double-vote guard + configurable ZK verify endpoint integration (`POST /verify`) |
 | **Justice service** | 🟡 Scaffold+ | Testimony flow now integrates configurable ZK `/prove`+`/verify` checks with Bulletproofs baseline |
 | **Gateway service** | 🟡 Scaffold+ | HTTP→gRPC proxy; rate limiter; backend transport mode configurable (`plaintext`/`tls`) |
-| **ZK service** (Rust) | � Partial | HTTP baseline: `/prove` + `/verify` endpoints with SHA3-based placeholder proofs; electoral + justice flows tested; production will replace with real arkworks/Winterfell/Bulletproofs |
+| **ZK service** (Rust) | 🟡 Partial+ | HTTP `/prove` + `/verify` live; Groth16 now uses real arkworks prove/verify baseline with deterministic dev setup; STARK remains development baseline pending Winterfell production implementation |
 | **AI service** (Python) | 🔴 Stub | FastAPI skeleton; no ML models loaded |
 | **Blockchain adapter** | 🔴 Mock | `MockAdapter` logs calls; no real chain |
-| **DB migrations** | 🟡 Partial+ | `pkg/migrate` now auto-runs at startup in all DB-backed Go services using `MIGRATIONS_DIR` override or repo auto-discovery |
+| **DB migrations** | ✅ Implemented (Tier 1 baseline) | `pkg/migrate` supports startup application, dedicated migration CLI/Make target, and clean-schema integration tests across DB-backed service startup paths |
 | **ZK circuits** (Circom) | 🔴 Placeholder | No constraint logic |
 | **Tests** | 🟡 Partial+ | Core package tests + identity/enrollment/credential + biometric service tests + AI dedup endpoint tests |
 | **Mobile apps** | 🟡 Partial | Android baseline skeleton added under `clients/mobile/android`; iOS / HarmonyOS pending |
@@ -90,7 +90,7 @@ Implemented now:
 
 ### T1.2 — Database Migration Runner
 
-**Status (2026-03-18):** Partial+ complete (Tier 1 baseline).
+**Status (2026-03-19):** ✅ Complete for Tier 1 baseline.
 
 Implemented now:
 - Wired startup migration execution into all DB-backed Go services before handler/service boot (`identity`, `credential`, `enrollment`, `biometric`, `audit`, `notification`, `electoral`, `justice`)
@@ -99,10 +99,39 @@ Implemented now:
   - `MIGRATIONS_DIR` environment variable
   - auto-discovery by walking upward to find `db/migrations`
 - Services now fail fast on migration resolution/apply errors to prevent booting against an uninitialized schema
+- Added standalone migration runner command: `pkg/migrate/cmd/indis-migrate/main.go`
+- Added top-level operations target: `make migrate` (requires `DATABASE_URL`, optional `MIGRATIONS_DIR`)
+- Verified CLI wiring by running `go run ./cmd/indis-migrate --help` in `pkg/migrate`
+- Added migration integration tests on clean schema + idempotency:
+  - `pkg/migrate/migrate_integration_test.go`
+  - `TestMigrate_AppliesAllMigrationsOnCleanSchema`
+  - `TestMigrate_IsIdempotentOnSecondRun`
+- Added shared service-startup helper:
+  - `pkg/migrate/startup.go` with `ApplyStartupMigrations(ctx, pool, explicitDir)`
+- Refactored all DB-backed Go service startup paths to use shared helper:
+  - `services/identity/cmd/server/main.go`
+  - `services/credential/cmd/server/main.go`
+  - `services/enrollment/cmd/server/main.go`
+  - `services/biometric/cmd/server/main.go`
+  - `services/audit/cmd/server/main.go`
+  - `services/notification/cmd/server/main.go`
+  - `services/electoral/cmd/server/main.go`
+  - `services/justice/cmd/server/main.go`
+- Added startup-level migration integration test for identity service boot path:
+  - `services/identity/cmd/server/startup_migrations_test.go`
+- Added startup-level clean-schema migration integration tests for all remaining DB-backed services:
+  - `services/credential/cmd/server/startup_migrations_test.go`
+  - `services/enrollment/cmd/server/startup_migrations_test.go`
+  - `services/biometric/cmd/server/startup_migrations_test.go`
+  - `services/audit/cmd/server/startup_migrations_test.go`
+  - `services/notification/cmd/server/startup_migrations_test.go`
+  - `services/electoral/cmd/server/startup_migrations_test.go`
+  - `services/justice/cmd/server/startup_migrations_test.go`
+- Verified package tests with `cd pkg/migrate && go test ./... -count=1`
+- Verified startup package builds/tests for all DB-backed services (`go test ./cmd/server` in each service module)
 
 Remaining for full completion:
-- Add a dedicated migration-only operational command/job for production rollout workflows (decoupled from service startup)
-- Add service startup/integration tests that assert migrations are applied on clean databases
+- None for Tier 1 baseline scope; future enhancements are operational hardening (deployment jobs, environment promotion controls).
 
 The 7 SQL migration files now apply automatically during startup for DB-backed Go services.
 
@@ -317,37 +346,44 @@ Every service needs `/metrics` for observability. Required before Phase 1 launch
 
 ### T2.1 — ZK-SNARK Groth16 Proof Implementation (Rust)
 
-**Status (2026-03-19):** Partial+ complete (HTTP baseline for development).
+**Status (2026-03-19):** ✅ Complete for development baseline.
 
 Implemented now:
 - `services/zkproof/crates/zkproof-server/` now has full HTTP server implementation with axum (v0.7)
 - `/prove` endpoint: accepts `{proof_system, circuit_id, input_b64}` → returns `{proof_b64}`
 - `/verify` endpoint: accepts `{proof_system, proof_b64, election_id?, public_inputs_b64?}` → returns `{valid, reason}`
 - `/health` endpoint for service readiness checks
-- SHA3-based placeholder proof generation/verification for development (NOT cryptographically sound)
+- Added real Groth16 development engine in `services/zkproof/crates/zkproof-core/src/groth16.rs` using `ark-groth16` + `ark-bn254`
+- Groth16 proofs now use real arkworks proof generation and verification (no SHA3 placeholder for Groth16 path)
+- Added deterministic development setup parameters for reproducible proof verification across service restarts
+- Added Groth16 unit tests (round-trip verification, mismatched public input rejection, tamper failure path)
+- Wired server routing so `proof_system=groth16` uses the real engine in both `/prove` and `/verify`
 - Electoral workflow tested: `/prove` + `/verify` with election_id and public_inputs ✅
 - Justice workflow tested: `/prove` + `/verify` without re-sending input data ✅
 - Both electoral and justice services can now successfully call ZK endpoints ✅
-- All integration tests passing (8 new tests added and passing)
+- `cd services/zkproof && cargo test -q` passing after Groth16 integration
 
 Remaining for production:
-- Replace SHA3 placeholder with real arkworks Groth16 implementation
 - Load proving/verification keys from trusted setup ceremony output
-- Implement per-circuit verification (age_proof, citizenship_proof, credential_validity, voter_eligibility)
+- Replace current minimal equality circuit with production circuits (age_proof, citizenship_proof, credential_validity, voter_eligibility)
 - Performance optimization (target <3s proof generation)
 
 References:
+- Groth16 core engine: `services/zkproof/crates/zkproof-core/src/groth16.rs`
+- ZK server routing: `services/zkproof/crates/zkproof-server/src/main.rs`
 - Electoral service integration test: `services/electoral/internal/service/zk_integration_test.go` (8 tests)
-- ZK server: `services/zkproof/crates/zkproof-server/src/main.rs` (~200 lines, HTTP baseline)
 
-**Crates to add to `Cargo.toml`:**
+**Crates added now:**
 ```toml
-arkworks-circuits = { git = "..." }
 ark-groth16 = "0.4"
 ark-bn254 = "0.4"
 ark-ff = "0.4"
+ark-r1cs-std = "0.4"
 ark-relations = "0.4"
 ark-serialize = "0.4"
+rand = "0.8"
+rand_chacha = "0.3"
+base64 = "0.22"
 ```
 
 **Files to create in `services/zkproof/crates/`:**
@@ -882,6 +918,11 @@ The following architectural decisions are settled and should not be revisited:
 - **No foreign cloud** — no AWS/Azure/GCP at any tier
 
 ## Recent Updates / به‌روزرسانی‌های اخیر
+- 2026-03-19: Completed remaining T1.2 startup migration integration tests for `credential`, `enrollment`, `biometric`, `audit`, `notification`, `electoral`, and `justice`, closing the Tier 1 baseline migration-testing gap.
+- 2026-03-19: Advanced T1.2 with shared startup migration helper `pkg/migrate/startup.go`, refactored all DB-backed startup paths to use it, and added identity startup migration integration test `services/identity/cmd/server/startup_migrations_test.go`.
+- 2026-03-19: Advanced T1.2 with migration integration tests in `pkg/migrate/migrate_integration_test.go` to validate clean-schema application and idempotent re-run behavior.
+- 2026-03-19: Advanced T1.2 (Database Migration Runner) with a dedicated migration-only operations command `pkg/migrate/cmd/indis-migrate/main.go` and top-level `make migrate` target for rollout workflows.
+- 2026-03-19: Completed T2.1 development baseline for Groth16. Added real arkworks-based Groth16 prover/verifier in `services/zkproof/crates/zkproof-core/src/groth16.rs`, wired `proof_system=groth16` path in ZK server, and verified with `cargo test -q`.
 - 2026-03-19: Completed T3.8 (Kubernetes Deployment Refinements). Added PVCs for stateful infrastructure, HPAs for scalability, readiness/liveness probes, and an ingress template. Added bare-metal storage and network policies via Terraform.
 - 2026-03-19: Completed T3.9 (CI/CD Pipeline). Created comprehensive `.gitlab-ci.yml` supporting multi-language (Go, Rust, Python) build, testing, linting, security scans (Trivy, Gosec), and deployment steps to Helm environments.
 

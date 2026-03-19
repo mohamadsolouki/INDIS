@@ -51,11 +51,7 @@ func main() {
 	}
 	defer pool.Close()
 
-	migrationsDir, err := indismigrate.ResolveMigrationsDir("")
-	if err != nil {
-		log.Fatalf("migrations: %v", err)
-	}
-	if err := indismigrate.Migrate(ctx, pool, migrationsDir); err != nil {
+	if err := indismigrate.ApplyStartupMigrations(ctx, pool, ""); err != nil {
 		log.Fatalf("migrations apply: %v", err)
 	}
 

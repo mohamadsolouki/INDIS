@@ -20,8 +20,10 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+pub mod groth16;
 pub mod stark;
 
+pub use groth16::DevelopmentGroth16Engine;
 pub use stark::DevelopmentStarkEngine;
 
 /// Errors that can occur during ZK proof operations.

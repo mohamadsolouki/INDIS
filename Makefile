@@ -3,7 +3,7 @@
 # Top-level Makefile
 # ============================================================
 
-.PHONY: all build test lint clean proto-gen docker-build dev-up dev-down help
+.PHONY: all build test lint clean proto-gen docker-build dev-up dev-down migrate help
 
 # Go services (order: shared packages first, then services)
 GO_SERVICES := identity credential enrollment biometric audit notification electoral justice gateway
@@ -90,6 +90,14 @@ dev-up: ## Start local development environment
 
 dev-down: ## Stop local development environment
 	docker compose down
+
+# ── Database Migrations ─────────────────────────────────────
+migrate: ## Run SQL migrations (requires DATABASE_URL; optional MIGRATIONS_DIR)
+	@if [ -z "$$DATABASE_URL" ]; then \
+		echo "DATABASE_URL is required"; \
+		exit 1; \
+	fi
+	cd pkg/migrate && go run ./cmd/indis-migrate --database-url "$$DATABASE_URL" $${MIGRATIONS_DIR:+--migrations-dir "$$MIGRATIONS_DIR"}
 
 # ── Clean ────────────────────────────────────────────────────
 clean: ## Clean build artifacts

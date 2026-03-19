@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use sha3::{Sha3_256, Digest};
 use tracing::info;
 use zkproof_circuits::VoterEligibilityStarkAir;
-use zkproof_core::{DevelopmentStarkEngine, Proof, ProofSystem};
+use zkproof_core::{DevelopmentGroth16Engine, DevelopmentStarkEngine, Proof, ProofSystem};
 use zkproof_core::{ProofGenerator as _, ProofVerifier as _};
 
 /// HTTP request for proof generation.
@@ -123,6 +123,61 @@ fn is_stark(proof_system: &str) -> bool {
     proof_system.eq_ignore_ascii_case("stark")
 }
 
+fn is_groth16(proof_system: &str) -> bool {
+    proof_system.eq_ignore_ascii_case("groth16")
+}
+
+fn generate_groth16_proof(circuit_id: &str, input_b64: &str) -> Result<String, String> {
+    let input = general_purpose::STANDARD
+        .decode(input_b64)
+        .map_err(|e| format!("failed to decode input: {}", e))?;
+
+    let engine = DevelopmentGroth16Engine;
+    let proof = engine
+        .generate(circuit_id, &[input], &[])
+        .map_err(|e| format!("failed to generate Groth16 proof: {}", e))?;
+
+    Ok(general_purpose::STANDARD.encode(proof.data))
+}
+
+fn verify_groth16_proof(
+    proof_b64: &str,
+    public_inputs_b64: Option<&String>,
+) -> Result<(bool, String), String> {
+    let proof_bytes = general_purpose::STANDARD
+        .decode(proof_b64)
+        .map_err(|e| format!("failed to decode proof: {}", e))?;
+
+    let external_public_inputs = if let Some(public_input_b64) = public_inputs_b64 {
+        vec![
+            general_purpose::STANDARD
+                .decode(public_input_b64)
+                .map_err(|e| format!("failed to decode public inputs: {}", e))?,
+        ]
+    } else {
+        vec![]
+    };
+
+    let proof = Proof {
+        system: ProofSystem::Groth16,
+        data: proof_bytes,
+        public_inputs: vec![],
+    };
+
+    let engine = DevelopmentGroth16Engine;
+    let result = engine
+        .verify(&proof, &[], &external_public_inputs)
+        .map_err(|e| format!("failed to verify Groth16 proof: {}", e))?;
+
+    let reason = if result.valid {
+        "groth16 proof verified".to_string()
+    } else {
+        "groth16 proof verification failed".to_string()
+    };
+
+    Ok((result.valid, reason))
+}
+
 fn generate_stark_proof(circuit_id: &str, input_b64: &str) -> Result<String, String> {
     let input = general_purpose::STANDARD
         .decode(input_b64)
@@ -200,7 +255,10 @@ async fn prove(Json(req): Json<ProveRequest>) -> Result<Json<ProveResponse>, (St
         "generating proof"
     );
 
-    let proof_b64 = if is_stark(&req.proof_system) {
+    let proof_b64 = if is_groth16(&req.proof_system) {
+        generate_groth16_proof(&req.circuit_id, &req.input_b64)
+            .map_err(|e| (StatusCode::BAD_REQUEST, e))?
+    } else if is_stark(&req.proof_system) {
         generate_stark_proof(&req.circuit_id, &req.input_b64)
             .map_err(|e| (StatusCode::BAD_REQUEST, e))?
     } else {
@@ -219,7 +277,10 @@ async fn verify(Json(req): Json<VerifyRequest>) -> Result<Json<VerifyResponse>, 
         "verifying proof"
     );
 
-    let (valid, reason) = if is_stark(&req.proof_system) {
+    let (valid, reason) = if is_groth16(&req.proof_system) {
+        verify_groth16_proof(&req.proof_b64, req.public_inputs_b64.as_ref())
+            .map_err(|e| (StatusCode::BAD_REQUEST, e))?
+    } else if is_stark(&req.proof_system) {
         verify_stark_proof(
             &req.proof_b64,
             req.election_id.as_ref(),
