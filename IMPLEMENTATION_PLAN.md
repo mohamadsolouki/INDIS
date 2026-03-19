@@ -2,8 +2,8 @@
 # نقشه راه پیاده‌سازی INDIS
 
 > **Last updated:** 2026-03-19
-> **Current build status:** All 9 Go services + Rust zkproof + Python AI compile cleanly. Now includes T1.2 (Database Migration Runner) as complete for Tier 1 baseline, plus T2.1 (Groth16 development implementation), T3.8 (Kubernetes Deployments Refinement), and T3.9 (CI/CD Pipeline) as completed/advanced.
-> **Estimated overall completion:** ~47% of production-ready system (Tier 1 migration baseline now complete; Tier 2 core ZK/electoral/justice baselines implemented; Tier 3 K8s & CI/CD scaffolding complete)
+> **Current build status:** All 9 Go services + Rust zkproof + Python AI compile cleanly. Now includes T1.2 (Database Migration Runner), T1.5 (mTLS transport baseline), and T1.8 (Prometheus Metrics) as complete for Tier 1 baseline, plus T2.1 (Groth16 development implementation), T3.8 (Kubernetes Deployments Refinement), and T3.9 (CI/CD Pipeline) as completed/advanced.
+> **Estimated overall completion:** ~50% of production-ready system (Tier 1 migration + mTLS transport + observability baselines complete; Tier 2 core ZK/electoral/justice baselines implemented; Tier 3 K8s & CI/CD scaffolding complete)
 
 ---
 
@@ -32,12 +32,12 @@
 | **PWA frontend** | 🔴 None | React + TypeScript |
 | **Government portal** | 🔴 None | GraphQL + admin dashboard |
 | **Verifier terminal** | 🔴 None | QR scan + ZK display |
-| **mTLS / service mesh** | 🟡 Partial+ | TLS helpers + cert script exist; all Go gRPC servers now support `GRPC_TLS_MODE` and cert env wiring |
+| **mTLS / service mesh** | ✅ Implemented (Tier 1 baseline) | TLS helpers + cert script exist; all Go gRPC servers support shared TLS env contract; gateway backend client supports `plaintext`/`tls`/`tls_insecure_skip_verify` with optional client cert; centralized transport doc added |
 | **Kafka event streaming** | ✅ Implemented (Tier 1 baseline) | `enrollment.completed`, `credential.revoked`, `identity.deactivated` wired across core services |
 | **Redis caching** | ✅ Implemented (Tier 1 baseline) | `pkg/cache` wired into credential revocation + revocation status checks |
 | **Kubernetes / Helm** | ✅ Implemented | Tier 3 bare-metal baseline with probes, HPAs, PVCs, ingress |
 | **CI/CD** | ✅ Implemented | Tier 3 generic GitLab CI with jobs for Go, Python, Rust, security, deployments |
-| **Observability** | 🟡 Partial+ | `pkg/metrics` wired into all Go services with per-service `/metrics` endpoints; Prometheus scrape targets added for local dev |
+| **Observability** | ✅ Implemented (Tier 1 baseline) | `/metrics` endpoints across all Go services, gRPC unary operation instrumentation via interceptor, local Prometheus alert rules, and starter Grafana dashboard JSON |
 | **HSM integration** | 🔴 None | Ephemeral keys everywhere |
 | **Physical card** | 🔴 None | ICAO 9303 / ISO 7816 |
 | **USSD/SMS gateway** | 🔴 None | No feature-phone path |
@@ -197,7 +197,7 @@ The PRD requires revocation propagation ≤ 60 seconds (FR-002.R1). Currently no
 
 ### T1.5 — mTLS Between Services
 
-**Status (2026-03-18):** Partial+ complete — `scripts/gen-certs.sh` and `pkg/tls/tls.go` are present; all Go gRPC servers support TLS mode + cert env wiring; gateway backend transport now supports optional client-certificate presentation for mTLS.
+**Status (2026-03-19):** ✅ Complete for Tier 1 baseline.
 
 Implemented now:
 - gRPC server TLS mode support added to all Go services (`identity`, `credential`, `enrollment`, `biometric`, `audit`, `notification`, `electoral`, `justice`)
@@ -208,10 +208,12 @@ Implemented now:
   - `TLS_CA_FILE` optional (when set, server enforces client cert verification)
 
 Remaining for full mTLS completion:
-- Ensure all present/future gRPC client call paths use the client-certificate flow when backend services require client auth (gateway path now supports it)
-- Centralized per-service cert path configuration in service config structs/docs
+- Production-grade certificate lifecycle automation (rotation policy, issuance integration, and HSM-backed key custody)
 
-Currently all gRPC connections use `insecure.NewCredentials()`. Production requires mTLS.
+Gateway backend transport is configurable via mode (`plaintext`, `tls`, `tls_insecure_skip_verify`) with optional client certificate support for mTLS environments.
+
+Additional baseline completion item:
+- Centralized transport env documentation added: `docs/security/mtls.md`
 
 **Approach for now:** Generate self-signed CA + per-service certs via a script, load from environment. Real HSM-backed certs in Phase 2.
 
@@ -322,16 +324,22 @@ clients/android/
 
 ### T1.8 — Prometheus Metrics
 
-**Status (2026-03-18):** Partial+ complete (Tier 1 baseline).
+**Status (2026-03-19):** ✅ Complete for Tier 1 baseline.
 
 Implemented now:
 - All 9 Go services initialize `pkg/metrics` and expose `/metrics` on dedicated ports via `metrics.ServeMetrics(...)`
 - Added `METRICS_PORT` configuration in each service (`identity:9101`, `credential:9102`, `enrollment:9103`, `biometric:9104`, `audit:9105`, `notification:9106`, `electoral:9107`, `justice:9108`, `gateway:9109`)
 - Updated `deploy/prometheus/prometheus.yml` to scrape all Go service metrics endpoints
+- Added gRPC unary server instrumentation in `pkg/metrics/grpc.go` and wired it into all gRPC services:
+  - `indis_grpc_requests_total` by service/method/code
+  - `indis_operations_total` by service/operation/status
+  - `indis_operation_duration_seconds` by service/operation
+- Added starter local alert rules in `deploy/prometheus/alerts.yml` (service down, high gRPC error rate, high p95 latency)
+- Added starter Grafana dashboard JSON in `deploy/grafana/dashboards/indis-tier1-overview.json`
+- Verified startup package tests for all DB-backed services after interceptor wiring (`go test ./cmd/server`)
 
 Remaining for full completion:
-- Add operation-level instrumentation in handlers/services (currently endpoint exposure + metric registration baseline is wired)
-- Add starter Grafana dashboard JSON and service-level alert rules for error rate/latency
+- None for Tier 1 baseline scope; future work is dashboard/alerts expansion for production SLOs and long-term retention.
 
 Every service needs `/metrics` for observability. Required before Phase 1 launch.
 
@@ -918,6 +926,8 @@ The following architectural decisions are settled and should not be revisited:
 - **No foreign cloud** — no AWS/Azure/GCP at any tier
 
 ## Recent Updates / به‌روزرسانی‌های اخیر
+- 2026-03-19: Completed T1.5 baseline by centralizing mTLS transport configuration documentation (`docs/security/mtls.md`) and confirming shared server/client transport contracts across all Go services + gateway.
+- 2026-03-19: Completed T1.8 baseline by adding gRPC unary metrics interceptor instrumentation across services, plus starter Prometheus alert rules (`deploy/prometheus/alerts.yml`) and Grafana dashboard (`deploy/grafana/dashboards/indis-tier1-overview.json`).
 - 2026-03-19: Completed remaining T1.2 startup migration integration tests for `credential`, `enrollment`, `biometric`, `audit`, `notification`, `electoral`, and `justice`, closing the Tier 1 baseline migration-testing gap.
 - 2026-03-19: Advanced T1.2 with shared startup migration helper `pkg/migrate/startup.go`, refactored all DB-backed startup paths to use it, and added identity startup migration integration test `services/identity/cmd/server/startup_migrations_test.go`.
 - 2026-03-19: Advanced T1.2 with migration integration tests in `pkg/migrate/migrate_integration_test.go` to validate clean-schema application and idempotent re-run behavior.

@@ -1,0 +1,39 @@
+groups:
+  - name: indis-tier1-alerts
+    interval: 30s
+    rules:
+      - alert: INDISServiceDown
+        expr: up{job="indis-go-services"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "INDIS service down"
+          description: "Prometheus cannot scrape {{ $labels.instance }} for at least 2 minutes."
+
+      - alert: INDISHighGRPCErrorRate
+        expr: |
+          (
+            sum by (service) (rate(indis_grpc_requests_total{code!="OK"}[5m]))
+            /
+            clamp_min(sum by (service) (rate(indis_grpc_requests_total[5m])), 0.001)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High gRPC error rate"
+          description: "Service {{ $labels.service }} has >5% gRPC errors over the last 5 minutes."
+
+      - alert: INDISHighP95Latency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (service, operation, le) (rate(indis_operation_duration_seconds_bucket[5m]))
+          ) > 1.0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High p95 operation latency"
+          description: "Service {{ $labels.service }} operation {{ $labels.operation }} p95 latency is above 1s."

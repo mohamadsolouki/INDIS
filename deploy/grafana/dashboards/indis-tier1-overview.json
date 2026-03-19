@@ -1,0 +1,85 @@
+{
+  "title": "INDIS Tier 1 Service Overview",
+  "uid": "indis-tier1-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "timezone": "browser",
+  "tags": ["indis", "tier1"],
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "gRPC Request Rate by Service",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum by (service) (rate(indis_grpc_requests_total[5m]))",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "gRPC Error Rate by Service",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum by (service) (rate(indis_grpc_requests_total{code!=\"OK\"}[5m])) / clamp_min(sum by (service) (rate(indis_grpc_requests_total[5m])), 0.001)",
+          "legendFormat": "{{service}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "p95 Operation Latency",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (service, operation, le) (rate(indis_operation_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{service}}/{{operation}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Enrollment Attempt Rate",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "sum by (pathway, status) (rate(indis_enrollments_total[5m]))",
+          "legendFormat": "{{pathway}}/{{status}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "ZK Proof Duration (p95)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (circuit, operation, le) (rate(indis_zk_proof_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{circuit}}/{{operation}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
+    }
+  ],
+  "templating": { "list": [] },
+  "time": { "from": "now-30m", "to": "now" }
+}

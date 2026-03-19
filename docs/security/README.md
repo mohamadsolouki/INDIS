@@ -4,6 +4,7 @@
 
 - **Threat Model** — See [INDIS PRD §4.3](../../INDIS_PRD_v1.0.md)
 - **Cryptographic Standards** — Ed25519, AES-256-GCM, CRYSTALS-Dilithium
+- **mTLS Transport Configuration** — See [mTLS Guide](./mtls.md)
 - **Audit Reports** — Published after each security audit
 - **Incident Response** — Procedures for security incidents
 

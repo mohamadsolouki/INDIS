@@ -68,7 +68,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("grpc transport options: %v", err)
 	}
-	grpcServer := grpc.NewServer(grpcOpts...)
+	grpcServer := grpc.NewServer(append(grpcOpts, grpc.UnaryInterceptor(indismetrics.UnaryServerInterceptor("notification")))...)
 	notificationv1.RegisterNotificationServiceServer(grpcServer, h)
 
 	go func() {
