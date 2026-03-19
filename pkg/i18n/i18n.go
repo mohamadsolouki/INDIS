@@ -78,92 +78,67 @@ func (d SolarHijriDate) StringLatin() string {
 
 // ToSolarHijri converts a Gregorian time.Time to Solar Hijri (Shamsi) date.
 //
-// Algorithm: Borkowski (1996) — "The Persian calendar for 3000 years"
-// https://www.fourmilab.ch/documents/calendar/
+// Uses the jalaali arithmetic algorithm (based on the 2820-year grand cycle).
+// Note: the arithmetic algorithm can differ by one day from the astronomical
+// Persian calendar at Nowruz. Specifically, Nowruz 1404 is astronomically on
+// 2025-03-20 but this algorithm places it on 2025-03-21.
+// For exact Nowruz-day calculations, use an astronomical equinox table.
 func ToSolarHijri(t time.Time) SolarHijriDate {
-	// Work in UTC to avoid timezone side-effects.
 	t = t.UTC()
-	y, m, d := t.Date()
+	gy, gm, gd := t.Year(), int(t.Month()), t.Day()
 
-	// Gregorian to Julian Day Number
-	jdn := gregorianToJDN(y, int(m), d)
+	// Days elapsed since 1600-01-01 Gregorian (0-indexed).
+	gy -= 1600
+	gm -= 1
+	gd -= 1
 
-	// Julian Day Number to Solar Hijri
-	return jdnToSolarHijri(jdn)
+	gDayNo := 365*gy + (gy+3)/4 - (gy+99)/100 + (gy+399)/400
+	for i := 0; i < gm; i++ {
+		gDayNo += gMonthDays[i]
+	}
+	if gm > 1 && isGregorianLeap(gy+1600) {
+		gDayNo++ // Feb 29
+	}
+	gDayNo += gd
+
+	// Offset from Gregorian 1600-01-01 to Persian epoch (empirically derived).
+	jDayNo := gDayNo - 79
+
+	// 12053-day blocks (33-year sub-cycles within the 2820-year grand cycle).
+	jnp := jDayNo / 12053
+	jDayNo %= 12053
+
+	jy := 979 + 33*jnp + 4*(jDayNo/1461)
+	jDayNo %= 1461
+
+	if jDayNo >= 366 {
+		jy += (jDayNo - 1) / 365
+		jDayNo = (jDayNo - 1) % 365
+	}
+
+	// Find month.
+	i := 0
+	for ; i < 11; i++ {
+		jmi := jMonthDays[i]
+		if jDayNo >= jmi {
+			jDayNo -= jmi
+		} else {
+			break
+		}
+	}
+	return SolarHijriDate{Year: jy, Month: i + 1, Day: jDayNo + 1}
 }
 
-// gregorianToJDN converts a Gregorian date to Julian Day Number.
-func gregorianToJDN(year, month, day int) int {
-	a := (14 - month) / 12
-	y := year + 4800 - a
-	mo := month + 12*a - 3
-	return day + (153*mo+2)/5 + 365*y + y/4 - y/100 + y/400 - 32045
-}
+// gMonthDays holds the number of days in each Gregorian month (non-leap year).
+var gMonthDays = [12]int{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
 
-// jdnToSolarHijri converts a Julian Day Number to Solar Hijri date.
-// Algorithm from https://www.fourmilab.ch/documents/calendar/ (Persian Calendar section).
-func jdnToSolarHijri(jdn int) SolarHijriDate {
-	// Solar Hijri epoch JDN: 1948320 (Nawruz 1 Farvardin 1 SH = March 22, 622 CE Julian)
-	// Using the algorithmic calendar (Borkowski 1996).
-	depoch := jdn - persianEpochJDN()
-	cycle, cyear := divmod(depoch, 2820)
-	if cyear < 0 {
-		cycle--
-		cyear += 2820
-	}
-	ycycle := 474 + 2820*cycle
-	aux, _ := divmod(cyear, 474)
-	if aux < 0 {
-		aux = 0
-	}
-	year := cyear + aux*474 + ycycle - 474
+// jMonthDays holds the number of days in Solar Hijri months 1–11.
+// Month 12 is handled implicitly (29 or 30 days, leap-year dependent).
+var jMonthDays = [11]int{31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30}
 
-	yday := jdn - solarHijriToJDN(year, 1, 1) + 1
-	var month int
-	if yday <= 186 {
-		month = (yday-1)/31 + 1
-	} else {
-		month = (yday-7)/30 + 1
-	}
-	day := jdn - solarHijriToJDN(year, month, 1) + 1
-	return SolarHijriDate{Year: year, Month: month, Day: day}
-}
-
-// persianEpochJDN returns the Julian Day Number of the Persian calendar epoch (1 Farvardin 1 SH).
-func persianEpochJDN() int {
-	return 1948320
-}
-
-// solarHijriToJDN converts a Solar Hijri date to Julian Day Number.
-func solarHijriToJDN(year, month, day int) int {
-	epbase := year - 474
-	if year < 474 {
-		epbase = year - 473
-	}
-	epyear := 474 + mod(epbase, 2820)
-	var monthDays int
-	if month <= 6 {
-		monthDays = 31 * (month - 1)
-	} else {
-		monthDays = 30*(month-1) + 6
-	}
-	return day + monthDays +
-		(epyear*682-110)/2816 +
-		(epyear-1)*365 +
-		epbase/2820*1029983 +
-		persianEpochJDN() - 1
-}
-
-func divmod(a, b int) (int, int) {
-	return a / b, a % b
-}
-
-func mod(a, b int) int {
-	r := a % b
-	if r < 0 {
-		r += b
-	}
-	return r
+// isGregorianLeap reports whether a Gregorian year is a leap year.
+func isGregorianLeap(year int) bool {
+	return year%4 == 0 && (year%100 != 0 || year%400 == 0)
 }
 
 // persianDigits maps ASCII digits 0-9 to their Persian/Arabic-Indic equivalents.

@@ -1,0 +1,1720 @@
+openapi: "3.0.3"
+
+info:
+  title: INDIS API
+  description: |
+    # INDIS — Iran National Digital Identity System
+
+    Gateway REST API for mobile clients (Android / iOS / HarmonyOS), the React PWA,
+    verifier terminals, and the government portal.
+
+    ## Authentication
+
+    All protected routes require one of:
+    - **Bearer JWT** — `Authorization: Bearer <token>` — HS256-signed JWT with claims
+      `sub` (citizen DID), `ministry`, `role`, `exp`.
+    - **X-API-Key** — `X-API-Key: <key>` — service-to-service key whose SHA-256 hash is
+      registered in the gateway's `API_KEYS` configuration.
+
+    Public routes that skip authentication:
+    - `GET /health`
+    - `GET /v1/identity/{did}`
+    - `GET /v1/credential/{id}`
+    - `POST /v1/electoral/verify`
+    - `POST /v1/verifier/verify`
+    - All `/v1/ussd` routes
+
+    ## Privacy by Architecture
+
+    Verifiers receive **only boolean ZK-proof results** — never raw citizen attributes.
+    All verification events are appended to the tamper-evident audit log (PRD §FR-007).
+
+    ## Localisation
+
+    Dates accept and return RFC 3339 strings. The mobile client is responsible for
+    converting to Solar Hijri (Persian calendar) using `pkg/i18n`.
+
+    ## Rate Limiting
+
+    100 requests per second per IP by default (configurable via `RATE_LIMIT_RPS`).
+    Excess requests receive HTTP 429.
+  version: "1.0.0"
+  contact:
+    name: INDIS Technical Team
+    email: tech@indis.ir
+  license:
+    name: AGPL-3.0
+
+servers:
+  - url: https://api.indis.ir
+    description: Production
+  - url: https://staging-api.indis.ir
+    description: Staging
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: Health
+    description: Gateway liveness probe
+  - name: Identity
+    description: W3C DID Core 1.0 identity operations
+  - name: Credential
+    description: W3C Verifiable Credentials 2.0 issuance, verification, and revocation
+  - name: Enrollment
+    description: |
+      Citizen enrollment lifecycle — standard, enhanced (civil registry), and social
+      attestation (3+ community co-attestors + biometrics) pathways
+  - name: Electoral
+    description: Voter eligibility verification and ballot casting
+  - name: Justice
+    description: Testimony submission, amnesty case management
+  - name: Verifier
+    description: Third-party verifier registration and ZK-proof verification
+  - name: Privacy
+    description: |
+      Privacy Control Center (PRD §FR-008) — consent management, verification history,
+      and GDPR-style data export requests
+  - name: Notification
+    description: Multi-channel notification delivery (SMS, push, email)
+  - name: Card
+    description: Digital identity card generation and retrieval
+  - name: Audit
+    description: |
+      Tamper-evident append-only audit log (PRD §FR-007).
+      Append requires API key; query requires ministry role.
+  - name: Biometric
+    description: Biometric deduplication status polling
+
+security:
+  - BearerAuth: []
+  - ApiKeyAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        HS256-signed JWT. Claims: `sub` (citizen DID, e.g. `did:indis:abc123`),
+        `ministry` (e.g. `interior`), `role` (e.g. `operator`), `exp` (Unix timestamp).
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        Service-to-service API key. The SHA-256 hash of this value must be registered
+        in the gateway's `API_KEYS` environment variable.
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: "authentication required"
+
+    # ── Identity ──────────────────────────────────────────────────────────────
+
+    RegisterIdentityRequest:
+      type: object
+      required: [national_id]
+      properties:
+        national_id:
+          type: string
+          description: Citizen national ID (hashed before storage — no raw NID stored)
+          example: "0012345678"
+        public_key:
+          type: string
+          description: Base64-encoded Ed25519 public key
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Optional non-PII metadata
+
+    RegisterIdentityResponse:
+      type: object
+      properties:
+        did:
+          type: string
+          description: Newly created W3C DID
+          example: "did:indis:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK"
+        document:
+          type: object
+          description: W3C DID Document (JSON-LD)
+
+    ResolveIdentityResponse:
+      type: object
+      properties:
+        did:
+          type: string
+        document:
+          type: object
+          description: W3C DID Document
+        deactivated:
+          type: boolean
+
+    DeactivateIdentityRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          description: Reason for deactivation (stored in audit log)
+
+    # ── Credential ────────────────────────────────────────────────────────────
+
+    IssueCredentialRequest:
+      type: object
+      required: [subject_did, credential_type]
+      properties:
+        subject_did:
+          type: string
+          example: "did:indis:z6Mkha..."
+        credential_type:
+          type: string
+          enum:
+            - NationalIdCredential
+            - PassportCredential
+            - VoterEligibilityCredential
+            - DrivingLicenseCredential
+          example: NationalIdCredential
+        claims:
+          type: object
+          description: Credential-type-specific claims (no raw PII — use derived attributes)
+          additionalProperties: true
+        expiry_date:
+          type: string
+          format: date-time
+          description: RFC 3339 expiry timestamp
+
+    IssueCredentialResponse:
+      type: object
+      properties:
+        credential_id:
+          type: string
+        credential:
+          type: object
+          description: W3C Verifiable Credential (JSON-LD)
+        issued_at:
+          type: string
+          format: date-time
+
+    RevocationStatusResponse:
+      type: object
+      properties:
+        credential_id:
+          type: string
+        revoked:
+          type: boolean
+        revocation_reason:
+          type: string
+        revoked_at:
+          type: string
+          format: date-time
+
+    RevokeCredentialRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          description: Revocation reason (stored in audit log)
+
+    # ── Enrollment ────────────────────────────────────────────────────────────
+
+    InitiateEnrollmentRequest:
+      type: object
+      required: [pathway]
+      properties:
+        pathway:
+          type: string
+          enum: [standard, enhanced, social_attestation]
+          description: |
+            - standard: documents + biometrics
+            - enhanced: civil registry integration
+            - social_attestation: 3+ community co-attestors + biometrics
+        national_id_hash:
+          type: string
+          description: SHA-256 hex of national ID
+        locale:
+          type: string
+          default: fa
+          description: Preferred locale for notifications
+
+    InitiateEnrollmentResponse:
+      type: object
+      properties:
+        enrollment_id:
+          type: string
+        status:
+          type: string
+          enum: [initiated, biometrics_pending, attestation_pending, review, approved, rejected]
+        next_step:
+          type: string
+
+    EnrollmentStatusResponse:
+      type: object
+      properties:
+        enrollment_id:
+          type: string
+        status:
+          type: string
+        pathway:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    SubmitBiometricsRequest:
+      type: object
+      required: [biometric_type, data]
+      properties:
+        biometric_type:
+          type: string
+          enum: [fingerprint, face, iris]
+        data:
+          type: string
+          format: byte
+          description: Base64-encoded biometric template (encrypted with HSM public key)
+        device_id:
+          type: string
+
+    SubmitSocialAttestationRequest:
+      type: object
+      required: [attestor_dids, attestation_proof]
+      properties:
+        attestor_dids:
+          type: array
+          minItems: 3
+          items:
+            type: string
+          description: DIDs of at least 3 community co-attestors
+        attestation_proof:
+          type: string
+          description: Aggregated attestation signature
+
+    # ── Electoral ─────────────────────────────────────────────────────────────
+
+    RegisterElectionRequest:
+      type: object
+      required: [election_id, name, start_date, end_date]
+      properties:
+        election_id:
+          type: string
+        name:
+          type: string
+          example: "انتخابات مجلس ۱۴۰۴"
+        start_date:
+          type: string
+          format: date-time
+        end_date:
+          type: string
+          format: date-time
+        eligible_credential_types:
+          type: array
+          items:
+            type: string
+
+    VerifyEligibilityRequest:
+      type: object
+      required: [election_id, zk_proof]
+      properties:
+        election_id:
+          type: string
+        zk_proof:
+          type: string
+          description: Base64-encoded STARK/PLONK proof of voter eligibility (no PII)
+        proof_type:
+          type: string
+          enum: [stark, plonk, groth16]
+          default: stark
+
+    VerifyEligibilityResponse:
+      type: object
+      properties:
+        eligible:
+          type: boolean
+          description: Boolean result only — verifier learns nothing beyond eligibility
+        nullifier:
+          type: string
+          description: One-time nullifier to prevent double voting (opaque token)
+
+    CastBallotRequest:
+      type: object
+      required: [election_id, nullifier, encrypted_ballot]
+      properties:
+        election_id:
+          type: string
+        nullifier:
+          type: string
+        encrypted_ballot:
+          type: string
+          format: byte
+          description: Homomorphically encrypted ballot
+
+    # ── Justice ───────────────────────────────────────────────────────────────
+
+    SubmitTestimonyRequest:
+      type: object
+      required: [case_id, content_hash]
+      properties:
+        case_id:
+          type: string
+        content_hash:
+          type: string
+          description: SHA-256 of testimony content (content stored off-chain encrypted)
+        zk_identity_proof:
+          type: string
+          description: Optional ZK proof of submitter identity for anonymous testimony
+
+    LinkTestimonyRequest:
+      type: object
+      required: [testimony_id, case_id]
+      properties:
+        testimony_id:
+          type: string
+        case_id:
+          type: string
+
+    InitiateAmnestyRequest:
+      type: object
+      required: [case_id, applicant_did]
+      properties:
+        case_id:
+          type: string
+        applicant_did:
+          type: string
+        supporting_evidence_hashes:
+          type: array
+          items:
+            type: string
+
+    # ── Privacy ───────────────────────────────────────────────────────────────
+
+    ConsentRuleRequest:
+      type: object
+      required: [verifier_category, credential_type, rule]
+      properties:
+        verifier_category:
+          type: string
+          description: Category of verifier (e.g. "bank", "employer", "government")
+          example: bank
+        credential_type:
+          type: string
+          description: Credential type this rule applies to
+          example: NationalIdCredential
+        rule:
+          type: string
+          enum: [always, ask, never]
+          description: |
+            - always: auto-approve verification requests from this category
+            - ask: prompt citizen for approval each time
+            - never: auto-deny verification requests from this category
+          example: ask
+
+    ConsentRule:
+      type: object
+      properties:
+        id:
+          type: string
+        citizen_did:
+          type: string
+        verifier_category:
+          type: string
+        credential_type:
+          type: string
+        rule:
+          type: string
+          enum: [always, ask, never]
+        created_at:
+          type: string
+          format: date-time
+
+    ConsentRulesResponse:
+      type: object
+      properties:
+        consent_rules:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConsentRule"
+
+    DataExportCreateResponse:
+      type: object
+      properties:
+        request_id:
+          type: string
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+
+    DataExportStatusResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        citizen_did:
+          type: string
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+        requested_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    # ── Audit ─────────────────────────────────────────────────────────────────
+
+    AppendEventRequest:
+      type: object
+      required: [action, category]
+      properties:
+        category:
+          type: integer
+          description: |
+            EventCategory enum value:
+            0=UNSPECIFIED, 1=IDENTITY, 2=CREDENTIAL, 3=ENROLLMENT,
+            4=BIOMETRIC, 5=ELECTORAL, 6=JUSTICE, 7=ADMIN, 8=SYSTEM
+        action:
+          type: string
+          description: Action string e.g. "did.register", "credential.revoke"
+          example: "credential.revoke"
+        actor_did:
+          type: string
+          description: DID of the operator; empty for system-generated events
+        subject_did:
+          type: string
+          description: DID of the affected citizen; empty if not applicable
+        resource_id:
+          type: string
+          description: Credential ID, enrollment ID, etc.
+        service_id:
+          type: string
+          description: Name of the originating service
+        metadata:
+          type: string
+          format: byte
+          description: JSON metadata — no PII (PRD §FR-007)
+
+    AppendEventResponse:
+      type: object
+      properties:
+        event_id:
+          type: string
+        prev_hash:
+          type: string
+          description: SHA-256 hex of the previous log entry (hash chain integrity)
+        timestamp:
+          type: string
+          format: date-time
+
+    AuditEvent:
+      type: object
+      properties:
+        event_id:
+          type: string
+        category:
+          type: integer
+        action:
+          type: string
+        actor_did:
+          type: string
+        subject_did:
+          type: string
+        resource_id:
+          type: string
+        service_id:
+          type: string
+        prev_hash:
+          type: string
+        entry_hash:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    QueryEventsResponse:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditEvent"
+        next_page_token:
+          type: string
+
+    # ── Notification ──────────────────────────────────────────────────────────
+
+    SendNotificationRequest:
+      type: object
+      required: [recipient_did]
+      properties:
+        recipient_did:
+          type: string
+        channel:
+          type: integer
+          description: "Channel: 0=UNSPECIFIED, 1=SMS, 2=PUSH, 3=EMAIL"
+          default: 1
+        type:
+          type: integer
+          description: |
+            NotificationType:
+            0=UNSPECIFIED, 1=CREDENTIAL_EXPIRY, 2=CREDENTIAL_ISSUED,
+            3=CREDENTIAL_REVOKED, 4=ENROLLMENT_UPDATE, 5=SECURITY_ALERT, 6=SYSTEM
+        locale:
+          type: string
+          default: fa
+          description: Language code ("fa", "en", etc.)
+        subject:
+          type: string
+        body:
+          type: string
+        template_vars:
+          type: object
+          additionalProperties:
+            type: string
+
+    SendNotificationResponse:
+      type: object
+      properties:
+        notification_id:
+          type: string
+        status:
+          type: string
+          enum: [queued, delivered, failed]
+
+    ScheduleExpiryAlertRequest:
+      type: object
+      required: [recipient_did, credential_id, credential_type, expires_at]
+      properties:
+        recipient_did:
+          type: string
+        credential_id:
+          type: string
+        credential_type:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+          description: RFC 3339 credential expiry time
+        locale:
+          type: string
+          default: fa
+
+    ScheduleExpiryAlertResponse:
+      type: object
+      properties:
+        alert_ids:
+          type: array
+          items:
+            type: string
+          description: One alert ID per scheduled reminder (30d / 7d / 1d before expiry)
+
+paths:
+  # ── Health ───────────────────────────────────────────────────────────────────
+
+  /health:
+    get:
+      summary: Gateway health check
+      description: Returns 200 if the gateway process is running. Does not probe backends.
+      operationId: getHealth
+      tags: [Health]
+      security: []
+      responses:
+        "200":
+          description: Gateway is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  # ── Identity ─────────────────────────────────────────────────────────────────
+
+  /v1/identity/register:
+    post:
+      summary: Register a new DID
+      description: |
+        Creates a new W3C DID for a citizen. The national ID is hashed before
+        storage — the raw NID is never persisted (PRD §FR-001).
+      operationId: registerIdentity
+      tags: [Identity]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterIdentityRequest"
+      responses:
+        "201":
+          description: DID created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterIdentityResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  /v1/identity/{did}:
+    get:
+      summary: Resolve a DID Document
+      description: Returns the W3C DID Document for the given DID. Public endpoint.
+      operationId: resolveIdentity
+      tags: [Identity]
+      security: []
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "did:indis:z6MkhaXgBZDvotDkL5257faiz"
+      responses:
+        "200":
+          description: DID Document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResolveIdentityResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  /v1/identity/{did}/deactivate:
+    post:
+      summary: Deactivate a DID
+      description: Marks the DID as deactivated. Requires operator role.
+      operationId: deactivateIdentity
+      tags: [Identity]
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeactivateIdentityRequest"
+      responses:
+        "200":
+          description: DID deactivated
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  # ── Credential ───────────────────────────────────────────────────────────────
+
+  /v1/credential/issue:
+    post:
+      summary: Issue a Verifiable Credential
+      description: Issues a W3C VC for the given citizen DID. Requires operator or ministry role.
+      operationId: issueCredential
+      tags: [Credential]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IssueCredentialRequest"
+      responses:
+        "201":
+          description: Credential issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IssueCredentialResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  /v1/credential/{id}:
+    get:
+      summary: Check credential revocation status
+      description: |
+        Returns whether the credential is revoked. Public endpoint — no auth required.
+        Verifiers should call this before accepting a presented credential.
+      operationId: checkRevocationStatus
+      tags: [Credential]
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Revocation status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RevocationStatusResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  /v1/credential/{id}/revoke:
+    post:
+      summary: Revoke a credential
+      description: Marks the credential as revoked. Requires operator role.
+      operationId: revokeCredential
+      tags: [Credential]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RevokeCredentialRequest"
+      responses:
+        "200":
+          description: Credential revoked
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  # ── Enrollment ────────────────────────────────────────────────────────────────
+
+  /v1/enrollment/initiate:
+    post:
+      summary: Initiate a new enrollment
+      description: |
+        Starts the enrollment process for a new citizen. Returns an enrollment ID
+        and the next required step.
+      operationId: initiateEnrollment
+      tags: [Enrollment]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InitiateEnrollmentRequest"
+      responses:
+        "201":
+          description: Enrollment initiated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InitiateEnrollmentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  /v1/enrollment/{id}:
+    get:
+      summary: Get enrollment status
+      operationId: getEnrollmentStatus
+      tags: [Enrollment]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Enrollment status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnrollmentStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  /v1/enrollment/{id}/biometrics:
+    post:
+      summary: Submit biometric data for enrollment
+      description: |
+        Uploads encrypted biometric template. The AI service deduplicates against
+        existing records (PRD §FR-003). Template is stored encrypted with HSM key.
+      operationId: submitBiometrics
+      tags: [Enrollment]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitBiometricsRequest"
+      responses:
+        "200":
+          description: Biometrics accepted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  /v1/enrollment/{id}/attestation:
+    post:
+      summary: Submit social attestation for enrollment
+      description: |
+        Submits community co-attestors for the social attestation pathway.
+        Requires DIDs of at least 3 co-attestors.
+      operationId: submitSocialAttestation
+      tags: [Enrollment]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitSocialAttestationRequest"
+      responses:
+        "200":
+          description: Attestation submitted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  /v1/enrollment/{id}/complete:
+    post:
+      summary: Complete enrollment
+      description: Finalises the enrollment after all required steps are submitted.
+      operationId: completeEnrollment
+      tags: [Enrollment]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Enrollment completed
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  # ── Electoral ─────────────────────────────────────────────────────────────────
+
+  /v1/electoral/elections:
+    post:
+      summary: Register an election
+      description: Creates a new election record. Requires ministry role.
+      operationId: registerElection
+      tags: [Electoral]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterElectionRequest"
+      responses:
+        "201":
+          description: Election registered
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  /v1/electoral/elections/{id}:
+    get:
+      summary: Get election status
+      operationId: getElectionStatus
+      tags: [Electoral]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Election status
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  /v1/electoral/verify:
+    post:
+      summary: Verify voter eligibility via ZK proof
+      description: |
+        Public endpoint. Accepts a zero-knowledge proof and returns ONLY a boolean
+        eligibility result plus a one-time nullifier. No citizen data is disclosed.
+        Supports STARK (default), PLONK, and Groth16 proof systems.
+      operationId: verifyEligibility
+      tags: [Electoral]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyEligibilityRequest"
+      responses:
+        "200":
+          description: Eligibility verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerifyEligibilityResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  /v1/electoral/ballot:
+    post:
+      summary: Cast an encrypted ballot
+      description: |
+        Submits a homomorphically encrypted ballot. The nullifier from the eligibility
+        verification must be included to prevent double voting.
+      operationId: castBallot
+      tags: [Electoral]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CastBallotRequest"
+      responses:
+        "200":
+          description: Ballot accepted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  # ── Justice ───────────────────────────────────────────────────────────────────
+
+  /v1/justice/testimony:
+    post:
+      summary: Submit a testimony
+      operationId: submitTestimony
+      tags: [Justice]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitTestimonyRequest"
+      responses:
+        "201":
+          description: Testimony submitted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  /v1/justice/testimony/link:
+    post:
+      summary: Link a testimony to a case
+      operationId: linkTestimony
+      tags: [Justice]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LinkTestimonyRequest"
+      responses:
+        "200":
+          description: Testimony linked
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  /v1/justice/amnesty:
+    post:
+      summary: Initiate an amnesty case
+      operationId: initiateAmnesty
+      tags: [Justice]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InitiateAmnestyRequest"
+      responses:
+        "201":
+          description: Amnesty case initiated
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  /v1/justice/cases/{id}:
+    get:
+      summary: Get case status
+      operationId: getCaseStatus
+      tags: [Justice]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Case status
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  # ── Verifier ──────────────────────────────────────────────────────────────────
+
+  /v1/verifier/register:
+    post:
+      summary: Register a verifier organisation
+      description: |
+        Registers a third-party verifier (bank, employer, government agency) so it
+        can subsequently present ZK-proof verification requests to citizens.
+      operationId: registerVerifier
+      tags: [Verifier]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, category, public_key]
+              properties:
+                name:
+                  type: string
+                  example: "Bank Mellat"
+                category:
+                  type: string
+                  example: bank
+                public_key:
+                  type: string
+                  description: Base64-encoded Ed25519 public key
+                webhook_url:
+                  type: string
+                  format: uri
+      responses:
+        "201":
+          description: Verifier registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  verifier_id:
+                    type: string
+                  api_key_hint:
+                    type: string
+                    description: First 8 characters of the assigned API key (shown once)
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/verifier/{id}:
+    get:
+      summary: Get verifier details
+      operationId: getVerifier
+      tags: [Verifier]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Verifier details
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/verifier/verify:
+    post:
+      summary: Submit a ZK proof for verification
+      description: |
+        Public endpoint. Third-party verifiers submit a ZK proof on behalf of a
+        citizen and receive ONLY a boolean result. No citizen attributes are returned.
+        This is the primary verification endpoint for verifier terminals.
+      operationId: verifyProof
+      tags: [Verifier]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [proof, proof_type, credential_type]
+              properties:
+                proof:
+                  type: string
+                  format: byte
+                  description: Base64-encoded ZK proof
+                proof_type:
+                  type: string
+                  enum: [groth16, plonk, stark, bulletproof]
+                credential_type:
+                  type: string
+                verifier_id:
+                  type: string
+      responses:
+        "200":
+          description: Verification result — boolean only, no citizen data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+                  proof_type:
+                    type: string
+                  verified_at:
+                    type: string
+                    format: date-time
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  # ── Privacy Control Center ────────────────────────────────────────────────────
+
+  /v1/privacy/history:
+    get:
+      summary: List verification requests received by this citizen
+      description: |
+        Returns audit events where the authenticated citizen is the subject_did.
+        Allows citizens to see who verified their credentials and when (PRD §FR-008).
+      operationId: getPrivacyHistory
+      tags: [Privacy]
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Filter events from this timestamp (RFC 3339)
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Filter events up to this timestamp (RFC 3339)
+        - name: page_token
+          in: query
+          schema:
+            type: string
+          description: Pagination cursor from previous response
+      responses:
+        "200":
+          description: Verification history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueryEventsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  /v1/privacy/sharing:
+    get:
+      summary: List credentials shared and with whom
+      description: |
+        Returns credential verification audit events for this citizen, showing
+        which verifiers accessed which credential types (PRD §FR-008).
+      operationId: getPrivacySharing
+      tags: [Privacy]
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: page_token
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Credential sharing history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueryEventsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  /v1/privacy/consent:
+    get:
+      summary: List all consent rules for the authenticated citizen
+      operationId: listConsentRules
+      tags: [Privacy]
+      responses:
+        "200":
+          description: Consent rules
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsentRulesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+    post:
+      summary: Create a consent rule
+      description: |
+        Sets a consent rule controlling how verification requests from a given verifier
+        category and credential type are handled. The rule can be:
+        - `always`: auto-approve without citizen prompt
+        - `ask`: prompt the citizen each time (default)
+        - `never`: auto-deny
+      operationId: createConsentRule
+      tags: [Privacy]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConsentRuleRequest"
+      responses:
+        "201":
+          description: Consent rule created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsentRule"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /v1/privacy/consent/{id}:
+    delete:
+      summary: Remove a consent rule
+      operationId: deleteConsentRule
+      tags: [Privacy]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Consent rule deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /v1/privacy/data-export:
+    post:
+      summary: Request a full data export
+      description: |
+        Creates a data export request. Returns a request_id that can be used to poll
+        the export status. The actual export is generated asynchronously by a background
+        worker and made available for download when status = "completed".
+      operationId: requestDataExport
+      tags: [Privacy]
+      responses:
+        "202":
+          description: Data export request accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataExportCreateResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /v1/privacy/data-export/{id}:
+    get:
+      summary: Check data export status
+      operationId: getDataExportStatus
+      tags: [Privacy]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Data export status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataExportStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  # ── Notification ──────────────────────────────────────────────────────────────
+
+  /v1/notification/send:
+    post:
+      summary: Send a notification immediately
+      description: |
+        Dispatches a notification to a citizen via the specified channel (SMS, push,
+        email). Requires operator or service role.
+      operationId: sendNotification
+      tags: [Notification]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendNotificationRequest"
+      responses:
+        "200":
+          description: Notification dispatched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SendNotificationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  /v1/notification/alert:
+    post:
+      summary: Schedule credential expiry alerts
+      description: |
+        Schedules three reminders (30 days, 7 days, 1 day before expiry) for the
+        specified credential (PRD §FR-002.R4).
+      operationId: scheduleExpiryAlert
+      tags: [Notification]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScheduleExpiryAlertRequest"
+      responses:
+        "200":
+          description: Alerts scheduled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleExpiryAlertResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  /v1/notification/status/{id}:
+    get:
+      summary: Get notification delivery status
+      description: Not yet implemented — returns 501.
+      operationId: getNotificationStatus
+      tags: [Notification]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "501":
+          description: Not implemented
+
+  # ── Biometric ─────────────────────────────────────────────────────────────────
+
+  /v1/biometric/deduplicate-status/{id}:
+    get:
+      summary: Poll biometric deduplication status
+      description: |
+        Mobile polling endpoint. Returns the current status of an in-progress
+        biometric deduplication job. In production this is backed by the AI service.
+      operationId: getDeduplicateStatus
+      tags: [Biometric]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deduplication status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+                    enum: [pending, processing, completed, duplicate_found, error]
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Audit ─────────────────────────────────────────────────────────────────────
+
+  /v1/audit/events:
+    post:
+      summary: Append an audit event
+      description: |
+        Appends an immutable event to the tamper-evident audit log. Each event is
+        hash-chained to the previous entry (PRD §FR-007). Requires API key — internal
+        use only; not accessible to citizen-facing clients.
+      operationId: appendAuditEvent
+      tags: [Audit]
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppendEventRequest"
+      responses:
+        "201":
+          description: Event appended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppendEventResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+    get:
+      summary: Query audit events
+      description: |
+        Returns audit events matching the given filters. Requires ministry role.
+        Results are paginated using `next_page_token`.
+      operationId: queryAuditEvents
+      tags: [Audit]
+      parameters:
+        - name: actor_did
+          in: query
+          schema:
+            type: string
+          description: Filter by actor DID
+        - name: subject_did
+          in: query
+          schema:
+            type: string
+          description: Filter by subject (citizen) DID
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Start of time range (RFC 3339)
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: End of time range (RFC 3339)
+        - name: page_token
+          in: query
+          schema:
+            type: string
+          description: Pagination cursor
+      responses:
+        "200":
+          description: Audit events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueryEventsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  # ── Card ──────────────────────────────────────────────────────────────────────
+
+  /v1/card/{did}:
+    get:
+      summary: Retrieve a digital identity card
+      description: Returns the digital identity card for the given citizen DID.
+      operationId: getCard
+      tags: [Card]
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Digital identity card
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/card/generate:
+    post:
+      summary: Generate a digital identity card
+      description: |
+        Generates or regenerates the digital identity card for the authenticated citizen.
+        The card includes a QR code encoding a ZK-proof presentation request.
+      operationId: generateCard
+      tags: [Card]
+      responses:
+        "200":
+          description: Card generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  card_id:
+                    type: string
+                  qr_code:
+                    type: string
+                    format: byte
+                    description: Base64-encoded QR code PNG
+                  expires_at:
+                    type: string
+                    format: date-time
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Authentication required or token invalid
+      headers:
+        WWW-Authenticate:
+          schema:
+            type: string
+            example: 'Bearer realm="INDIS"'
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Authenticated but insufficient role/permissions
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    RateLimited:
+      description: Too many requests — per-IP rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    BadGateway:
+      description: Backend service unavailable or returned an error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ServiceUnavailable:
+      description: Service temporarily unavailable (e.g. gateway DB not configured)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"

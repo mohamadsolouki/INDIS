@@ -4,6 +4,12 @@
 // gRPC backend services (identity:50051 … justice:50058) using generated
 // protobuf client stubs.  Per-IP token-bucket rate limiting is enforced
 // before any request reaches a backend.
+//
+// Additional responsibilities:
+//   - JWT (HS256) and API-key authentication via auth middleware
+//   - CORS headers via cors middleware
+//   - Security headers (X-Content-Type-Options, etc.) on every response
+//   - Privacy Control Center API backed by gateway's own Postgres tables
 package main
 
 import (
@@ -17,10 +23,13 @@ import (
 	"time"
 
 	indismetrics "github.com/IranProsperityProject/INDIS/pkg/metrics"
+	"github.com/IranProsperityProject/INDIS/services/gateway/internal/auth"
 	"github.com/IranProsperityProject/INDIS/services/gateway/internal/config"
+	"github.com/IranProsperityProject/INDIS/services/gateway/internal/cors"
 	"github.com/IranProsperityProject/INDIS/services/gateway/internal/handler"
 	"github.com/IranProsperityProject/INDIS/services/gateway/internal/proxy"
 	"github.com/IranProsperityProject/INDIS/services/gateway/internal/ratelimit"
+	"github.com/IranProsperityProject/INDIS/services/gateway/internal/repository"
 )
 
 func main() {
@@ -56,12 +65,46 @@ func main() {
 	}
 	defer clients.Close()
 
+	// Gateway's own Postgres pool for consent rules and data-export requests.
+	// If DATABASE_URL is unset or the DB is unreachable, the gateway degrades
+	// gracefully: privacy APIs return 503, all other routes remain functional.
+	var repo *repository.Repository
+	if cfg.DatabaseURL != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		pool, poolErr := repository.NewPool(ctx, cfg.DatabaseURL)
+		cancel()
+		if poolErr != nil {
+			log.Printf("WARNING: gateway DB unavailable (%v); privacy APIs disabled", poolErr)
+		} else {
+			migrateCtx, migrateCancel := context.WithTimeout(context.Background(), 30*time.Second)
+			if migrateErr := repository.Migrate(migrateCtx, pool); migrateErr != nil {
+				log.Printf("WARNING: gateway DB migration failed (%v); privacy APIs disabled", migrateErr)
+			} else {
+				repo = repository.New(pool)
+				log.Printf("Gateway DB connected and migrated")
+			}
+			migrateCancel()
+			defer pool.Close()
+		}
+	}
+
+	// Parse API keys from config.
+	apiKeys := auth.ParseAPIKeysEnv(cfg.APIKeys)
+	if len(apiKeys) == 0 {
+		log.Printf("WARNING: no API_KEYS configured; service-to-service API key auth disabled")
+	}
+
 	limiter := ratelimit.New(cfg.RateLimitRPS)
-	gw := handler.New(clients, limiter)
+	gw := handler.New(clients, limiter, repo, cfg.VerifierHTTPURL, cfg.CardHTTPURL)
+
+	// Build middleware chain: CORS → Auth → Gateway handler.
+	var h http.Handler = gw
+	h = auth.Middleware(cfg.JWTSecret, apiKeys)(h)
+	h = cors.Middleware(cfg.CORSAllowedOrigins)(h)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.HTTPPort),
-		Handler:      gw,
+		Handler:      h,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,

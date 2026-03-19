@@ -1,0 +1,90 @@
+// INDIS — Verifier Service API
+// Verifier organization registration and ZK-proof-based credential verification.
+// Implements PRD FR-012 and FR-013.
+
+syntax = "proto3";
+package indis.verifier.v1;
+option go_package = "github.com/IranProsperityProject/INDIS/api/gen/go/verifier/v1";
+
+// VerifierService manages verifier organizations and credential verification via ZK proofs.
+service VerifierService {
+  // RegisterVerifier registers a new verifier organization and issues a certificate.
+  rpc RegisterVerifier(RegisterVerifierRequest) returns (RegisterVerifierResponse);
+  // GetVerifier retrieves a verifier by ID.
+  rpc GetVerifier(GetVerifierRequest) returns (GetVerifierResponse);
+  // ListVerifiers lists all verifier organizations, optionally filtered by status.
+  rpc ListVerifiers(ListVerifiersRequest) returns (ListVerifiersResponse);
+  // SuspendVerifier suspends or revokes a verifier certificate.
+  rpc SuspendVerifier(SuspendVerifierRequest) returns (SuspendVerifierResponse);
+  // VerifyCredential verifies a credential via ZK proof and logs the attempt.
+  rpc VerifyCredential(VerifyCredentialRequest) returns (VerifyCredentialResponse);
+  // GetVerificationHistory retrieves past verification events for a verifier.
+  rpc GetVerificationHistory(GetVerificationHistoryRequest) returns (GetVerificationHistoryResponse);
+}
+
+message RegisterVerifierRequest {
+  string org_name = 1;
+  string org_type = 2;
+  repeated string authorized_credential_types = 3;
+  string geographic_scope = 4;
+  int32 max_verifications_per_day = 5;
+}
+
+message RegisterVerifierResponse {
+  string verifier_id = 1;
+  string certificate_id = 2;
+  string public_key_hex = 3;
+}
+
+message GetVerifierRequest { string verifier_id = 1; }
+
+message GetVerifierResponse {
+  string verifier_id = 1;
+  string org_name = 2;
+  string org_type = 3;
+  repeated string authorized_credential_types = 4;
+  string status = 5;
+  string certificate_id = 6;
+  string registered_at = 7;
+}
+
+message ListVerifiersRequest { string status_filter = 1; }
+message ListVerifiersResponse { repeated GetVerifierResponse verifiers = 1; }
+
+message SuspendVerifierRequest {
+  string verifier_id = 1;
+  string reason = 2;
+}
+message SuspendVerifierResponse { bool success = 1; }
+
+message VerifyCredentialRequest {
+  string verifier_id = 1;
+  string credential_type = 2;
+  string predicate = 3;
+  string nonce = 4;
+  string proof_system = 5; // "groth16", "plonk", "stark", "bulletproofs"
+  string proof_b64 = 6;
+  string public_inputs_b64 = 7;
+}
+
+message VerifyCredentialResponse {
+  bool valid = 1;
+  string event_id = 2;
+}
+
+message GetVerificationHistoryRequest {
+  string verifier_id = 1;
+  int32 limit = 2;
+}
+
+message GetVerificationHistoryResponse {
+  repeated VerificationEvent events = 1;
+}
+
+message VerificationEvent {
+  string id = 1;
+  string credential_type = 2;
+  bool result = 3;
+  string proof_system = 4;
+  string occurred_at = 5;
+}

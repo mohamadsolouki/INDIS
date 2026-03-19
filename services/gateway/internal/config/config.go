@@ -34,6 +34,26 @@ type Config struct {
 	BackendCAFile         string
 	BackendClientCertFile string
 	BackendClientKeyFile  string
+
+	// JWT authentication (HS256).
+	// JWTSecret is the shared secret used to verify incoming Bearer tokens.
+	JWTSecret string
+	// APIKeys is the raw value of the API_KEYS env var: comma-separated "keyID:sha256hex" pairs.
+	APIKeys string
+
+	// Gateway's own Postgres DB for consent rules and data-export requests (PRD FR-008).
+	DatabaseURL string
+
+	// HTTP URLs for services that expose REST rather than gRPC.
+	VerifierHTTPURL   string
+	CardHTTPURL       string
+	USSDHTTPURL       string
+	GovPortalHTTPURL  string
+
+	// CORS configuration.
+	// CORSAllowedOrigins is a comma-separated list of allowed origins.
+	// Use "*" to allow all origins (development only).
+	CORSAllowedOrigins string
 }
 
 // Load reads configuration from environment variables with sane defaults.
@@ -54,6 +74,14 @@ func Load() (*Config, error) {
 		BackendCAFile:         envStr("BACKEND_CA_FILE", ""),
 		BackendClientCertFile: envStr("BACKEND_CLIENT_CERT_FILE", ""),
 		BackendClientKeyFile:  envStr("BACKEND_CLIENT_KEY_FILE", ""),
+		JWTSecret:             envStr("JWT_SECRET", ""),
+		APIKeys:               envStr("API_KEYS", ""),
+		DatabaseURL:           envStr("DATABASE_URL", "postgres://indis:indis_dev_password@localhost:5432/indis_gateway?sslmode=disable"),
+		VerifierHTTPURL:       envStr("VERIFIER_HTTP_URL", "http://localhost:9110"),
+		CardHTTPURL:           envStr("CARD_HTTP_URL", "http://localhost:8400"),
+		USSDHTTPURL:           envStr("USSD_HTTP_URL", "http://localhost:8300"),
+		GovPortalHTTPURL:      envStr("GOV_PORTAL_HTTP_URL", "http://localhost:8200"),
+		CORSAllowedOrigins:    envStr("CORS_ALLOWED_ORIGINS", "*"),
 	}
 
 	if cfg.RateLimitRPS <= 0 {

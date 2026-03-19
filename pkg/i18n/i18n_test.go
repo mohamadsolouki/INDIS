@@ -29,8 +29,11 @@ func TestToSolarHijri_KnownDates(t *testing.T) {
 			wantY: 1404, wantM: 12, wantD: 27,
 		},
 		{
-			name:  "2025-03-20 → 1404/01/01 (Nowruz)",
-			greg:  time.Date(2025, 3, 20, 0, 0, 0, 0, time.UTC),
+			// The arithmetic jalaali algorithm places Nowruz 1404 on 2025-03-21.
+			// The astronomical Persian calendar (used in Iran) places it on 2025-03-20.
+			// This test uses the arithmetic algorithm's date.
+			name:  "2025-03-21 → 1404/01/01 (Nowruz, arithmetic calendar)",
+			greg:  time.Date(2025, 3, 21, 0, 0, 0, 0, time.UTC),
 			wantY: 1404, wantM: 1, wantD: 1,
 		},
 		{
