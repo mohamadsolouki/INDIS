@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.global.domain | replace "." "-" }}-notification
+  labels:
+    app: notification
+spec:
+  replicas: {{ .Values.notification.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      app: notification
+  template:
+    metadata:
+      labels:
+        app: notification
+    spec:
+      containers:
+        - name: notification
+          image: "{{ .Values.notification.image.repository }}:{{ .Values.notification.image.tag }}"
+          imagePullPolicy: {{ .Values.notification.image.pullPolicy }}
+          ports:
+            - containerPort: 8080
+              name: grpc
+            - containerPort: 9090
+              name: metrics
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-notification-config
+          resources:
+            {{- toYaml .Values.notification.resources | nindent 12 }}

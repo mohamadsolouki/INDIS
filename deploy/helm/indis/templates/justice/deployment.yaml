@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.global.domain | replace "." "-" }}-justice
+  labels:
+    app: justice
+spec:
+  replicas: {{ .Values.justice.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      app: justice
+  template:
+    metadata:
+      labels:
+        app: justice
+    spec:
+      containers:
+        - name: justice
+          image: "{{ .Values.justice.image.repository }}:{{ .Values.justice.image.tag }}"
+          imagePullPolicy: {{ .Values.justice.image.pullPolicy }}
+          ports:
+            - containerPort: 8080
+              name: grpc
+            - containerPort: 9090
+              name: metrics
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-justice-config
+          resources:
+            {{- toYaml .Values.justice.resources | nindent 12 }}

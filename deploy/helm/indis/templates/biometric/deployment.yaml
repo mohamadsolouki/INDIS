@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.global.domain | replace "." "-" }}-biometric
+  labels:
+    app: biometric
+spec:
+  replicas: {{ .Values.biometric.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      app: biometric
+  template:
+    metadata:
+      labels:
+        app: biometric
+    spec:
+      containers:
+        - name: biometric
+          image: "{{ .Values.biometric.image.repository }}:{{ .Values.biometric.image.tag }}"
+          imagePullPolicy: {{ .Values.biometric.image.pullPolicy }}
+          ports:
+            - containerPort: 8080
+              name: grpc
+            - containerPort: 9090
+              name: metrics
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-biometric-config
+          resources:
+            {{- toYaml .Values.biometric.resources | nindent 12 }}

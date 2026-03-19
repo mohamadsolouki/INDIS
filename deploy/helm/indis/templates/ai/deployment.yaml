@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.global.domain | replace "." "-" }}-ai
+  labels:
+    app: ai
+spec:
+  replicas: {{ .Values.ai.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      app: ai
+  template:
+    metadata:
+      labels:
+        app: ai
+    spec:
+      containers:
+        - name: ai
+          image: "{{ .Values.ai.image.repository }}:{{ .Values.ai.image.tag }}"
+          imagePullPolicy: {{ .Values.ai.image.pullPolicy }}
+          ports:
+            - containerPort: 8080
+              name: grpc
+            - containerPort: 9090
+              name: metrics
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-ai-config
+          resources:
+            {{- toYaml .Values.ai.resources | nindent 12 }}

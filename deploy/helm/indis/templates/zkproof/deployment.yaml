@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.global.domain | replace "." "-" }}-zkproof
+  labels:
+    app: zkproof
+spec:
+  replicas: {{ .Values.zkproof.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      app: zkproof
+  template:
+    metadata:
+      labels:
+        app: zkproof
+    spec:
+      containers:
+        - name: zkproof
+          image: "{{ .Values.zkproof.image.repository }}:{{ .Values.zkproof.image.tag }}"
+          imagePullPolicy: {{ .Values.zkproof.image.pullPolicy }}
+          ports:
+            - containerPort: 8080
+              name: grpc
+            - containerPort: 9090
+              name: metrics
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-zkproof-config
+          resources:
+            {{- toYaml .Values.zkproof.resources | nindent 12 }}

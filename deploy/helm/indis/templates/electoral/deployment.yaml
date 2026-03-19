@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.global.domain | replace "." "-" }}-electoral
+  labels:
+    app: electoral
+spec:
+  replicas: {{ .Values.electoral.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      app: electoral
+  template:
+    metadata:
+      labels:
+        app: electoral
+    spec:
+      containers:
+        - name: electoral
+          image: "{{ .Values.electoral.image.repository }}:{{ .Values.electoral.image.tag }}"
+          imagePullPolicy: {{ .Values.electoral.image.pullPolicy }}
+          ports:
+            - containerPort: 8080
+              name: grpc
+            - containerPort: 9090
+              name: metrics
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-electoral-config
+          resources:
+            {{- toYaml .Values.electoral.resources | nindent 12 }}

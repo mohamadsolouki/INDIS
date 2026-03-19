@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.global.domain | replace "." "-" }}-audit
+  labels:
+    app: audit
+spec:
+  replicas: {{ .Values.audit.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      app: audit
+  template:
+    metadata:
+      labels:
+        app: audit
+    spec:
+      containers:
+        - name: audit
+          image: "{{ .Values.audit.image.repository }}:{{ .Values.audit.image.tag }}"
+          imagePullPolicy: {{ .Values.audit.image.pullPolicy }}
+          ports:
+            - containerPort: 8080
+              name: grpc
+            - containerPort: 9090
+              name: metrics
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-audit-config
+          resources:
+            {{- toYaml .Values.audit.resources | nindent 12 }}

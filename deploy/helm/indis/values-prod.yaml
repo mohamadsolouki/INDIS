@@ -1,0 +1,54 @@
+# Production overrides for indis
+global:
+  domain: api.iranprosperityproject.org
+
+identity:
+  replicaCount: 3
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+credential:
+  replicaCount: 3
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+enrollment:
+  replicaCount: 3
+
+biometric:
+  replicaCount: 3
+
+audit:
+  replicaCount: 3
+
+notification:
+  replicaCount: 3
+
+electoral:
+  replicaCount: 5
+
+justice:
+  replicaCount: 3
+
+gateway:
+  replicaCount: 5
+
+zkproof:
+  replicaCount: 5
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 1000m
+      memory: 1Gi
+
+ai:
+  replicaCount: 3

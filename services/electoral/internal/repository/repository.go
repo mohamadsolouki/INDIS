@@ -25,18 +25,18 @@ type ElectionRecord struct {
 
 // BallotRecord is a row in the ballots table.
 type BallotRecord struct {
-	ReceiptHash   string
-	ElectionID    string
-	NullifierHash string
-	EncryptedVote []byte
-	ZKProof       []byte
-	BlockHeight   string
-	RemoteNetwork *string
+	ReceiptHash           string
+	ElectionID            string
+	NullifierHash         string
+	EncryptedVote         []byte
+	ZKProof               []byte
+	BlockHeight           string
+	RemoteNetwork         *string
 	ClientAttestationHash *string
 	TransportNonceHash    *string
 	ClientSubmittedAt     *time.Time
 	AcceptedAt            *time.Time
-	CastAt        time.Time
+	CastAt                time.Time
 }
 
 var ErrNotFound = errors.New("repository: record not found")

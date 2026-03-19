@@ -1,0 +1,111 @@
+# Default values for indis.
+
+global:
+  domain: indis.local
+  tls:
+    enabled: true
+  kafka:
+    brokers: "indis-kafka:9092"
+  redis:
+    host: "indis-redis-master"
+    port: 6379
+  postgres:
+    host: "indis-postgresql"
+    port: 5432
+
+identity:
+  replicaCount: 1
+  image:
+    repository: indis/identity
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  resources: {}
+
+credential:
+  replicaCount: 1
+  image:
+    repository: indis/credential
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  resources: {}
+
+enrollment:
+  replicaCount: 1
+  image:
+    repository: indis/enrollment
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  resources: {}
+
+biometric:
+  replicaCount: 1
+  image:
+    repository: indis/biometric
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  resources: {}
+
+audit:
+  replicaCount: 1
+  image:
+    repository: indis/audit
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  resources: {}
+
+notification:
+  replicaCount: 1
+  image:
+    repository: indis/notification
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  resources: {}
+
+electoral:
+  replicaCount: 1
+  image:
+    repository: indis/electoral
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  resources: {}
+
+justice:
+  replicaCount: 1
+  image:
+    repository: indis/justice
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  resources: {}
+
+gateway:
+  replicaCount: 1
+  image:
+    repository: indis/gateway
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  resources: {}
+
+zkproof:
+  replicaCount: 1
+  image:
+    repository: indis/zkproof
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  resources: {}
+
+ai:
+  replicaCount: 1
+  image:
+    repository: indis/ai
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  resources: {}
+
+kafka:
+  enabled: true
+
+postgresql:
+  enabled: true
+
+redis:
+  enabled: true

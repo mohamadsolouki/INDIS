@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.global.domain | replace "." "-" }}-identity
+  labels:
+    app: identity
+spec:
+  replicas: {{ .Values.identity.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      app: identity
+  template:
+    metadata:
+      labels:
+        app: identity
+    spec:
+      containers:
+        - name: identity
+          image: "{{ .Values.identity.image.repository }}:{{ .Values.identity.image.tag }}"
+          imagePullPolicy: {{ .Values.identity.image.pullPolicy }}
+          ports:
+            - containerPort: 8080
+              name: grpc
+            - containerPort: 9090
+              name: metrics
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-identity-config
+          resources:
+            {{- toYaml .Values.identity.resources | nindent 12 }}

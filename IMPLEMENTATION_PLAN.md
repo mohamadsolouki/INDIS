@@ -717,7 +717,19 @@ make test    # target: >80% coverage on all Go services
 
 ### T3.8 — Kubernetes Deployment
 
-**Files to create:**
+**Status (2026-03-19):** Partial+ complete (Base Helm and Terraform scaffold).
+
+Implemented now:
+- Created base Helm chart structure (`deploy/helm/indis/Chart.yaml`, `values.yaml`, `values-prod.yaml`)
+- Generated deployment, service, and configmap templates for all 11 core services
+- Generated infrastructure templates (PostgreSQL, Redis, Kafka/Zookeeper) as standalone deployments
+- Created Terraform infrastructure skeleton (`main.tf`, `variables.tf`, `outputs.tf`)
+
+Remaining for full completion:
+- Refine Terraform modules with specific bare-metal network/storage provisioning rules
+- Refine Helm manifests with correct liveness/readiness probes, HPA, persistent volumes, and ingress strategies
+
+**Files structured:**
 ```
 deploy/
   helm/
@@ -726,7 +738,7 @@ deploy/
       values.yaml           — default values (image tags, replicas, resource limits)
       values-prod.yaml      — production overrides
       templates/
-        identity/           — Deployment, Service, ConfigMap, HPA
+        identity/           — Deployment, Service, ConfigMap
         credential/
         enrollment/
         biometric/
@@ -737,8 +749,9 @@ deploy/
         gateway/
         zkproof/
         ai/
+        infra/              — PostgreSQL, Redis, Kafka standalone templates
   terraform/
-    main.tf                 — infrastructure (VMs, load balancer, storage)
+    main.tf                 — infrastructure (k8s namespace, helm release anchor)
     variables.tf
     outputs.tf
 ```
