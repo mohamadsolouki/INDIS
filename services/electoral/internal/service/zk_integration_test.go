@@ -63,6 +63,13 @@ func (m *MockElectoralRepository) CastBallot(ctx context.Context, rec repository
 	return nil
 }
 
+func (m *MockElectoralRepository) UpdateElectionStatus(_ context.Context, id, newStatus string) error {
+	if el, ok := m.elections[id]; ok {
+		el.Status = newStatus
+	}
+	return nil
+}
+
 // TestElectoralServiceWithZKVerification tests the electoral service integration with ZK verification.
 func TestElectoralServiceWithZKVerification(t *testing.T) {
 	// Create a mock ZK server

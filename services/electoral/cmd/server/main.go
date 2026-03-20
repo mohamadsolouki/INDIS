@@ -3,11 +3,14 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -53,6 +56,46 @@ func main() {
 	svc := service.NewWithNonceReplayWindow(repo, cfg.ZKProofURL, time.Duration(cfg.RemoteNonceWindowMinutes)*time.Minute)
 	h := handler.New(svc)
 
+	// Admin HTTP server for election lifecycle management (port 9200).
+	// Protected by admin role in gateway; not exposed directly to public.
+	adminMux := http.NewServeMux()
+	adminMux.HandleFunc("/v1/electoral/elections/", func(w http.ResponseWriter, r *http.Request) {
+		// Expect: POST /v1/electoral/elections/{id}/finalize
+		path := r.URL.Path
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		// Extract election ID from path.
+		var electionID string
+		var action string
+		parts := splitPath(path)
+		if len(parts) == 5 && parts[4] == "finalize" {
+			electionID = parts[3]
+			action = "finalize"
+		}
+		if electionID == "" || action == "" {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		adminDID := r.Header.Get("X-Admin-DID")
+		if adminDID == "" {
+			adminDID = "admin"
+		}
+		if err := svc.FinalizeElection(r.Context(), electionID, adminDID); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"election_id": electionID, "status": "tallied"})
+	})
+	go func() {
+		log.Printf("Electoral admin HTTP listening on :9200")
+		if err := http.ListenAndServe(":9200", adminMux); err != nil {
+			log.Printf("electoral admin HTTP error: %v", err)
+		}
+	}()
+
 	addr := fmt.Sprintf(":%d", cfg.GRPCPort)
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -79,4 +122,14 @@ func main() {
 
 	log.Printf("Shutting down INDIS electoral service...")
 	grpcServer.GracefulStop()
+}
+
+func splitPath(path string) []string {
+	var parts []string
+	for _, p := range strings.Split(path, "/") {
+		if p != "" {
+			parts = append(parts, p)
+		}
+	}
+	return parts
 }

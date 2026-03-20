@@ -4,6 +4,7 @@ package handler
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"time"
 
 	identityv1 "github.com/IranProsperityProject/INDIS/api/gen/go/identity/v1"
@@ -54,14 +55,37 @@ func (h *IdentityHandler) ResolveIdentity(ctx context.Context, req *identityv1.R
 		return nil, status.Errorf(codes.NotFound, "resolve identity: %v", err)
 	}
 
+	// Unmarshal the stored JSON document and map it to the proto representation.
 	var doc did.Document
-	// The stored document is JSON but we return the proto representation.
-	// For now return the minimal data from the record.
-	_ = doc
 	protoDoc := &identityv1.DIDDocument{
 		Id:      result.Record.DID,
 		Created: result.Record.CreatedAt.UTC().Format(time.RFC3339),
 		Updated: result.Record.UpdatedAt.UTC().Format(time.RFC3339),
+	}
+	if len(result.Record.Document) > 0 {
+		if jsonErr := json.Unmarshal(result.Record.Document, &doc); jsonErr == nil {
+			for _, vm := range doc.VerificationMethods {
+				// Strip leading 'z' multibase prefix if present; send raw hex.
+				keyHex := vm.PublicKeyMultibase
+				if len(keyHex) > 0 && keyHex[0] == 'z' {
+					keyHex = keyHex[1:]
+				}
+				keyBytes, _ := hex.DecodeString(keyHex)
+				protoDoc.PublicKeys = append(protoDoc.PublicKeys, &identityv1.PublicKey{
+					Id:         vm.ID,
+					Type:       vm.Type,
+					Controller: vm.Controller,
+					PublicKey:  keyBytes,
+				})
+			}
+			for _, svc := range doc.Services {
+				protoDoc.ServiceEndpoints = append(protoDoc.ServiceEndpoints, &identityv1.ServiceEndpoint{
+					Id:       svc.ID,
+					Type:     svc.Type,
+					Endpoint: svc.ServiceEndpoint,
+				})
+			}
+		}
 	}
 	return &identityv1.ResolveIdentityResponse{Document: protoDoc}, nil
 }

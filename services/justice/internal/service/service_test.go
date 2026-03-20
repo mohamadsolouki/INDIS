@@ -50,6 +50,10 @@ func (f *fakeRepo) CreateAmnestyCase(ctx context.Context, rec repository.Amnesty
 	return nil
 }
 
+func (f *fakeRepo) UpdateCaseStatus(_ context.Context, _ string, _ string) error {
+	return nil
+}
+
 func TestSubmitTestimonyProveAndVerifySuccess(t *testing.T) {
 	t.Parallel()
 

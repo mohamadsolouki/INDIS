@@ -20,12 +20,18 @@ type fakeRepo struct {
 	castBallotFn      func(ctx context.Context, rec repository.BallotRecord) error
 	castedNullifiers  map[string]struct{}
 	castedNonces      map[string]time.Time
+	elections         map[string]*repository.ElectionRecord
 }
 
 func (f *fakeRepo) CreateElection(ctx context.Context, rec repository.ElectionRecord) error {
 	if f.createElectionFn != nil {
 		return f.createElectionFn(ctx, rec)
 	}
+	if f.elections == nil {
+		f.elections = make(map[string]*repository.ElectionRecord)
+	}
+	r := rec
+	f.elections[rec.ID] = &r
 	return nil
 }
 
@@ -33,7 +39,28 @@ func (f *fakeRepo) GetElection(ctx context.Context, id string) (*repository.Elec
 	if f.getElectionFn != nil {
 		return f.getElectionFn(ctx, id)
 	}
-	return &repository.ElectionRecord{ID: id}, nil
+	if f.elections != nil {
+		if rec, ok := f.elections[id]; ok {
+			return rec, nil
+		}
+	}
+	// Default: return an open election so tests that don't pre-register one can proceed.
+	now := time.Now().UTC()
+	return &repository.ElectionRecord{
+		ID:       id,
+		Status:   "scheduled",
+		OpensAt:  now.Add(-1 * time.Hour),
+		ClosesAt: now.Add(24 * time.Hour),
+	}, nil
+}
+
+func (f *fakeRepo) UpdateElectionStatus(_ context.Context, id, newStatus string) error {
+	if f.elections != nil {
+		if rec, ok := f.elections[id]; ok {
+			rec.Status = newStatus
+		}
+	}
+	return nil
 }
 
 func (f *fakeRepo) NullifierExists(ctx context.Context, electionID, nullifierHash string) (bool, error) {
@@ -188,8 +215,8 @@ func TestFullElectoralFlowRegisterVerifyCastAndRejectDoubleVote(t *testing.T) {
 	repo := &fakeRepo{}
 	svc := New(repo, ts.URL)
 
-	openAt := time.Now().UTC().Add(1 * time.Hour)
-	closeAt := openAt.Add(24 * time.Hour)
+	openAt := time.Now().UTC().Add(-1 * time.Hour) // already open
+	closeAt := time.Now().UTC().Add(24 * time.Hour)
 	electionID, err := svc.RegisterElection(context.Background(), &electoralv1.RegisterElectionRequest{
 		Name:     "Referendum 2026",
 		OpensAt:  openAt.Format(time.RFC3339),

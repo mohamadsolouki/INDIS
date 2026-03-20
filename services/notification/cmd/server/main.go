@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	notificationv1 "github.com/IranProsperityProject/INDIS/api/gen/go/notification/v1"
 	indismetrics "github.com/IranProsperityProject/INDIS/pkg/metrics"
@@ -51,6 +52,9 @@ func main() {
 	repo := repository.New(pool)
 	svc := service.New(repo)
 	h := handler.New(svc)
+
+	// Start background dispatcher that delivers queued notifications.
+	go svc.RunDispatcher(ctx, 30*time.Second)
 
 	go func() {
 		if err := runCredentialRevokedConsumer(ctx, cfg.KafkaBrokers, cfg.KafkaGroupID, svc); err != nil && ctx.Err() == nil {
