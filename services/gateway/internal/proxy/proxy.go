@@ -12,6 +12,7 @@ import (
 	identityv1 "github.com/IranProsperityProject/INDIS/api/gen/go/identity/v1"
 	justicev1 "github.com/IranProsperityProject/INDIS/api/gen/go/justice/v1"
 	notificationv1 "github.com/IranProsperityProject/INDIS/api/gen/go/notification/v1"
+	"github.com/IranProsperityProject/INDIS/services/gateway/internal/circuitbreaker"
 	indistls "github.com/IranProsperityProject/INDIS/pkg/tls"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -27,6 +28,8 @@ type TransportConfig struct {
 }
 
 // Clients holds gRPC client stubs for all backend services.
+// Each service has its own CircuitBreaker so that failures in one backend do
+// not affect availability of others.
 type Clients struct {
 	Identity     identityv1.IdentityServiceClient
 	Credential   credentialv1.CredentialServiceClient
@@ -36,6 +39,16 @@ type Clients struct {
 	Notification notificationv1.NotificationServiceClient
 	Electoral    electoralv1.ElectoralServiceClient
 	Justice      justicev1.JusticeServiceClient
+
+	// Circuit breakers — one per backend service.
+	CBIdentity     *circuitbreaker.CircuitBreaker
+	CBCredential   *circuitbreaker.CircuitBreaker
+	CBEnrollment   *circuitbreaker.CircuitBreaker
+	CBBiometric    *circuitbreaker.CircuitBreaker
+	CBAudit        *circuitbreaker.CircuitBreaker
+	CBNotification *circuitbreaker.CircuitBreaker
+	CBElectoral    *circuitbreaker.CircuitBreaker
+	CBJustice      *circuitbreaker.CircuitBreaker
 
 	conns []*grpc.ClientConn
 }
@@ -103,7 +116,17 @@ func New(identityAddr, credentialAddr, enrollmentAddr, biometricAddr,
 		Notification: notificationv1.NewNotificationServiceClient(conns[5]),
 		Electoral:    electoralv1.NewElectoralServiceClient(conns[6]),
 		Justice:      justicev1.NewJusticeServiceClient(conns[7]),
-		conns:        conns,
+
+		CBIdentity:     circuitbreaker.New(),
+		CBCredential:   circuitbreaker.New(),
+		CBEnrollment:   circuitbreaker.New(),
+		CBBiometric:    circuitbreaker.New(),
+		CBAudit:        circuitbreaker.New(),
+		CBNotification: circuitbreaker.New(),
+		CBElectoral:    circuitbreaker.New(),
+		CBJustice:      circuitbreaker.New(),
+
+		conns: conns,
 	}, nil
 }
 

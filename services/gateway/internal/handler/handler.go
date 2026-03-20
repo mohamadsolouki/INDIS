@@ -62,6 +62,7 @@ import (
 	justicev1 "github.com/IranProsperityProject/INDIS/api/gen/go/justice/v1"
 	notificationv1 "github.com/IranProsperityProject/INDIS/api/gen/go/notification/v1"
 	"github.com/IranProsperityProject/INDIS/services/gateway/internal/auth"
+	"github.com/IranProsperityProject/INDIS/services/gateway/internal/circuitbreaker"
 	"github.com/IranProsperityProject/INDIS/services/gateway/internal/proxy"
 	"github.com/IranProsperityProject/INDIS/services/gateway/internal/ratelimit"
 	"github.com/IranProsperityProject/INDIS/services/gateway/internal/repository"
@@ -180,9 +181,12 @@ func (g *Gateway) handleIdentity(w http.ResponseWriter, r *http.Request) {
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 		defer cancel()
-		resp, err := g.clients.Identity.RegisterIdentity(ctx, &req)
-		if err != nil {
-			writeGRPCError(w, err)
+		var resp *identityv1.RegisterIdentityResponse
+		if !cbCall(w, g.clients.CBIdentity, func() error {
+			var err error
+			resp, err = g.clients.Identity.RegisterIdentity(ctx, &req)
+			return err
+		}) {
 			return
 		}
 		writeJSON(w, http.StatusCreated, resp)
@@ -191,9 +195,12 @@ func (g *Gateway) handleIdentity(w http.ResponseWriter, r *http.Request) {
 		// GET /v1/identity/{did}
 		ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 		defer cancel()
-		resp, err := g.clients.Identity.ResolveIdentity(ctx, &identityv1.ResolveIdentityRequest{Did: parts[0]})
-		if err != nil {
-			writeGRPCError(w, err)
+		var resp *identityv1.ResolveIdentityResponse
+		if !cbCall(w, g.clients.CBIdentity, func() error {
+			var err error
+			resp, err = g.clients.Identity.ResolveIdentity(ctx, &identityv1.ResolveIdentityRequest{Did: parts[0]})
+			return err
+		}) {
 			return
 		}
 		writeJSON(w, http.StatusOK, resp)
@@ -208,9 +215,12 @@ func (g *Gateway) handleIdentity(w http.ResponseWriter, r *http.Request) {
 		req.Did = parts[0]
 		ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 		defer cancel()
-		resp, err := g.clients.Identity.DeactivateIdentity(ctx, &req)
-		if err != nil {
-			writeGRPCError(w, err)
+		var resp *identityv1.DeactivateIdentityResponse
+		if !cbCall(w, g.clients.CBIdentity, func() error {
+			var err error
+			resp, err = g.clients.Identity.DeactivateIdentity(ctx, &req)
+			return err
+		}) {
 			return
 		}
 		writeJSON(w, http.StatusOK, resp)
@@ -235,9 +245,12 @@ func (g *Gateway) handleCredential(w http.ResponseWriter, r *http.Request) {
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 		defer cancel()
-		resp, err := g.clients.Credential.IssueCredential(ctx, &req)
-		if err != nil {
-			writeGRPCError(w, err)
+		var resp *credentialv1.IssueCredentialResponse
+		if !cbCall(w, g.clients.CBCredential, func() error {
+			var err error
+			resp, err = g.clients.Credential.IssueCredential(ctx, &req)
+			return err
+		}) {
 			return
 		}
 		writeJSON(w, http.StatusCreated, resp)
@@ -246,9 +259,12 @@ func (g *Gateway) handleCredential(w http.ResponseWriter, r *http.Request) {
 		// GET /v1/credential/{id} → check revocation status
 		ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 		defer cancel()
-		resp, err := g.clients.Credential.CheckRevocationStatus(ctx, &credentialv1.CheckRevocationStatusRequest{CredentialId: parts[0]})
-		if err != nil {
-			writeGRPCError(w, err)
+		var resp *credentialv1.CheckRevocationStatusResponse
+		if !cbCall(w, g.clients.CBCredential, func() error {
+			var err error
+			resp, err = g.clients.Credential.CheckRevocationStatus(ctx, &credentialv1.CheckRevocationStatusRequest{CredentialId: parts[0]})
+			return err
+		}) {
 			return
 		}
 		writeJSON(w, http.StatusOK, resp)
@@ -262,9 +278,12 @@ func (g *Gateway) handleCredential(w http.ResponseWriter, r *http.Request) {
 		req.CredentialId = parts[0]
 		ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 		defer cancel()
-		resp, err := g.clients.Credential.RevokeCredential(ctx, &req)
-		if err != nil {
-			writeGRPCError(w, err)
+		var resp *credentialv1.RevokeCredentialResponse
+		if !cbCall(w, g.clients.CBCredential, func() error {
+			var err error
+			resp, err = g.clients.Credential.RevokeCredential(ctx, &req)
+			return err
+		}) {
 			return
 		}
 		writeJSON(w, http.StatusOK, resp)
@@ -289,9 +308,12 @@ func (g *Gateway) handleEnrollment(w http.ResponseWriter, r *http.Request) {
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 		defer cancel()
-		resp, err := g.clients.Enrollment.InitiateEnrollment(ctx, &req)
-		if err != nil {
-			writeGRPCError(w, err)
+		var resp *enrollmentv1.InitiateEnrollmentResponse
+		if !cbCall(w, g.clients.CBEnrollment, func() error {
+			var err error
+			resp, err = g.clients.Enrollment.InitiateEnrollment(ctx, &req)
+			return err
+		}) {
 			return
 		}
 		writeJSON(w, http.StatusCreated, resp)
@@ -299,9 +321,12 @@ func (g *Gateway) handleEnrollment(w http.ResponseWriter, r *http.Request) {
 	case len(parts) == 1 && r.Method == http.MethodGet:
 		ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 		defer cancel()
-		resp, err := g.clients.Enrollment.GetEnrollmentStatus(ctx, &enrollmentv1.GetEnrollmentStatusRequest{EnrollmentId: parts[0]})
-		if err != nil {
-			writeGRPCError(w, err)
+		var resp *enrollmentv1.GetEnrollmentStatusResponse
+		if !cbCall(w, g.clients.CBEnrollment, func() error {
+			var err error
+			resp, err = g.clients.Enrollment.GetEnrollmentStatus(ctx, &enrollmentv1.GetEnrollmentStatusRequest{EnrollmentId: parts[0]})
+			return err
+		}) {
 			return
 		}
 		writeJSON(w, http.StatusOK, resp)
@@ -315,9 +340,12 @@ func (g *Gateway) handleEnrollment(w http.ResponseWriter, r *http.Request) {
 		req.EnrollmentId = parts[0]
 		ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 		defer cancel()
-		resp, err := g.clients.Enrollment.SubmitBiometrics(ctx, &req)
-		if err != nil {
-			writeGRPCError(w, err)
+		var resp *enrollmentv1.SubmitBiometricsResponse
+		if !cbCall(w, g.clients.CBEnrollment, func() error {
+			var err error
+			resp, err = g.clients.Enrollment.SubmitBiometrics(ctx, &req)
+			return err
+		}) {
 			return
 		}
 		writeJSON(w, http.StatusOK, resp)
@@ -331,9 +359,12 @@ func (g *Gateway) handleEnrollment(w http.ResponseWriter, r *http.Request) {
 		req.EnrollmentId = parts[0]
 		ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 		defer cancel()
-		resp, err := g.clients.Enrollment.SubmitSocialAttestation(ctx, &req)
-		if err != nil {
-			writeGRPCError(w, err)
+		var resp *enrollmentv1.SubmitSocialAttestationResponse
+		if !cbCall(w, g.clients.CBEnrollment, func() error {
+			var err error
+			resp, err = g.clients.Enrollment.SubmitSocialAttestation(ctx, &req)
+			return err
+		}) {
 			return
 		}
 		writeJSON(w, http.StatusOK, resp)
@@ -347,9 +378,12 @@ func (g *Gateway) handleEnrollment(w http.ResponseWriter, r *http.Request) {
 		req.EnrollmentId = parts[0]
 		ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 		defer cancel()
-		resp, err := g.clients.Enrollment.CompleteEnrollment(ctx, &req)
-		if err != nil {
-			writeGRPCError(w, err)
+		var resp *enrollmentv1.CompleteEnrollmentResponse
+		if !cbCall(w, g.clients.CBEnrollment, func() error {
+			var err error
+			resp, err = g.clients.Enrollment.CompleteEnrollment(ctx, &req)
+			return err
+		}) {
 			return
 		}
 		writeJSON(w, http.StatusOK, resp)
@@ -374,39 +408,56 @@ func (g *Gateway) handleElectoral(w http.ResponseWriter, r *http.Request) {
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 		defer cancel()
-		resp, err := g.clients.Electoral.RegisterElection(ctx, &req)
-		if err != nil {
-			writeGRPCError(w, err)
+		var resp *electoralv1.RegisterElectionResponse
+		if !cbCall(w, g.clients.CBElectoral, func() error {
+			var err error
+			resp, err = g.clients.Electoral.RegisterElection(ctx, &req)
+			return err
+		}) {
 			return
 		}
 		writeJSON(w, http.StatusCreated, resp)
 
 	case path == "verify" && r.Method == http.MethodPost:
+		bodyBytes, ok := validateProofSize(w, r, 100_000)
+		if !ok {
+			return
+		}
 		var req electoralv1.VerifyEligibilityRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := json.Unmarshal(bodyBytes, &req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 		defer cancel()
-		resp, err := g.clients.Electoral.VerifyEligibility(ctx, &req)
-		if err != nil {
-			writeGRPCError(w, err)
+		var resp *electoralv1.VerifyEligibilityResponse
+		if !cbCall(w, g.clients.CBElectoral, func() error {
+			var err error
+			resp, err = g.clients.Electoral.VerifyEligibility(ctx, &req)
+			return err
+		}) {
 			return
 		}
 		writeJSON(w, http.StatusOK, resp)
 
 	case path == "ballot" && r.Method == http.MethodPost:
+		bodyBytes, ok := validateProofSize(w, r, 100_000)
+		if !ok {
+			return
+		}
 		var req electoralv1.CastBallotRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := json.Unmarshal(bodyBytes, &req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 		defer cancel()
-		resp, err := g.clients.Electoral.CastBallot(ctx, &req)
-		if err != nil {
-			writeGRPCError(w, err)
+		var resp *electoralv1.CastBallotResponse
+		if !cbCall(w, g.clients.CBElectoral, func() error {
+			var err error
+			resp, err = g.clients.Electoral.CastBallot(ctx, &req)
+			return err
+		}) {
 			return
 		}
 		writeJSON(w, http.StatusOK, resp)
@@ -414,9 +465,12 @@ func (g *Gateway) handleElectoral(w http.ResponseWriter, r *http.Request) {
 	case parts[0] == "elections" && len(parts) == 2 && r.Method == http.MethodGet:
 		ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 		defer cancel()
-		resp, err := g.clients.Electoral.GetElectionStatus(ctx, &electoralv1.GetElectionStatusRequest{ElectionId: parts[1]})
-		if err != nil {
-			writeGRPCError(w, err)
+		var resp *electoralv1.GetElectionStatusResponse
+		if !cbCall(w, g.clients.CBElectoral, func() error {
+			var err error
+			resp, err = g.clients.Electoral.GetElectionStatus(ctx, &electoralv1.GetElectionStatusRequest{ElectionId: parts[1]})
+			return err
+		}) {
 			return
 		}
 		writeJSON(w, http.StatusOK, resp)
@@ -434,16 +488,23 @@ func (g *Gateway) handleJustice(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case path == "testimony" && r.Method == http.MethodPost:
+		bodyBytes, ok := validateProofSize(w, r, 100_000)
+		if !ok {
+			return
+		}
 		var req justicev1.SubmitTestimonyRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := json.Unmarshal(bodyBytes, &req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 		defer cancel()
-		resp, err := g.clients.Justice.SubmitTestimony(ctx, &req)
-		if err != nil {
-			writeGRPCError(w, err)
+		var resp *justicev1.SubmitTestimonyResponse
+		if !cbCall(w, g.clients.CBJustice, func() error {
+			var err error
+			resp, err = g.clients.Justice.SubmitTestimony(ctx, &req)
+			return err
+		}) {
 			return
 		}
 		writeJSON(w, http.StatusCreated, resp)
@@ -456,9 +517,12 @@ func (g *Gateway) handleJustice(w http.ResponseWriter, r *http.Request) {
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 		defer cancel()
-		resp, err := g.clients.Justice.LinkTestimony(ctx, &req)
-		if err != nil {
-			writeGRPCError(w, err)
+		var resp *justicev1.LinkTestimonyResponse
+		if !cbCall(w, g.clients.CBJustice, func() error {
+			var err error
+			resp, err = g.clients.Justice.LinkTestimony(ctx, &req)
+			return err
+		}) {
 			return
 		}
 		writeJSON(w, http.StatusOK, resp)
@@ -471,9 +535,12 @@ func (g *Gateway) handleJustice(w http.ResponseWriter, r *http.Request) {
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 		defer cancel()
-		resp, err := g.clients.Justice.InitiateAmnesty(ctx, &req)
-		if err != nil {
-			writeGRPCError(w, err)
+		var resp *justicev1.InitiateAmnestyResponse
+		if !cbCall(w, g.clients.CBJustice, func() error {
+			var err error
+			resp, err = g.clients.Justice.InitiateAmnesty(ctx, &req)
+			return err
+		}) {
 			return
 		}
 		writeJSON(w, http.StatusCreated, resp)
@@ -481,9 +548,12 @@ func (g *Gateway) handleJustice(w http.ResponseWriter, r *http.Request) {
 	case parts[0] == "cases" && len(parts) == 2 && r.Method == http.MethodGet:
 		ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 		defer cancel()
-		resp, err := g.clients.Justice.GetCaseStatus(ctx, &justicev1.GetCaseStatusRequest{CaseId: parts[1]})
-		if err != nil {
-			writeGRPCError(w, err)
+		var resp *justicev1.GetCaseStatusResponse
+		if !cbCall(w, g.clients.CBJustice, func() error {
+			var err error
+			resp, err = g.clients.Justice.GetCaseStatus(ctx, &justicev1.GetCaseStatusRequest{CaseId: parts[1]})
+			return err
+		}) {
 			return
 		}
 		writeJSON(w, http.StatusOK, resp)
@@ -507,9 +577,12 @@ func (g *Gateway) handleNotification(w http.ResponseWriter, r *http.Request) {
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 		defer cancel()
-		resp, err := g.clients.Notification.Send(ctx, &req)
-		if err != nil {
-			writeGRPCError(w, err)
+		var resp *notificationv1.SendResponse
+		if !cbCall(w, g.clients.CBNotification, func() error {
+			var err error
+			resp, err = g.clients.Notification.Send(ctx, &req)
+			return err
+		}) {
 			return
 		}
 		writeJSON(w, http.StatusOK, resp)
@@ -522,9 +595,12 @@ func (g *Gateway) handleNotification(w http.ResponseWriter, r *http.Request) {
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 		defer cancel()
-		resp, err := g.clients.Notification.ScheduleExpiryAlert(ctx, &req)
-		if err != nil {
-			writeGRPCError(w, err)
+		var resp *notificationv1.ScheduleExpiryAlertResponse
+		if !cbCall(w, g.clients.CBNotification, func() error {
+			var err error
+			resp, err = g.clients.Notification.ScheduleExpiryAlert(ctx, &req)
+			return err
+		}) {
 			return
 		}
 		writeJSON(w, http.StatusOK, resp)
@@ -576,9 +652,12 @@ func (g *Gateway) handleAudit(w http.ResponseWriter, r *http.Request) {
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 		defer cancel()
-		resp, err := g.clients.Audit.AppendEvent(ctx, &req)
-		if err != nil {
-			writeGRPCError(w, err)
+		var resp *auditv1.AppendEventResponse
+		if !cbCall(w, g.clients.CBAudit, func() error {
+			var err error
+			resp, err = g.clients.Audit.AppendEvent(ctx, &req)
+			return err
+		}) {
 			return
 		}
 		writeJSON(w, http.StatusCreated, resp)
@@ -599,9 +678,12 @@ func (g *Gateway) handleAudit(w http.ResponseWriter, r *http.Request) {
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 		defer cancel()
-		resp, err := g.clients.Audit.QueryEvents(ctx, req)
-		if err != nil {
-			writeGRPCError(w, err)
+		var resp *auditv1.QueryEventsResponse
+		if !cbCall(w, g.clients.CBAudit, func() error {
+			var err error
+			resp, err = g.clients.Audit.QueryEvents(ctx, req)
+			return err
+		}) {
 			return
 		}
 		writeJSON(w, http.StatusOK, resp)
@@ -721,9 +803,12 @@ func (g *Gateway) handlePrivacyHistory(w http.ResponseWriter, r *http.Request, c
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 	defer cancel()
-	resp, err := g.clients.Audit.QueryEvents(ctx, req)
-	if err != nil {
-		writeGRPCError(w, err)
+	var resp *auditv1.QueryEventsResponse
+	if !cbCall(w, g.clients.CBAudit, func() error {
+		var err error
+		resp, err = g.clients.Audit.QueryEvents(ctx, req)
+		return err
+	}) {
 		return
 	}
 	writeJSON(w, http.StatusOK, resp)
@@ -742,9 +827,12 @@ func (g *Gateway) handlePrivacySharing(w http.ResponseWriter, r *http.Request, c
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), rpcTimeout)
 	defer cancel()
-	resp, err := g.clients.Audit.QueryEvents(ctx, req)
-	if err != nil {
-		writeGRPCError(w, err)
+	var resp *auditv1.QueryEventsResponse
+	if !cbCall(w, g.clients.CBAudit, func() error {
+		var err error
+		resp, err = g.clients.Audit.QueryEvents(ctx, req)
+		return err
+	}) {
 		return
 	}
 	writeJSON(w, http.StatusOK, resp)
@@ -893,6 +981,28 @@ func writeGRPCError(w http.ResponseWriter, err error) {
 	writeError(w, http.StatusBadGateway, err.Error())
 }
 
+// writeCircuitOpen writes an HTTP 503 response when a backend circuit is open.
+func writeCircuitOpen(w http.ResponseWriter) {
+	writeError(w, http.StatusServiceUnavailable, "service temporarily unavailable")
+}
+
+// cbCall executes fn only if the circuit breaker cb allows it.
+// On success it calls cb.RecordSuccess(); on failure cb.RecordFailure().
+// Returns false (and writes 503) when the circuit is open.
+func cbCall(w http.ResponseWriter, cb *circuitbreaker.CircuitBreaker, fn func() error) bool {
+	if !cb.Allow() {
+		writeCircuitOpen(w)
+		return false
+	}
+	if err := fn(); err != nil {
+		cb.RecordFailure()
+		writeGRPCError(w, err)
+		return false
+	}
+	cb.RecordSuccess()
+	return true
+}
+
 // clientIP extracts the real client IP from X-Forwarded-For or RemoteAddr.
 func clientIP(r *http.Request) string {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
@@ -905,6 +1015,38 @@ func clientIP(r *http.Request) string {
 		return r.RemoteAddr[:idx]
 	}
 	return r.RemoteAddr
+}
+
+// validateProofSize reads r.Body up to maxBytes+1 bytes. If the body fits within
+// maxBytes it returns the bytes and true. If the body exceeds maxBytes it writes
+// HTTP 400 and returns nil, false. The caller must not read r.Body after this call.
+func validateProofSize(w http.ResponseWriter, r *http.Request, maxBytes int) ([]byte, bool) {
+	limited := io.LimitReader(r.Body, int64(maxBytes)+1)
+	data, err := io.ReadAll(limited)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "failed to read request body")
+		return nil, false
+	}
+	if len(data) > maxBytes {
+		writeError(w, http.StatusBadRequest, "proof exceeds maximum size")
+		return nil, false
+	}
+	// Check proof_b64 field specifically if present.
+	var envelope struct {
+		ProofB64 string `json:"proof_b64"`
+	}
+	if jsonErr := json.Unmarshal(data, &envelope); jsonErr == nil && envelope.ProofB64 != "" {
+		decoded, decErr := base64.StdEncoding.DecodeString(envelope.ProofB64)
+		if decErr != nil {
+			// Try URL-safe variant.
+			decoded, decErr = base64.RawURLEncoding.DecodeString(envelope.ProofB64)
+		}
+		if decErr == nil && len(decoded) > maxBytes {
+			writeError(w, http.StatusBadRequest, "proof exceeds maximum size")
+			return nil, false
+		}
+	}
+	return data, true
 }
 
 // generateID produces a random URL-safe ID with the given prefix.

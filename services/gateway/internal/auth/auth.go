@@ -66,6 +66,7 @@ type jwtClaims struct {
 	Ministry string `json:"ministry"`
 	Role     string `json:"role"`
 	Exp      int64  `json:"exp"`
+	JTI      string `json:"jti"`
 }
 
 // verifyJWT parses and verifies an HS256 JWT using only standard library crypto.
@@ -142,7 +143,10 @@ func errInvalid(msg string) error { return authError(msg) }
 // Middleware returns an HTTP middleware that authenticates requests via JWT Bearer
 // token or X-API-Key header. On success the DID, role, and ministry are stored in
 // the request context. Public routes bypass authentication entirely.
-func Middleware(jwtSecret string, apiKeys map[string]string) func(http.Handler) http.Handler {
+//
+// nc may be nil, in which case jti replay protection is disabled (useful in tests
+// that construct the middleware without a full NonceCache).
+func Middleware(jwtSecret string, apiKeys map[string]string, nc *NonceCache) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if isPublic(r) {
@@ -163,6 +167,16 @@ func Middleware(jwtSecret string, apiKeys map[string]string) func(http.Handler) 
 				if err != nil {
 					writeUnauthorized(w, err.Error())
 					return
+				}
+				// jti replay protection — only enforced when the token carries a jti
+				// claim AND a NonceCache is wired in. Tokens without jti are allowed
+				// for backward compatibility.
+				if nc != nil && claims.JTI != "" {
+					exp := time.Unix(claims.Exp, 0)
+					if !nc.Check(claims.JTI, exp) {
+						writeUnauthorized(w, "token replay detected")
+						return
+					}
 				}
 				did = claims.Sub
 				role = claims.Role

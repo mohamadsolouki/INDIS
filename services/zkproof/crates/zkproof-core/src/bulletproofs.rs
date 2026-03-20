@@ -7,7 +7,10 @@
 //! anonymous testimony flows.
 
 use bulletproofs::{BulletproofGens, PedersenGens, RangeProof};
-use curve25519_dalek::ristretto::CompressedRistretto;
+// bulletproofs 4.x depends on curve25519-dalek-ng internally; we must use the
+// same crate's types for Scalar and CompressedRistretto.
+use curve25519_dalek_ng::ristretto::CompressedRistretto;
+use curve25519_dalek_ng::scalar::Scalar;
 use merlin::Transcript;
 use serde::{Deserialize, Serialize};
 
@@ -115,9 +118,7 @@ impl ProofGenerator for BulletproofsEngine {
         let pc_gens = PedersenGens::default();
         let bp_gens = BulletproofGens::new(n_bits, 1);
 
-        let blinding = curve25519_dalek::scalar::Scalar::random(
-            &mut rand::thread_rng(),
-        );
+        let blinding = Scalar::random(&mut rand::thread_rng());
 
         let mut transcript = Transcript::new(b"INDIS-range-proof");
 

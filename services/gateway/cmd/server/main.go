@@ -97,9 +97,12 @@ func main() {
 	limiter := ratelimit.New(cfg.RateLimitRPS)
 	gw := handler.New(clients, limiter, repo, cfg.VerifierHTTPURL, cfg.CardHTTPURL)
 
+	// Nonce cache for JWT jti replay protection.
+	nonceCache := auth.NewNonceCache()
+
 	// Build middleware chain: CORS → Auth → Gateway handler.
 	var h http.Handler = gw
-	h = auth.Middleware(cfg.JWTSecret, apiKeys)(h)
+	h = auth.Middleware(cfg.JWTSecret, apiKeys, nonceCache)(h)
 	h = cors.Middleware(cfg.CORSAllowedOrigins)(h)
 
 	srv := &http.Server{
