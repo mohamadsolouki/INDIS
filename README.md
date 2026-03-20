@@ -154,7 +154,7 @@ make dev-gov-portal   # Gov Portal    → http://localhost:5175
 ## Technology Stack
 
 | Layer | Technology |
-|-------|-----------|
+| ----- | ---------- |
 | Backend Services | **Go 1.22** (core), **Rust 1.75** (ZK/crypto), **Python 3.11** (AI/ML) |
 | ZK Proofs | **Groth16** (arkworks), **Winterfell STARK** (Rust), **Bulletproofs**, Circom 2.0 |
 | API | **gRPC** (internal), **REST/OpenAPI 3.0** (external), **GraphQL** (gov portal) |
@@ -180,7 +180,7 @@ W3C DID Core 1.0 • W3C VC 2.0 • OpenID4VP • ISO/IEC 18013-5 (mDL) • ISO 
 ## Completion Status
 
 | Layer | Status |
-|-------|--------|
+| ----- | ------ |
 | Shared Go packages (`pkg/`) | ✅ 100% — all 11 packages production-ready |
 | Backend Go services (15) | ✅ ~97% — core logic complete; production wiring deferred |
 | ZK proof service (Rust) | ✅ ~92% — Groth16 + STARK + Bulletproofs; dev trusted setup |
@@ -192,7 +192,8 @@ W3C DID Core 1.0 • W3C VC 2.0 • OpenID4VP • ISO/IEC 18013-5 (mDL) • ISO 
 | Gov portal frontend | ✅ ~95% — login, dashboard, users, bulk ops + result_summary, role gating, RTL CSS |
 | Verifier terminal PWA | 🟡 ~88% — QR scan, JWT auth, history, offline revocation cache (PWA) |
 | Android app | 🟡 ~65% — credential/identity repos, privacy center, revocation worker, settings |
-| iOS / HarmonyOS apps | 🔴 0% — not started |
+| iOS app | 🟡 ~90% — full SwiftUI app: Secure Enclave DID, wallet, enrollment, ZK verify, privacy center, settings, BGTask revocation cache |
+| HarmonyOS app | 🔴 0% — not started |
 | **Overall system** | **~87%** |
 
 > Production infrastructure (Fabric network, Vault HSM, ZK trusted-setup ceremony, telecom integration,

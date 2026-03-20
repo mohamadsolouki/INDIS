@@ -1,9 +1,9 @@
 # INDIS Implementation Plan
 # نقشه راه پیاده‌سازی INDIS
 
-> **Last updated:** 2026-03-20 (T3.22 frontend sprint complete)
+> **Last updated:** 2026-03-20 (T3.23 iOS app complete)
 > **Build status:** All 15 Go services + Rust zkproof + Python AI compile cleanly. 80 Go test packages pass. All Rust crates check clean.
-> **Backend completion:** ~99% | **Frontend completion:** ~80% | **System-wide:** ~87%
+> **Backend completion:** ~99% | **Frontend completion:** ~88% | **System-wide:** ~90%
 
 > **⚠️ Development Strategy Note:**
 > The project is being developed and validated **locally** before any production environment is provisioned.
@@ -121,7 +121,7 @@
 | **Gov portal frontend** | 🟡 In progress | 60% | Scaffold complete + create-user modal; REST endpoint alignment still needed for bulk-op execution + role gating |
 | **Verifier terminal PWA** | 🟡 In progress | 75% | QR scanner + binary result + login/registration page + history page |
 | **Android app** | 🟡 In progress | 40% | OnboardingActivity (launcher), MainActivity (bottom nav), NotificationService (FCM), GatewayApiClient (OkHttp), QR scan deps added |
-| **iOS app** | 🔴 Not started | 0% | — |
+| **iOS app** | 🟡 In progress | 90% | Secure Enclave DID, full SwiftUI app, unit tests; Xcode project file + Rust ZK bridge pending |
 | **HarmonyOS app** | 🔴 Not started | 0% | — |
 | **Diaspora portal** | 🔴 Not started | 0% | Tier 4 |
 
@@ -716,6 +716,67 @@ The enrollment service checks "3+ co-attestors" only in service logic. A direct 
 
 - **`result_summary` column**: `BulkOp` interface extended with optional `result_summary` field; table header now includes «نتیجه» column; completed operations display their execution summary or `—` if not yet available.
 - **Checklist sync**: role-based UI gating and RTL-first CSS migration (completed in T3.21) now marked done in roadmap.
+
+---
+
+### T3.23 — iOS App: Full Swift/SwiftUI Implementation ✅ COMPLETE
+
+**What was built (2026-03-20):**
+
+**iOS App (0% → 90%):**
+
+- **Project scaffold**: `Package.swift` (Swift Package Manager, iOS 14+, Swift 5.9). `IndisApp.swift` (`@main`), `AppState.swift` (ObservableObject — DID, JWT, locale, numerals), `ContentView.swift` (auth router).
+
+- **Data / Network layer**:
+  - `GatewayAPIClient.swift` — `actor`-isolated URLSession wrapper with `get<T>()`, `post<B,T>()`, `put<B,T>()` generics; throws `GatewayError` on non-2xx.
+  - `APIModels.swift` — Codable request/response types for all endpoints: identity register, credential list, enrollment start/biometric/status, revocation list, privacy history/consent/export, verifier verify.
+
+- **Local storage**:
+  - `EncryptedWalletStore.swift` — Keychain (`kSecClassGenericPassword`, `kSecAttrAccessibleAfterFirstUnlock`) for DID, JWT, gateway URL, locale.
+  - `CredentialStore.swift` — JSON-serialised credential cache in app Documents directory with `.completeFileProtection`; upsert-by-id semantics.
+
+- **Repositories**:
+  - `IdentityRepository.swift` — protocol + `GatewayIdentityRepository`: Secure Enclave DID → `POST /v1/identity/register` → Keychain persist.
+  - `CredentialRepository.swift` — protocol + `GatewayCredentialRepository`: network-first + `CredentialStore` offline fallback (PRD FR-006).
+  - `EnrollmentRepository.swift` — protocol + `EnrollmentRepository`: start/biometric/status for all three enrollment pathways.
+
+- **Domain layer**:
+  - `DIDManager.swift` — Secure Enclave P-256 key generation; public key SHA-256 → 20-byte hex suffix → `did:indis:<hex>`. Private key never leaves Secure Enclave.
+  - `ZKProofManager.swift` — async `generateProof(predicate:vcJson:)` with dev mock; Rust FFI bridge slot (TODO: `swift-bridge` / `uniffi`).
+  - `PersianCalendar.swift` — `Calendar(identifier: .persian)` wrappers: `format()`, `formatShort()`, `formatISO()`, `currentYear`.
+  - `PersianNumerals.swift` — digit map + `String.toPersian()` extension; mirrors `pkg/i18n`.
+
+- **UI (SwiftUI)**:
+  - `OnboardingView.swift` — 3-page TabView intro with `RegistrationSheet` (`POST /v1/identity/register`, async/await, error display); dev bypass.
+  - `MainTabView.swift` — 4-tab bottom bar: Home / Wallet / Verify / Settings; Home shows DID card + quick-action grid.
+  - `EnrollmentView.swift` — 4-step progress bar flow: pathway selection (Standard/Enhanced/Social), document capture, biometric capture, approval wait.
+  - `DocumentStepView.swift` — front/back card capture tiles (camera integration slot).
+  - `BiometricStepView.swift` — face + fingerprint capture tiles (AVCaptureSession/Core NFC slot).
+  - `WalletView.swift` — async credential list with refresh, privacy center toolbar button.
+  - `CredentialCardView.swift` — per-credential card: icon, type, issuer, Solar Hijri dates, status badge (valid/revoked/expired).
+  - `PrivacyCenterView.swift` — 3-tab sheet: history (`GET /v1/privacy/history`), consent rules (`GET /v1/privacy/consent`), data export (`POST /v1/privacy/export`).
+  - `VerifyView.swift` — dual-mode: **Present** (ZK proof → QR code via CIQRCodeGenerator) + **Scan** (AVCaptureSession QR decode → `POST /v1/verifier/verify` → full-screen boolean result, PRD FR-013).
+  - `QRScannerView.swift` — `UIViewControllerRepresentable` wrapping `AVCaptureSession` + `AVCaptureMetadataOutput`; centre 250×250 finder box; torch-ready.
+  - `SettingsView.swift` — language picker (6 locales), Persian numerals toggle, gateway URL editor, privacy center shortcut, DID display, version, logout with confirmation dialog.
+
+- **Service**:
+  - `RevocationCacheService.swift` — `BGAppRefreshTask` registered for `org.indis.app.revocation-refresh`; 6h periodic refresh; 72h staleness check; eager fetch on first launch (PRD FR-006).
+
+- **Resources**:
+  - `Info.plist` — bundle ID `org.indis.app`, display name «هویت ملی», `BGTaskSchedulerPermittedIdentifiers`, `NSCameraUsageDescription` (Persian), `NSFaceIDUsageDescription`, ATS local networking exemption, 6 locales, portrait UI.
+
+- **Tests** (`Tests/IndisAppTests/`):
+  - `DIDManagerTests.swift` — DID format + determinism (hex suffix length, prefix, uniqueness).
+  - `PersianCalendarTests.swift` — Solar Hijri year for 2026-03-20, current year range.
+  - `PersianNumeralsTests.swift` — digit conversion, mixed string, int format, String extension.
+  - `CredentialStoreTests.swift` — save/load, upsert-update, revoked flag.
+
+**Pending (Tier 4 / production)**:
+
+- Xcode `.xcodeproj` / `.xcworkspace` — requires Xcode; SPM manifest is the authoritative build descriptor.
+- Rust ZK bridge via `swift-bridge` or `uniffi` linking `services/zkproof` crate.
+- Real camera/biometric integration (AVCaptureSession face liveness, Core NFC fingerprint).
+- Push notifications via APNs (equivalent of Android FCM service).
 
 ---
 
