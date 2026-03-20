@@ -36,13 +36,25 @@ type StatsResult struct {
 	PendingBulkOperations int64
 }
 
+// GovPortalRepository defines the data-access behavior required by the service.
+type GovPortalRepository interface {
+	CreatePortalUser(ctx context.Context, rec repository.PortalUserRecord) error
+	ListPortalUsers(ctx context.Context, ministryFilter string) ([]*repository.PortalUserRecord, error)
+	UpdatePortalUserRole(ctx context.Context, id, role string) error
+	CreateBulkOperation(ctx context.Context, rec repository.BulkOperationRecord) error
+	ListBulkOperations(ctx context.Context, statusFilter, ministryFilter string) ([]*repository.BulkOperationRecord, error)
+	ApproveBulkOperation(ctx context.Context, id, approvedBy, newStatus string) error
+	GetBulkOperationByID(ctx context.Context, id string) (*repository.BulkOperationRecord, error)
+	CountRows(ctx context.Context, tableName string) (int64, error)
+}
+
 // GovPortalService implements business logic for the ministry portal.
 type GovPortalService struct {
-	repo *repository.Repository
+	repo GovPortalRepository
 }
 
 // New creates a GovPortalService.
-func New(repo *repository.Repository) *GovPortalService {
+func New(repo GovPortalRepository) *GovPortalService {
 	return &GovPortalService{repo: repo}
 }
 

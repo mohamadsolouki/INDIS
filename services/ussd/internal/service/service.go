@@ -153,14 +153,25 @@ type OTPSendResult struct {
 // ErrSessionExpired is returned when a session has timed out.
 var ErrSessionExpired = errors.New("service: session expired")
 
+// USSDRepository defines the data-access behavior required by the service.
+type USSDRepository interface {
+	CreateSession(ctx context.Context, s repository.USSDSession) error
+	GetSession(ctx context.Context, sessionID string) (*repository.USSDSession, error)
+	UpdateSession(ctx context.Context, s repository.USSDSession) error
+	EndSession(ctx context.Context, sessionID string) error
+	CreateOTP(ctx context.Context, otp repository.SMSOtp) error
+	GetActiveOTP(ctx context.Context, phoneHash string) (*repository.SMSOtp, error)
+	MarkOTPUsed(ctx context.Context, id string) error
+}
+
 // Service implements USSD session management and SMS OTP operations.
 type Service struct {
-	repo       *repository.Repository
+	repo       USSDRepository
 	gatewayURL string
 }
 
 // New creates a Service.
-func New(repo *repository.Repository, gatewayURL string) *Service {
+func New(repo USSDRepository, gatewayURL string) *Service {
 	return &Service{repo: repo, gatewayURL: gatewayURL}
 }
 

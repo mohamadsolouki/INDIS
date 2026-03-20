@@ -43,15 +43,25 @@ type RegisterResult struct {
 	PublicKeyHex  string
 }
 
+// VerifierRepository defines the data-access behavior required by the service.
+type VerifierRepository interface {
+	CreateVerifier(ctx context.Context, rec repository.VerifierRecord) error
+	GetVerifierByID(ctx context.Context, id string) (*repository.VerifierRecord, error)
+	ListVerifiers(ctx context.Context, statusFilter string) ([]*repository.VerifierRecord, error)
+	UpdateVerifierStatus(ctx context.Context, id, status string) error
+	CreateVerificationEvent(ctx context.Context, evt repository.VerificationEventRecord) error
+	ListVerificationEvents(ctx context.Context, verifierID string, limit int32) ([]*repository.VerificationEventRecord, error)
+}
+
 // VerifierService implements business logic for verifier management and credential verification.
 type VerifierService struct {
-	repo       *repository.Repository
+	repo       VerifierRepository
 	zkProofURL string
 	httpClient *http.Client
 }
 
 // New creates a VerifierService.
-func New(repo *repository.Repository, zkProofURL string) *VerifierService {
+func New(repo VerifierRepository, zkProofURL string) *VerifierService {
 	return &VerifierService{
 		repo:       repo,
 		zkProofURL: zkProofURL,

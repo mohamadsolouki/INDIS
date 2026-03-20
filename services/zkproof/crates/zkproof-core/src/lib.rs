@@ -20,10 +20,12 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+pub mod bulletproofs;
 pub mod circuits;
 pub mod groth16;
 pub mod stark;
 
+pub use bulletproofs::BulletproofsEngine;
 pub use groth16::DevelopmentGroth16Engine;
 pub use stark::DevelopmentStarkEngine;
 pub use stark::WinterfellStarkEngine;

@@ -43,16 +43,23 @@ type GenerateRequest struct {
 	ExpiryDate  string // YYMMDD
 }
 
+// CardRepository defines the data-access behavior required by the service.
+type CardRepository interface {
+	Create(ctx context.Context, rec repository.CardRecord) error
+	GetByDID(ctx context.Context, did string) (*repository.CardRecord, error)
+	Invalidate(ctx context.Context, did, reason string) error
+}
+
 // Service implements card data generation and lifecycle management.
 type Service struct {
-	repo       *repository.Repository
+	repo       CardRepository
 	privateKey ed25519.PrivateKey
 	publicKey  ed25519.PublicKey
 }
 
 // New creates a Service. seedHex is a 32-byte hex-encoded Ed25519 seed; if empty
 // a random key pair is generated at startup.
-func New(repo *repository.Repository, seedHex string) (*Service, error) {
+func New(repo CardRepository, seedHex string) (*Service, error) {
 	var priv ed25519.PrivateKey
 	var pub ed25519.PublicKey
 
