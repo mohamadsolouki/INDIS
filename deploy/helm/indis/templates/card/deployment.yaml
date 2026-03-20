@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.global.domain | replace "." "-" }}-card
+  labels:
+    app: card
+spec:
+  replicas: {{ .Values.card.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      app: card
+  template:
+    metadata:
+      labels:
+        app: card
+    spec:
+      containers:
+        - name: card
+          image: "{{ .Values.card.image.repository }}:{{ .Values.card.image.tag }}"
+          imagePullPolicy: {{ .Values.card.image.pullPolicy }}
+          ports:
+            - containerPort: 8400
+              name: http
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-card-config
+          resources:
+            {{- toYaml .Values.card.resources | nindent 12 }}

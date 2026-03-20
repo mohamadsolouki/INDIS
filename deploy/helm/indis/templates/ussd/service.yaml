@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-ussd
+  labels:
+    app: ussd
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8300
+      targetPort: http
+      name: http
+  selector:
+    app: ussd

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-ussd-config
+data:
+  HTTP_PORT: "8300"
+  LOG_LEVEL: "info"
+  ENVIRONMENT: "production"
+  REDIS_URL: "redis://{{ .Values.global.redis.host }}:{{ .Values.global.redis.port }}"
+  KAFKA_BROKERS: "{{ .Values.global.kafka.brokers }}"

@@ -16,8 +16,21 @@ Performance targets (PRD §4.1):
 """
 
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 
-from biometric.router import router as biometric_router
+from biometric.router import router as biometric_router, _service as _biometric_service
+
+# Startup flag: set to a non-None error string on init failure, empty string on success.
+_biometric_init_error: str = ""
+
+try:
+    # Verify the biometric service initialised by exercising its hyperplane setup.
+    # _service is constructed at import time in biometric.router; if that import
+    # succeeded and the hyperplanes are populated we consider the module ready.
+    if not _biometric_service._hyperplanes:
+        _biometric_init_error = "biometric hyperplanes not initialised"
+except Exception as exc:  # pragma: no cover
+    _biometric_init_error = str(exc)
 
 app = FastAPI(
     title="INDIS AI/ML Service",
@@ -35,10 +48,17 @@ async def health_check() -> dict:
 
 
 @app.get("/readiness")
-async def readiness_check() -> dict:
-    """Readiness check — verifies ML models are loaded."""
-    # Minimal deduplication router is available for development flows.
-    return {"ready": True, "reason": "minimal deduplication model loaded"}
+async def readiness_check() -> JSONResponse:
+    """Readiness check — verifies the biometric deduplication module initialised."""
+    if _biometric_init_error:
+        return JSONResponse(
+            status_code=503,
+            content={"ready": False, "error": _biometric_init_error},
+        )
+    return JSONResponse(
+        status_code=200,
+        content={"ready": True, "model": "perceptual_hash_lsh"},
+    )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.global.domain | replace "." "-" }}-govportal
+  labels:
+    app: govportal
+spec:
+  replicas: {{ .Values.govportal.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      app: govportal
+  template:
+    metadata:
+      labels:
+        app: govportal
+    spec:
+      containers:
+        - name: govportal
+          image: "{{ .Values.govportal.image.repository }}:{{ .Values.govportal.image.tag }}"
+          imagePullPolicy: {{ .Values.govportal.image.pullPolicy }}
+          ports:
+            - containerPort: 8200
+              name: http
+            - containerPort: 8201
+              name: metrics
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-govportal-config
+          resources:
+            {{- toYaml .Values.govportal.resources | nindent 12 }}

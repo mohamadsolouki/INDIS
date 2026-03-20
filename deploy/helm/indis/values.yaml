@@ -156,6 +156,58 @@ ai:
     tag: "latest"
   resources: {}
 
+verifier:
+  replicaCount: 1
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
+  image:
+    repository: indis/verifier
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  resources: {}
+
+govportal:
+  replicaCount: 1
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
+  image:
+    repository: indis/govportal
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  resources: {}
+
+ussd:
+  replicaCount: 1
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
+  image:
+    repository: indis/ussd
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  resources: {}
+
+card:
+  replicaCount: 1
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
+  image:
+    repository: indis/card
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  resources: {}
+
 kafka:
   enabled: true
 
