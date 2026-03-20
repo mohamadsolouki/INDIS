@@ -146,6 +146,12 @@ func (m *MockAdapter) LogVerificationEvent(_ context.Context, _ AnonymizedVerifi
 	return m.nextBlock(), nil
 }
 
+func (m *MockAdapter) AnchorAuditEvent(_ context.Context, _, _ string) (*TxReceipt, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.nextBlock(), nil
+}
+
 func (m *MockAdapter) GetBlockHeight(_ context.Context) (uint64, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

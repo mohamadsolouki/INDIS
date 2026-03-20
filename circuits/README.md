@@ -9,11 +9,17 @@
 | `voter_eligibility` | FR-003, FR-010 | Atomic proof: citizenship + age + not excluded |
 | `credential_validity` | FR-003 | Proves credential is valid, not revoked, not expired |
 
-## Cairo Circuits (STARK)
+## STARK Electoral Proof (Rust / Winterfell)
 
-| Circuit | PRD Reference | Purpose |
-|---------|---------------|---------|
-| `electoral_proof` | FR-010 | Post-quantum electoral verification (ZK-STARK) |
+The Cairo electoral proof approach was superseded by a Rust implementation using the
+[Winterfell](https://github.com/facebook/winterfell) STARK library (see `services/zkproof/`).
+
+- **`WinterfellStarkEngine`** — `services/zkproof/crates/zkproof-core/src/stark/` — STARK prove/verify engine
+- **`VoterEligibilityAir`** — same directory — AIR encoding voter eligibility constraints
+
+**Rationale:** Winterfell is a production-grade, memory-safe Rust STARK library with 95-bit
+post-quantum security. It requires no trusted setup (unlike Groth16/PLONK) and is already
+integrated end-to-end with `services/electoral`. The `circuits/cairo/` directory was removed.
 
 ## Building Circuits
 

@@ -440,6 +440,17 @@ func (f *FabricAdapter) LogVerificationEvent(ctx context.Context, event Anonymiz
 	return makeTxReceipt(raw), nil
 }
 
+// AnchorAuditEvent submits an immutable audit event hash to the audit-log chaincode.
+// Only the event ID and its SHA-256 hash are stored on-chain — no PII.
+func (f *FabricAdapter) AnchorAuditEvent(ctx context.Context, eventID, entryHash string) (*TxReceipt, error) {
+	raw, err := f.submit(ctx, f.auditChannel, f.auditChaincode, "AnchorAuditEvent",
+		[]string{eventID, entryHash})
+	if err != nil {
+		return nil, fmt.Errorf("AnchorAuditEvent: %w", err)
+	}
+	return makeTxReceipt(raw), nil
+}
+
 // ---- Health and status -----------------------------------------------------
 
 // GetBlockHeight returns the current block height of the DID registry channel.

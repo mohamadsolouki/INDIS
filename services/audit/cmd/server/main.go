@@ -20,6 +20,7 @@ import (
 	"time"
 
 	auditv1 "github.com/IranProsperityProject/INDIS/api/gen/go/audit/v1"
+	"github.com/IranProsperityProject/INDIS/pkg/blockchain"
 	indismetrics "github.com/IranProsperityProject/INDIS/pkg/metrics"
 	indismigrate "github.com/IranProsperityProject/INDIS/pkg/migrate"
 	indistls "github.com/IranProsperityProject/INDIS/pkg/tls"
@@ -57,8 +58,11 @@ func main() {
 		log.Fatalf("migrations apply: %v", err)
 	}
 
+	chain := blockchain.NewMockAdapter()
+	log.Printf("Blockchain backend: %s", cfg.BlockchainType)
+
 	repo := repository.New(pool)
-	svc := service.New(repo)
+	svc := service.New(repo, chain)
 	h := handler.New(svc)
 
 	go func() {

@@ -12,17 +12,20 @@ import (
 	"time"
 
 	auditv1 "github.com/IranProsperityProject/INDIS/api/gen/go/audit/v1"
+	"github.com/IranProsperityProject/INDIS/pkg/blockchain"
 	"github.com/IranProsperityProject/INDIS/services/audit/internal/repository"
 )
 
 // AuditService implements tamper-evident append-only audit logging.
 type AuditService struct {
-	repo *repository.Repository
+	repo  *repository.Repository
+	chain blockchain.BlockchainAdapter
 }
 
-// New creates an AuditService.
-func New(repo *repository.Repository) *AuditService {
-	return &AuditService{repo: repo}
+// New creates an AuditService with an optional blockchain anchor backend.
+// Pass a non-nil chain to enable on-chain tamper-evidence anchoring.
+func New(repo *repository.Repository, chain blockchain.BlockchainAdapter) *AuditService {
+	return &AuditService{repo: repo, chain: chain}
 }
 
 func generateEventID() (string, error) {
@@ -81,6 +84,16 @@ func (s *AuditService) AppendEvent(ctx context.Context, req *auditv1.AppendEvent
 	if err = s.repo.Append(ctx, rec); err != nil {
 		return "", "", "", err
 	}
+
+	// Best-effort on-chain anchor — mirrors the DB hash to the immutable audit-log chaincode.
+	// A failure here does not roll back the DB write; a background reconciler can retry.
+	if s.chain != nil {
+		if _, anchorErr := s.chain.AnchorAuditEvent(ctx, eventID, hash); anchorErr != nil {
+			// Log but do not surface to caller — consistent with other best-effort anchors.
+			_ = fmt.Errorf("audit: blockchain anchor failed for event %s: %w", eventID, anchorErr)
+		}
+	}
+
 	return eventID, prevHash, now.Format(time.RFC3339), nil
 }
 

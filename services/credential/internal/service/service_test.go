@@ -151,6 +151,10 @@ func (m *mockChain) GetValidatorStatus(_ context.Context) ([]blockchain.Validato
 func (m *mockChain) EstimateTxTime(_ context.Context) (time.Duration, error) {
 	return 100 * time.Millisecond, nil
 }
+func (m *mockChain) AnchorAuditEvent(_ context.Context, _, _ string) (*blockchain.TxReceipt, error) {
+	return &blockchain.TxReceipt{}, nil
+}
+
 
 func newServiceForTest(t *testing.T, repo credentialRepository, chain blockchain.BlockchainAdapter) *CredentialService {
 	t.Helper()

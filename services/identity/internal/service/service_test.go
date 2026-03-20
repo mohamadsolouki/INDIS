@@ -147,6 +147,10 @@ func (m *mockChain) GetValidatorStatus(_ context.Context) ([]blockchain.Validato
 func (m *mockChain) EstimateTxTime(_ context.Context) (time.Duration, error) {
 	return 100 * time.Millisecond, nil
 }
+func (m *mockChain) AnchorAuditEvent(_ context.Context, _, _ string) (*blockchain.TxReceipt, error) {
+	return &blockchain.TxReceipt{}, nil
+}
+
 
 // newTestService creates an IdentityService backed by an in-memory mock repo.
 // We use the real service.New constructor via a thin wrapper that satisfies

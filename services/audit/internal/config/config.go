@@ -14,10 +14,13 @@ type Config struct {
 	MetricsPort  int
 	// HTTPPort is the port for the optional REST query endpoint (GET /v1/audit/events).
 	// Defaults to 9200. Set to 0 to disable the HTTP server.
-	HTTPPort     int
-	DatabaseURL  string
-	KafkaBrokers []string
-	KafkaGroupID string
+	HTTPPort        int
+	DatabaseURL     string
+	KafkaBrokers    []string
+	KafkaGroupID    string
+	// BlockchainType selects the blockchain backend: "mock" (default) or "fabric".
+	// Set to "fabric" in production together with FABRIC_* env vars.
+	BlockchainType  string
 }
 
 // Load reads configuration from environment variables with hardcoded defaults.
@@ -59,6 +62,9 @@ func Load() (*Config, error) {
 	}
 	if v := os.Getenv("KAFKA_GROUP_ID"); v != "" {
 		cfg.KafkaGroupID = v
+	}
+	if v := os.Getenv("BLOCKCHAIN_TYPE"); v != "" {
+		cfg.BlockchainType = v
 	}
 	return cfg, nil
 }

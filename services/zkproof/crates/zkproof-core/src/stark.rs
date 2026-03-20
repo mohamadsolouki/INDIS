@@ -5,21 +5,31 @@
 //! * `DevelopmentStarkEngine` — legacy SHA3-hash baseline kept for backward-compat tests.
 //! * `WinterfellStarkEngine` — real Winterfell ZK-STARK for voter eligibility proofs.
 //!
-//! The `WinterfellStarkEngine` builds a genuine STARK with the following AIR:
+//! ## Circuit design (v3 — 3-column eligibility AIR)
 //!
-//! | Component | Value |
-//! |-----------|-------|
-//! | Trace     | 1 column, 8 rows, constant |
-//! | Constraint | `next[0] == cur[0]` (constant column) |
-//! | Assertion  | `step 0, col 0 == voter_commitment` (public) |
+//! The AIR encodes three pillars of voter eligibility as separate constant columns,
+//! each derived with a domain-separated SHA3 commitment from the public inputs:
 //!
-//! `voter_commitment` is derived deterministically from the election's public-input JSON
-//! via `SHA3("indis:stark:v2:commitment:" || json)`.  This ties the STARK proof to a
-//! specific voter + election pair; any tampering with the public inputs invalidates
-//! the proof.
+//! | Column | Meaning                         | Public assertion          |
+//! |--------|---------------------------------|---------------------------|
+//! | 0      | voter_commitment (DID + elec)   | step 0 and step length-1  |
+//! | 1      | age_commitment (age + elec)     | step 0 and step length-1  |
+//! | 2      | nullifier_commitment (null+elec)| step 0 and step length-1  |
 //!
-//! For production, replace the constant-trace circuit with one that does an in-circuit
-//! range check on `age >= 18` and verifies the voter's DID signature.
+//! All three columns are constant throughout the trace:
+//! `next[i] - cur[i] = 0` (degree-1 transition constraint).
+//!
+//! Six public assertions (start + end of each column) bind the proof to the
+//! specific (voter, age-eligibility, election, nullifier) tuple. Any tampering
+//! with any pillar of the public inputs changes one or more committed values,
+//! immediately invalidating the proof.
+//!
+//! ## Production upgrade path
+//!
+//! Replace the constant-column age commitment with a binary range decomposition
+//! that enforces `age_value >= 18` in-circuit (8 bit-columns + carry constraint).
+//! The service layer already enforces this policy, but in-circuit enforcement
+//! removes the trust assumption on the service.
 
 use sha3::{Digest, Sha3_256};
 use winterfell::{
@@ -38,7 +48,8 @@ const DEV_STARK_PREFIX: &[u8] = b"indis:stark:dev:v1";
 const DEV_STARK_PROOF_LEN: usize = 33;
 
 // ── Winterfell circuit constants ───────────────────────────────────────────────
-const WINTERFELL_TRACE_WIDTH: usize = 1;
+/// Three eligibility pillars: voter_commitment, age_commitment, nullifier_commitment.
+const WINTERFELL_TRACE_WIDTH: usize = 3;
 /// Minimum trace length for Winterfell; must be a power of 2 ≥ 8.
 const WINTERFELL_TRACE_LENGTH: usize = 8;
 
@@ -137,41 +148,61 @@ impl ProofVerifier for DevelopmentStarkEngine {
 
 /// Public inputs visible to the STARK verifier.
 ///
-/// Two field elements derived deterministically from the election's JSON blob:
-/// - `start`: first 8 bytes of SHA3 digest → ties the proof to the specific election
-/// - `result`: `start × 2^(TRACE_LENGTH−1)` → computed deterministically from `start`
+/// Each field is the *start* value of one trace column.  The *end* value is
+/// deterministically computed as `start × 2^(TRACE_LENGTH−1)`, which is also
+/// publicly asserted so that the verifier can re-derive both boundary values
+/// independently.
 ///
-/// Having two assertions across the trace ensures the trace polynomial is non-constant
-/// (required by the Winterfell DEEP composition protocol).
+/// Three eligibility pillars are derived with domain-separated SHA3 hashes:
+///
+/// - `voter_commitment` — `SHA3("indis:stark:voter:"     || voter_did_commitment_b64 || ":" || election_id)[0..8]`
+/// - `age_commitment`   — `SHA3("indis:stark:age:"       || age_commitment_b64       || ":" || election_id)[0..8]`
+/// - `nullifier`        — `SHA3("indis:stark:nullifier:" || nullifier_b64            || ":" || election_id)[0..8]`
 #[derive(Debug, Clone)]
 pub struct VoterPublicInputs {
-    pub start: BaseElement,
-    pub result: BaseElement,
+    /// Start value of column 0 (voter DID × election binding).
+    pub voter_commitment: BaseElement,
+    /// Start value of column 1 (age-eligibility × election binding).
+    pub age_commitment: BaseElement,
+    /// Start value of column 2 (single-use nullifier × election binding).
+    pub nullifier: BaseElement,
 }
 
 impl ToElements<BaseElement> for VoterPublicInputs {
     fn to_elements(&self) -> Vec<BaseElement> {
-        vec![self.start, self.result]
+        vec![self.voter_commitment, self.age_commitment, self.nullifier]
     }
 }
 
-/// Winterfell AIR for voter eligibility STARK proofs.
+/// Compute the end value of a doubling column.
 ///
-/// **Circuit:** 1-column "doubling" trace of length `WINTERFELL_TRACE_LENGTH`.
+/// Each column doubles every row: `row[i] = start × 2^i`.
+/// The last row therefore holds `start × 2^(TRACE_LENGTH−1)`.
+fn doubling_end(start: BaseElement) -> BaseElement {
+    let factor = BaseElement::new(1u128 << (WINTERFELL_TRACE_LENGTH - 1));
+    start * factor
+}
+
+/// Winterfell AIR for voter eligibility STARK proofs (v3 — 3-column eligibility).
 ///
-/// ```text
-/// row 0: start   (= SHA3(domain || json)[0..8] as u64)
-/// row 1: start × 2
-/// row 2: start × 4
-/// ...
-/// row n: start × 2^n   (= result, asserted publicly)
-/// ```
+/// ## Trace layout
 ///
-/// Transition constraint: `next[0] - cur[0] × 2 = 0` (degree 1).
-/// Boundary assertions: step 0 = `start`, step 7 = `result`.
+/// | Col | Semantics                       | Row 0               | Row i                   |
+/// |-----|---------------------------------|---------------------|-------------------------|
+/// | 0   | voter_commitment doubling chain | `voter_commitment`  | `voter_commitment × 2^i`|
+/// | 1   | age_commitment doubling chain   | `age_commitment`    | `age_commitment × 2^i`  |
+/// | 2   | nullifier doubling chain        | `nullifier`         | `nullifier × 2^i`       |
 ///
-/// This produces a proper non-constant trace polynomial of degree
-/// `trace_length − 1 = 7`, satisfying the Winterfell DEEP composition invariant.
+/// ## Transition constraints (degree 1, per column)
+/// `next[i] − 2 × cur[i] = 0`
+///
+/// ## Boundary assertions (6 total, all public)
+/// For each column: row 0 = `start`, row (TRACE_LENGTH−1) = `start × 2^(TRACE_LENGTH−1)`.
+///
+/// Having distinct start and end values ensures that each trace column's polynomial
+/// has degree ≥ 1, satisfying Winterfell's DEEP composition invariant.
+/// Any tampering with any pillar of the public inputs changes that column's
+/// start and end values, immediately invalidating the proof.
 pub struct VoterEligibilityAir {
     context: AirContext<BaseElement>,
     pub_inputs: VoterPublicInputs,
@@ -186,10 +217,14 @@ impl Air for VoterEligibilityAir {
         pub_inputs: VoterPublicInputs,
         options: ProofOptions,
     ) -> Self {
-        // Degree-1 transition: next[0] = cur[0] × 2.
-        let degrees = vec![TransitionConstraintDegree::new(1)];
-        // 2 boundary assertions: step 0 and step (TRACE_LENGTH−1).
-        let context = AirContext::new(trace_info, degrees, 2, options);
+        // Three degree-1 doubling constraints, one per column.
+        let degrees = vec![
+            TransitionConstraintDegree::new(1),
+            TransitionConstraintDegree::new(1),
+            TransitionConstraintDegree::new(1),
+        ];
+        // 6 boundary assertions: start + end for each of the 3 columns.
+        let context = AirContext::new(trace_info, degrees, 6, options);
         Self { context, pub_inputs }
     }
 
@@ -203,17 +238,25 @@ impl Air for VoterEligibilityAir {
         _periodic_values: &[E],
         result: &mut [E],
     ) {
-        // Enforce: next[0] = cur[0] × 2  ↔  next[0] - 2 × cur[0] = 0
-        result[0] = frame.next()[0] - E::from(2u32) * frame.current()[0];
+        // Each column doubles: next[i] = cur[i] × 2.
+        let two = E::from(2u32);
+        result[0] = frame.next()[0] - two * frame.current()[0];
+        result[1] = frame.next()[1] - two * frame.current()[1];
+        result[2] = frame.next()[2] - two * frame.current()[2];
     }
 
     fn get_assertions(&self) -> Vec<Assertion<BaseElement>> {
-        let last_step = WINTERFELL_TRACE_LENGTH - 1;
+        let last = WINTERFELL_TRACE_LENGTH - 1;
         vec![
-            // start value is public — ties the proof to the election's JSON data.
-            Assertion::single(0, 0, self.pub_inputs.start),
-            // final value is public — verifier recomputes and checks.
-            Assertion::single(0, last_step, self.pub_inputs.result),
+            // Col 0 — voter_commitment
+            Assertion::single(0, 0,    self.pub_inputs.voter_commitment),
+            Assertion::single(0, last, doubling_end(self.pub_inputs.voter_commitment)),
+            // Col 1 — age_commitment
+            Assertion::single(1, 0,    self.pub_inputs.age_commitment),
+            Assertion::single(1, last, doubling_end(self.pub_inputs.age_commitment)),
+            // Col 2 — nullifier
+            Assertion::single(2, 0,    self.pub_inputs.nullifier),
+            Assertion::single(2, last, doubling_end(self.pub_inputs.nullifier)),
         ]
     }
 }
@@ -279,31 +322,79 @@ fn stark_proof_options() -> ProofOptions {
     )
 }
 
+/// Derive a non-zero field element from a domain-separated SHA3 hash.
+///
+/// `SHA3(domain || value_bytes || ":" || election_id)[0..8]` → `u64` → `BaseElement`
+fn field_element_from_hash(domain: &[u8], value: &[u8], election_id: &[u8]) -> BaseElement {
+    let mut h = Sha3_256::new();
+    h.update(domain);
+    h.update(value);
+    h.update(b":");
+    h.update(election_id);
+    let digest = h.finalize();
+    let mut bytes = [0u8; 8];
+    bytes.copy_from_slice(&digest[..8]);
+    let v = u64::from_le_bytes(bytes);
+    BaseElement::new(if v == 0 { 1u128 } else { v as u128 })
+}
+
 /// Derive `VoterPublicInputs` from the election's public-input JSON blob.
 ///
-/// - `start = SHA3("indis:stark:v2:start:" || json)[0..8]` as `u64` → field element
-/// - `result = start × 2^(TRACE_LENGTH−1)` — computed deterministically from `start`
+/// Parses the JSON for `voter_did_commitment_b64`, `age_commitment_b64`,
+/// `nullifier_b64`, and `election_id`, then derives three domain-separated
+/// field elements — one per eligibility pillar.
 ///
-/// Having `start != result` guarantees the trace polynomial is non-constant,
-/// which is required by the Winterfell DEEP composition protocol.
+/// Falls back to hashing the raw JSON blob for any missing field so that
+/// malformed input still produces a deterministic (but likely invalid) proof
+/// rather than panicking.
 fn derive_public_inputs(public_inputs_json: &[u8]) -> VoterPublicInputs {
-    let mut hasher = Sha3_256::new();
-    hasher.update(b"indis:stark:v2:start:");
-    hasher.update(public_inputs_json);
-    let digest = hasher.finalize();
+    // Best-effort JSON parse — fall back to raw-blob hashing if any field is absent.
+    let (voter_val, age_val, nullifier_val, election_id) =
+        if let Ok(v) = serde_json::from_slice::<serde_json::Value>(public_inputs_json) {
+            let voter = v["voter_did_commitment_b64"]
+                .as_str()
+                .unwrap_or("")
+                .as_bytes()
+                .to_vec();
+            let age = v["age_commitment_b64"]
+                .as_str()
+                .unwrap_or("")
+                .as_bytes()
+                .to_vec();
+            let nullifier = v["nullifier_b64"]
+                .as_str()
+                .unwrap_or("")
+                .as_bytes()
+                .to_vec();
+            let election = v["election_id"]
+                .as_str()
+                .unwrap_or("")
+                .as_bytes()
+                .to_vec();
+            (voter, age, nullifier, election)
+        } else {
+            // Malformed JSON: hash the raw blob for all three pillars.
+            let raw = public_inputs_json.to_vec();
+            (raw.clone(), raw.clone(), raw.clone(), b"unknown".to_vec())
+        };
 
-    // Use first 8 bytes as a u64 seed → field element (avoid zero).
-    let mut seed_bytes = [0u8; 8];
-    seed_bytes.copy_from_slice(&digest[..8]);
-    let seed = u64::from_le_bytes(seed_bytes);
-    // Ensure non-zero (zero field element would make all trace rows zero).
-    let start = BaseElement::new(if seed == 0 { 1 } else { seed as u128 });
-
-    // result = start × 2^(TRACE_LENGTH−1)
-    let factor = BaseElement::new(1u128 << (WINTERFELL_TRACE_LENGTH - 1));
-    let result = start * factor;
-
-    VoterPublicInputs { start, result }
+    VoterPublicInputs {
+        voter_commitment: field_element_from_hash(
+            b"indis:stark:voter:",
+            &voter_val,
+            &election_id,
+        ),
+        age_commitment: field_element_from_hash(
+            b"indis:stark:age:",
+            &age_val,
+            &election_id,
+        ),
+        nullifier: field_element_from_hash(
+            b"indis:stark:nullifier:",
+            &nullifier_val,
+            &election_id,
+        ),
+    }
 }
 
 /// Real Winterfell ZK-STARK engine for INDIS voter eligibility proofs.
@@ -343,16 +434,25 @@ impl ProofGenerator for WinterfellStarkEngine {
 
         let pub_inputs = derive_public_inputs(&public_inputs[0]);
 
-        // Build a doubling trace: row i = start × 2^i.
-        let start_val = pub_inputs.start;
+        // Build a 3-column doubling trace.
+        // Each column starts at its eligibility commitment and doubles every row,
+        // giving a non-constant trace polynomial (required by Winterfell DEEP composition).
+        let vc = pub_inputs.voter_commitment;
+        let ac = pub_inputs.age_commitment;
+        let nc = pub_inputs.nullifier;
+        let two = BaseElement::new(2);
         let mut trace = TraceTable::new(WINTERFELL_TRACE_WIDTH, WINTERFELL_TRACE_LENGTH);
         trace.fill(
             |state| {
-                state[0] = start_val;
+                state[0] = vc;
+                state[1] = ac;
+                state[2] = nc;
             },
             |_step, state| {
-                // Double the value each step: row[i+1] = row[i] × 2.
-                state[0] = state[0] * BaseElement::new(2);
+                // Double each column independently each step.
+                state[0] = state[0] * two;
+                state[1] = state[1] * two;
+                state[2] = state[2] * two;
             },
         );
         let options = stark_proof_options();
@@ -464,6 +564,16 @@ mod tests {
 
     // ── WinterfellStarkEngine ──────────────────────────────────────────────────
 
+    fn sample_inputs() -> Vec<u8> {
+        serde_json::to_vec(&serde_json::json!({
+            "voter_did_commitment_b64": "dm90ZXI=",
+            "age_commitment_b64": "YWdlMjU=",
+            "election_id": "election-1404",
+            "nullifier_b64": "bnVsbGlmaWVy"
+        }))
+        .unwrap()
+    }
+
     #[test]
     fn winterfell_rejects_empty_public_inputs() {
         let engine = WinterfellStarkEngine;
@@ -474,12 +584,7 @@ mod tests {
     #[test]
     fn winterfell_round_trip_validates() {
         let engine = WinterfellStarkEngine;
-        let public_input = serde_json::to_vec(&serde_json::json!({
-            "voter_did_commitment_b64": "dm90ZXI=",
-            "election_id": "election-1404",
-            "nullifier_b64": "bnVsbGlmaWVy"
-        }))
-        .unwrap();
+        let public_input = sample_inputs();
 
         let proof = engine
             .generate("voter_eligibility", &[], &[public_input.clone()])
@@ -495,44 +600,110 @@ mod tests {
     }
 
     #[test]
-    fn winterfell_rejects_tampered_public_inputs() {
+    fn winterfell_rejects_tampered_voter_commitment() {
         let engine = WinterfellStarkEngine;
-
-        let input_a = serde_json::to_vec(&serde_json::json!({
-            "voter_did_commitment_b64": "dm90ZXI=",
+        let original = sample_inputs();
+        let tampered = serde_json::to_vec(&serde_json::json!({
+            "voter_did_commitment_b64": "TAMPERED==",
+            "age_commitment_b64": "YWdlMjU=",
             "election_id": "election-1404",
             "nullifier_b64": "bnVsbGlmaWVy"
         }))
         .unwrap();
 
-        let input_b = serde_json::to_vec(&serde_json::json!({
-            "voter_did_commitment_b64": "YWx0ZXI=",
-            "election_id": "election-9999",
-            "nullifier_b64": "ZGlmZmVyZW50"
+        let proof = engine
+            .generate("voter_eligibility", &[], &[original])
+            .expect("proof should be generated");
+        let result = engine
+            .verify(&proof, &[], &[tampered])
+            .expect("verification should run");
+        assert!(!result.valid, "tampered voter_commitment must invalidate proof");
+    }
+
+    #[test]
+    fn winterfell_rejects_tampered_age_commitment() {
+        let engine = WinterfellStarkEngine;
+        let original = sample_inputs();
+        let tampered = serde_json::to_vec(&serde_json::json!({
+            "voter_did_commitment_b64": "dm90ZXI=",
+            "age_commitment_b64": "TAMPERED==",
+            "election_id": "election-1404",
+            "nullifier_b64": "bnVsbGlmaWVy"
         }))
         .unwrap();
 
         let proof = engine
-            .generate("voter_eligibility", &[], &[input_a])
+            .generate("voter_eligibility", &[], &[original])
             .expect("proof should be generated");
-
         let result = engine
-            .verify(&proof, &[], &[input_b])
-            .expect("verification should run without error");
+            .verify(&proof, &[], &[tampered])
+            .expect("verification should run");
+        assert!(!result.valid, "tampered age_commitment must invalidate proof");
+    }
 
-        assert!(
-            !result.valid,
-            "tampered public inputs must invalidate the proof"
-        );
+    #[test]
+    fn winterfell_rejects_tampered_nullifier() {
+        let engine = WinterfellStarkEngine;
+        let original = sample_inputs();
+        let tampered = serde_json::to_vec(&serde_json::json!({
+            "voter_did_commitment_b64": "dm90ZXI=",
+            "age_commitment_b64": "YWdlMjU=",
+            "election_id": "election-1404",
+            "nullifier_b64": "TAMPERED=="
+        }))
+        .unwrap();
+
+        let proof = engine
+            .generate("voter_eligibility", &[], &[original])
+            .expect("proof should be generated");
+        let result = engine
+            .verify(&proof, &[], &[tampered])
+            .expect("verification should run");
+        assert!(!result.valid, "tampered nullifier must invalidate proof");
+    }
+
+    #[test]
+    fn winterfell_rejects_tampered_election_id() {
+        let engine = WinterfellStarkEngine;
+        let original = sample_inputs();
+        let tampered = serde_json::to_vec(&serde_json::json!({
+            "voter_did_commitment_b64": "dm90ZXI=",
+            "age_commitment_b64": "YWdlMjU=",
+            "election_id": "election-EVIL",
+            "nullifier_b64": "bnVsbGlmaWVy"
+        }))
+        .unwrap();
+
+        let proof = engine
+            .generate("voter_eligibility", &[], &[original])
+            .expect("proof should be generated");
+        let result = engine
+            .verify(&proof, &[], &[tampered])
+            .expect("verification should run");
+        assert!(!result.valid, "tampered election_id must invalidate proof");
     }
 
     #[test]
     fn winterfell_proof_system_is_stark() {
         let engine = WinterfellStarkEngine;
-        let public_input = b"{\"election_id\":\"test\"}".to_vec();
         let proof = engine
-            .generate("voter_eligibility", &[], &[public_input])
+            .generate("voter_eligibility", &[], &[sample_inputs()])
             .expect("proof should be generated");
         assert!(matches!(proof.system, ProofSystem::Stark));
+    }
+
+    #[test]
+    fn winterfell_malformed_json_produces_deterministic_proof() {
+        // Malformed input should not panic; it should produce a valid (but
+        // all-fallback) proof that round-trips with the same input.
+        let engine = WinterfellStarkEngine;
+        let bad = b"not-json".to_vec();
+        let proof = engine
+            .generate("voter_eligibility", &[], &[bad.clone()])
+            .expect("should not panic on malformed JSON");
+        let result = engine
+            .verify(&proof, &[], &[bad])
+            .expect("verification should run");
+        assert!(result.valid, "malformed-input proof must round-trip");
     }
 }

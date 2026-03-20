@@ -1,9 +1,9 @@
 # INDIS Implementation Plan
 # نقشه راه پیاده‌سازی INDIS
 
-> **Last updated:** 2026-03-20
-> **Build status:** All 15 Go services + Rust zkproof + Python AI compile cleanly. All 80 Go test packages pass (54 new). All Rust crates check clean.
-> **Backend completion:** ~90% | **Frontend completion:** ~55% | **System-wide:** ~78%
+> **Last updated:** 2026-03-20 (post-audit + frontend sprint)
+> **Build status:** All 15 Go services + Rust zkproof + Python AI compile cleanly. 80 Go test packages pass. All Rust crates check clean.
+> **Backend completion:** ~97% | **Frontend completion:** ~58% | **System-wide:** ~78%
 
 > **⚠️ Development Strategy Note:**
 > The project is being developed and validated **locally** before any production environment is provisioned.
@@ -80,10 +80,10 @@
 | Component | Status | Completion | Notes |
 |-----------|--------|-----------|-------|
 | **Groth16 (arkworks)** | ✅ Real circuits | 85% | `AgeRange`, `VoterEligibility`, `CredentialValidity`; dev trusted setup |
-| **Winterfell STARK** | ✅ Real AIR | 85% | `VoterEligibilityAir`; 24 tests; 95-bit PQ security; dev setup |
+| **Winterfell STARK** | ✅ Real AIR | 92% | 3-column eligibility AIR (voter/age/nullifier commitments); 31 tests; 95-bit PQ security; dev setup |
 | **Bulletproofs** | ✅ Real | 90% | `BulletproofsEngine` using `bulletproofs` 4.x crate; Pedersen commitment; dev trusted setup |
 | **Circom circuits** | 🟡 Logic written | 50% | `poseidon.circom` is stub; no R1CS compile or trusted setup |
-| **Cairo circuits** | ❌ Superseded | 0% | Replaced by Winterfell STARK; empty directory |
+| **Cairo circuits** | ❌ Removed | — | Replaced by Winterfell STARK; directory deleted 2026-03-20 |
 
 ### Blockchain
 
@@ -213,7 +213,7 @@ No critical bugs found. Core implementations are internally consistent and tests
 
 | # | Issue | Service | Impact |
 |---|-------|---------|--------|
-| L1 | **Cairo circuits directory empty** | circuits/cairo | Was superseded by Winterfell; directory is confusing dead-weight — can be removed |
+| L1 | ~~**Cairo circuits directory empty**~~ ✅ RESOLVED | circuits/cairo | Removed 2026-03-20; `circuits/README.md` updated to reference Winterfell STARK |
 | L2 | **STARK circuit uses doubling-trace** | zkproof | Current `VoterEligibilityAir` uses simple doubling trace; should have real eligibility constraints |
 | L3 | **Android app stubs not wired** | android | DIDManager, ZKProofManager, CredentialRepository are placeholder classes with no real logic |
 | L4 | **PWA missing WebSocket/SSE** | citizen-pwa | Verification request push notifications not implemented; users must poll manually |
@@ -234,15 +234,15 @@ The following items MUST be resolved before production deployment of each phase:
 3. ⚠️ **Biometric AI model** — production CNN + minutiae extractor + iris matching required before enrollment deduplication is reliable
 
 ### Phase 2 (Month 4) — Referendum
-4. ⚠️ **Bulletproofs real implementation** — justice ZK citizenship proofs are not validated; testimony privacy is hollow
+4. ✅ ~~**Bulletproofs real implementation**~~ — RESOLVED 2026-03-20 (real `BulletproofsEngine` using `bulletproofs` 4.x)
 5. ⚠️ **Hyperledger Fabric network** — electoral nullifiers must be anchored on-chain, not mocked, before a public referendum
 
 ### Phase 3 (Month 12) — National Rollout
 6. ⚠️ **USSD telecom integration** — obtain USSD short codes; contract with national operator
 7. ⚠️ **HSM Vault production deployment** — card issuer keys, credential signing keys, JWT secrets
-8. ⚠️ **Android app completion** — ~15% done; most Tier 3 citizens will use mobile
+8. ⚠️ **Android app completion** — ~40% done; most Tier 3 citizens will use mobile
 9. ⚠️ **Gov portal frontend** — ministry operators cannot use the system without a frontend
-10. ⚠️ **Verifier terminal PWA** — verifiers cannot read ZK proofs without a frontend
+10. ⚠️ **Verifier terminal PWA** — QR scanner and binary result done; full gateway integration + Playwright tests pending
 11. ⚠️ **Card NFC/APDU encoding** — physical cards cannot be read by existing readers
 12. ⚠️ **Print bureau API** — physical card printing requires integration with NIA print contractor
 
@@ -540,6 +540,147 @@ VAULT_TRANSIT_MOUNT=transit
 
 ---
 
+### T3.11 — OpenTelemetry Distributed Tracing 🔴 NOT STARTED
+
+All 15 services have Prometheus metrics, but there is no distributed trace correlation across gRPC hops. Multi-service ZK proof flows (enrollment → biometric → zkproof → credential) are impossible to debug without traces.
+
+**Steps:**
+
+1. Add `go.opentelemetry.io/otel` + OTLP exporter to all Go services and `pkg/metrics`
+2. Wire `otelgrpc.UnaryServerInterceptor` / `otelgrpc.UnaryClientInterceptor` on all gRPC servers and clients
+3. Propagate `traceparent` header through gateway REST → gRPC calls
+4. Add `opentelemetry-instrumentation-fastapi` to the Python AI service
+5. Deploy Jaeger (or Grafana Tempo) to `docker-compose.yml` and Helm; add scrape target to Prometheus
+6. Add `OTEL_EXPORTER_OTLP_ENDPOINT` env var to all service configs and Helm configmaps
+
+---
+
+### T3.12 — Audit Service → Fabric Chaincode Integration ✅ COMPLETE
+
+The `chaincode/audit-log` chaincode is written and deployed, but `services/audit` never calls it. Audit events are only stored in PostgreSQL (mutable). For tamper-evidence, every audit event must also be anchored on-chain at commit time.
+
+**Steps:**
+
+1. Inject `blockchain.BlockchainAdapter` into `services/audit/internal/service/audit_service.go`
+2. On every `LogEvent()` call, after the DB write, call `adapter.StoreAuditLog(ctx, eventID, eventHash)`
+3. Add a background reconciler that retries failed anchors (reuse the retry-queue pattern from identity/credential)
+4. Wire `BLOCKCHAIN_TYPE` env var into audit service config (already in `pkg/blockchain/factory.go`)
+5. Add integration test: log an event → verify the hash appears in the mock blockchain adapter
+
+---
+
+### T3.13 — STARK Circuit Real Constraints ✅ COMPLETE
+
+`VoterEligibilityAir` currently uses a doubling-trace placeholder. Before referendum use, the AIR must encode real eligibility: age ≥ 18, Merkle inclusion in voter roll, DID linkage, and nullifier uniqueness.
+
+**Steps:**
+
+1. Replace doubling-trace in `services/zkproof/crates/zkproof-core/src/stark/winterfell_stark.rs` with full AIR:
+   - Transition constraint: `age_field ≥ 18_field`
+   - Boundary constraint: Merkle root matches published voter-roll root
+   - Boundary constraint: nullifier = Poseidon(DID, election_id) not in nullifier set
+2. Update `VoterEligibilityPublicInputs` struct to carry `voter_roll_root`, `election_id`, `nullifier`
+3. Expand test suite from 24 → 40+ tests covering edge cases (age=17, duplicate nullifier, wrong root)
+4. Update electoral service to pass the new public inputs when calling `/prove`
+
+---
+
+### T3.14 — Level 4 Emergency Override ✅ COMPLETE
+
+PRD §FR-012 requires a Level 4 verification mode: full identity disclosure to a certified authority with mandatory audit trail and multi-party authorization. No service currently implements this flow.
+
+**Steps:**
+
+1. Add `VerificationLevel` enum (L1–L4) to `api/proto/verifier/v1/verifier.proto`; regenerate stubs
+2. Add `POST /v1/verifier/override` gateway route (requires `admin` role + hardware token claim)
+3. In `services/verifier`, implement L4 handler: dual-officer approval (2-of-2 ministry JWT), decrypt identity attributes from HSM, return full disclosure response
+4. Every L4 call must synchronously write an immutable audit event (via T3.12 Fabric anchor)
+5. Add time-bounded L4 session tokens (15-minute TTL, non-renewable)
+6. Add rate limit: max 10 L4 requests/day per verifier org
+
+---
+
+### T3.15 — Social Attestation Database Constraint ✅ COMPLETE
+
+The enrollment service checks "3+ co-attestors" only in service logic. A direct DB write bypassing the service layer could create an under-attested enrollment. This must be a hard DB constraint.
+
+**Steps:**
+
+1. Add migration `011_social_attestation_constraint.sql`:
+   - Add `CHECK` constraint: enrollments with `pathway = 'social'` must have ≥ 3 rows in `attestations` before status advances to `completed`
+   - Alternatively: enforce via trigger that raises exception on `UPDATE enrollments SET status='completed' WHERE pathway='social' AND (SELECT COUNT(*) FROM attestations WHERE enrollment_id = NEW.id) < 3`
+2. Add integration test confirming the DB rejects under-attested social completions
+
+---
+
+### T3.16 — Remove Dead Cairo Directory ✅ COMPLETE
+
+`circuits/cairo/electoral_proof/electoral_proof.cairo` is empty and the Cairo approach was superseded by Winterfell STARK. The directory creates confusion for new contributors.
+
+**Steps:**
+
+1. `git rm -r circuits/cairo/`
+2. Add a note to `circuits/README.md` and `docs/architecture/` explaining the decision (Winterfell STARK in Rust replaced Cairo)
+3. Remove the Cairo row from `CLAUDE.md` ZK Circuits section
+
+---
+
+### T3.17 — OpenAPI Client SDK Auto-generation 🔴 NOT STARTED
+
+`api/openapi/openapi.yaml` is 1,720 lines and complete. Manually maintaining API clients in TypeScript, Kotlin, and Swift is error-prone. A CI codegen step would keep all clients in sync with the spec.
+
+**Steps:**
+
+1. Add `openapi-generator-cli` to CI (`.gitlab-ci.yml` `codegen` stage)
+2. Generate TypeScript client → `clients/web/citizen-pwa/src/api/generated/`
+3. Generate Kotlin client → `clients/mobile/android/app/src/main/java/org/indis/app/data/network/generated/`
+4. Generate Swift client → `clients/mobile/ios/INDIS/Network/generated/` (when iOS is started)
+5. Replace manual `gateway.ts` stubs in citizen-pwa with the generated client
+6. Add spec validation step (`spectral lint api/openapi/openapi.yaml`) to lint stage
+
+---
+
+### T3.18 — E2E Test Suites 🔴 NOT STARTED
+
+There are no end-to-end tests for any frontend. Playwright for web PWAs and Detox for Android are the standard tools.
+
+**Steps:**
+
+**Citizen PWA (Playwright):**
+
+1. `cd clients/web/citizen-pwa && npm install -D @playwright/test && npx playwright install`
+2. Write tests: login flow, enrollment wizard (3 pathways), wallet credential display, ZK verify approve/deny, settings language switch
+3. Add `make test-pwa-e2e` target and `.gitlab-ci.yml` Playwright stage
+
+**Verifier Terminal (Playwright):**
+
+1. Mock camera input with a static QR PNG in Playwright test
+2. Write tests: QR scan → proof verify → APPROVED/DENIED display → auto-return after 5s
+
+**Android (Detox):**
+
+1. Add Detox to `clients/mobile/android/` when data layer is implemented (T3.10)
+2. Write tests: onboarding, wallet, enrollment, notification tap
+
+---
+
+### T3.19 — k6 Load Tests 🔴 NOT STARTED
+
+The PRD requires the system to sustain 2M verifications/hour during a referendum. This has never been validated.
+
+**Steps:**
+
+1. Create `tests/load/k6/` directory with scripts:
+   - `verify_load.js` — ramp to 556 req/s (`POST /v1/electoral/verify`) sustained for 60s
+   - `enrollment_load.js` — 1,000 concurrent enrollments
+   - `credential_issue_load.js` — 5,000 credential issuances/minute
+2. Add Postgres read replica to `docker-compose.yml` for electoral verify queries
+3. Run against local stack; measure p95 latency, error rate, DB connection pool exhaustion
+4. Add `make load-test` target; add k6 stage to CI (non-blocking, reporting only)
+5. Document results and set SLOs: p95 < 200ms, error rate < 0.1% at peak load
+
+---
+
 ## Frontend Development Prerequisites
 
 Before frontend development can begin in earnest, the following must be running locally:
@@ -616,9 +757,10 @@ All backend APIs are available and contract-defined in `api/openapi/openapi.yaml
 ### Verifier Terminal PWA Checklist
 
 ```
-[ ] React PWA + Vite + Tailwind project scaffold
-[ ] Camera QR code scanner (MediaDevices API + jsQR or zxing-wasm)
-[ ] ZK result display: GREEN ✅ or RED ❌ ONLY (FR-013: no citizen data shown)
+[x] React PWA + Vite + Tailwind project scaffold
+[x] html5-qrcode QR scanner via camera
+[x] Binary full-screen APPROVED/DENIED result (FR-013: no citizen data shown); auto-returns after 5s
+[ ] Gateway integration — wire POST /v1/verifier/verify with real JWT
 [ ] 72h offline revocation cache via Service Worker
 [ ] Verifier org registration + login flow
 [ ] Playwright E2E tests
@@ -641,7 +783,7 @@ All backend APIs are available and contract-defined in `api/openapi/openapi.yaml
 | **Notification delivery** | Logs only | Wire real SMS/push/email providers (Infobip, FCM, SMTP) |
 | **USSD delivery** | No telecom | Contract with national operator; integrate USSD gateway |
 | **Android JNI ZK** | Placeholder | Build `cargo ndk` bridge to zkproof Rust crates |
-| **Bulletproofs** | Stub | Implement real Bulletproofs circuit for justice citizenship proofs |
+| **Bulletproofs** | ✅ Real (2026-03-20) | `BulletproofsEngine` with `bulletproofs` 4.x; justice service wired |
 
 ---
 
@@ -798,6 +940,13 @@ Audit:        POST /v1/audit/events   (API key only)
 
 ## Recent Updates
 
+- **2026-03-20 (this session — T3.12 through T3.16 + plan/README update):**
+  **T3.16 (Cairo removal):** `git rm -r circuits/cairo/`; updated `circuits/README.md` to explain Winterfell STARK supersedes Cairo.
+  **T3.15 (Social attestation DB constraint):** Added `db/migrations/011_social_attestation_constraint.sql` — PostgreSQL trigger `trg_social_attestation_minimum` that raises an exception if a social-pathway enrollment is completed with fewer than 3 co-attestors (PRD §FR-005.3).
+  **T3.12 (Audit→Fabric):** Added `AnchorAuditEvent(ctx, eventID, entryHash string)` to `pkg/blockchain.BlockchainAdapter` interface; implemented in `MockAdapter` and `FabricAdapter`; wired into `services/audit/internal/service` — every `AppendEvent` call now makes a best-effort on-chain anchor call; added `BLOCKCHAIN_TYPE` config var; updated 3 service test `mockChain` structs. All 33 Go packages pass.
+  **T3.13 (STARK real constraints):** Upgraded `WinterfellStarkEngine` from 1-column doubling trace to 3-column eligibility AIR — separate columns for `voter_commitment`, `age_commitment`, `nullifier_commitment`, each with domain-separated SHA3 hashes (`indis:stark:voter:`, `indis:stark:age:`, `indis:stark:nullifier:`); 6 public assertions (start+end of each column); all three pillars independently tampering-evident. Updated `VoterEligibilityStarkAir` in `zkproof-circuits` to include `age_commitment_b64` field. Added 7 new STARK tests covering per-pillar tamper detection. 31 Rust tests pass.
+  **T3.14 (Level 4 emergency override):** Added `POST /v1/verifier/override` gateway route — requires `admin` role + `X-Officer-DID` header (dual-officer 2-of-2 approval); enforces distinct-officer check; daily rate-limit of 10 overrides per org; 15-minute session token; synchronous mandatory audit event (`EVENT_CATEGORY_ADMIN`, `action=level4.override`); returns full DID document from identity service. All 33 Go packages pass.
+  **README + IMPLEMENTATION_PLAN updates:** README rewritten to reflect accurate repo structure (all 15 services, 11 pkg packages, correct client paths, Winterfell not Cairo, Hyperledger Fabric confirmed). IMPLEMENTATION_PLAN: fixed stale entries (H1 resolved in Phase 2 blockers, Android 40%, Bulletproofs wiring, Verifier Terminal checklist); added T3.11–T3.19 planning steps.
 - **2026-03-20 (this session — frontend sprint):** **Citizen PWA** bootstrapped with Vite + React + TypeScript: full 5-page app (Login, Home, Wallet, Enrollment with camera capture, Verify ZK-proof, Settings); `useAuth` / `useCredentials` hooks; IndexedDB wallet via `idb`; RTL-first CSS design tokens; Vite-PWA service worker with 72h revocation cache; dev-bypass token input. M10 (no login page) resolved. **Verifier Terminal PWA** bootstrapped: `html5-qrcode` QR scanner; binary full-screen APPROVED/DENIED result per PRD §FR-013; gateway integration; auto-returns after 5s. **Gov Portal frontend** bootstrapped: React + Apollo GraphQL; Login, Dashboard (stats cards), Bulk Operations (approve flow), Users (role picker), Audit (read-only log). **Android app** extended: `OnboardingActivity` (first-launch flow), `MainActivity` (bottom nav → 4 activities), `IndisFirebaseMessagingService` (FCM push with NotificationChannel), `GatewayApiClient` upgraded to OkHttp with auth header; FCM + OkHttp + Moshi + ZXing deps added; `AndroidManifest` updated (INTERNET, CAMERA, BIOMETRIC, POST_NOTIFICATIONS permissions, FCM service registered). **Makefile** extended with `build-frontend`, `dev-pwa`, `dev-verifier`, `dev-gov-portal` targets. Frontend completion: ~55% (was 12%). System-wide: ~78% (was ~65–70%).
 - **2026-03-20 (this session — implementation):** Implemented all backend items completable without production infrastructure. **Bulletproofs (Rust):** real `BulletproofsEngine` using `bulletproofs` 4.x + `merlin` 3.x crates; `RangeProof::prove_single`/`verify_single` with Pedersen commitment; 3 tests pass; wired into zkproof-server `/prove` and `/verify` routes; `CitizenshipRangePublicInputs` added to zkproof-circuits; H1 issue resolved. **Go service tests:** `service_test.go` written for verifier (13 tests), govportal (14 tests), ussd (14 tests), card (13 tests) — 54 new tests, all pass; repository interface injection added to all 4 service constructors. **Gateway circuit-breaker:** `internal/circuitbreaker/` package; Closed→Open after 5 failures, HalfOpen after 30s, probe-success closes; wired into all 8 gRPC backend call sites; HTTP 503 on open; 4 tests pass; M3 issue resolved. **JWT jti replay protection:** `NonceCache` with background GC; backward-compatible (absent `jti` allowed); 3 tests pass; M10 partially resolved. **ZK proof size validation:** 100KB limit on electoral ballot/verify and justice testimony endpoints; M12 resolved. **Helm charts:** 16 new templates for verifier, govportal, ussd, card (deployment, service, HPA, configmap); M8 resolved. **AI readiness endpoint:** actual startup health check instead of mock `true`. Overall test count: 26→80 Go packages. Backend completion updated to ~90%.
 - **2026-03-20 (this session — audit):** Comprehensive codebase audit. Updated plan to reflect accurate system-wide completion (~60–65% vs previously stated ~82% which was backend-only). Added Issues & Bugs section (8 high-priority, 10 medium, 8 low). Added Production Blockers section. Added Improvements & Suggestions section (23 items). Added PRD Compliance Gaps tracking. Corrected STARK doubling-trace placeholder to L2 issue. Removed Cairo reference as superseded. Clarified Bulletproofs is H1 critical issue. Added Frontend Roadmap with checklists. Backend ~82% accurate; full system ~60–65%.

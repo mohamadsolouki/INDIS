@@ -114,6 +114,9 @@ type BlockchainAdapter interface {
 
 	// Audit Trail (anonymized)
 	LogVerificationEvent(ctx context.Context, event AnonymizedVerificationEvent) (*TxReceipt, error)
+	// AnchorAuditEvent stores an immutable hash of an audit event on-chain.
+	// Only the event ID and its SHA-256 hash are stored — no PII.
+	AnchorAuditEvent(ctx context.Context, eventID, entryHash string) (*TxReceipt, error)
 
 	// Health and Status
 	GetBlockHeight(ctx context.Context) (uint64, error)
