@@ -11,6 +11,9 @@ dependencies = [
     "pydantic>=2.5",
     "numpy>=1.26",
     "onnxruntime>=1.17",
+    "opentelemetry-sdk>=1.24",
+    "opentelemetry-instrumentation-fastapi>=0.45b0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.24",
 ]
 
 [project.optional-dependencies]

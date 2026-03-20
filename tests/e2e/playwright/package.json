@@ -1,0 +1,18 @@
+{
+  "name": "indis-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "description": "INDIS end-to-end test suite (Playwright)",
+  "scripts": {
+    "test": "playwright test",
+    "test:citizen": "playwright test --project=citizen",
+    "test:verifier": "playwright test --project=verifier",
+    "test:report": "playwright show-report playwright-report",
+    "install:browsers": "playwright install --with-deps chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
+  }
+}

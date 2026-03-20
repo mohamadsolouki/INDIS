@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	identityv1 "github.com/IranProsperityProject/INDIS/api/gen/go/identity/v1"
 	"github.com/IranProsperityProject/INDIS/pkg/blockchain"
@@ -16,6 +17,7 @@ import (
 	indismetrics "github.com/IranProsperityProject/INDIS/pkg/metrics"
 	indismigrate "github.com/IranProsperityProject/INDIS/pkg/migrate"
 	indistls "github.com/IranProsperityProject/INDIS/pkg/tls"
+	indistrace "github.com/IranProsperityProject/INDIS/pkg/tracing"
 	"github.com/IranProsperityProject/INDIS/services/identity/internal/config"
 	"github.com/IranProsperityProject/INDIS/services/identity/internal/handler"
 	"github.com/IranProsperityProject/INDIS/services/identity/internal/repository"
@@ -39,6 +41,18 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	tracingShutdown, err := indistrace.Init(ctx, "identity")
+	if err != nil {
+		log.Fatalf("tracing: %v", err)
+	}
+	defer func() {
+		shutCtx, shutCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutCancel()
+		if err := tracingShutdown(shutCtx); err != nil {
+			log.Printf("tracing shutdown: %v", err)
+		}
+	}()
 
 	pool, err := repository.NewPool(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -78,7 +92,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("grpc transport options: %v", err)
 	}
-	grpcServer := grpc.NewServer(append(grpcOpts, grpc.UnaryInterceptor(indismetrics.UnaryServerInterceptor("identity")))...)
+	grpcServer := grpc.NewServer(append(grpcOpts,
+		grpc.UnaryInterceptor(indismetrics.UnaryServerInterceptor("identity")),
+		indistrace.ServerOption(),
+	)...)
 	identityv1.RegisterIdentityServiceServer(grpcServer, h)
 
 	go func() {

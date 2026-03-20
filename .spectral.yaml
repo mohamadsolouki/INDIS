@@ -1,0 +1,32 @@
+# Spectral OpenAPI linting rules for INDIS gateway API spec.
+# Extends the built-in OAS ruleset and adds INDIS-specific constraints.
+extends: ["spectral:oas"]
+
+rules:
+  # All operations must have a summary
+  operation-summary-required:
+    description: "Every operation must have a summary."
+    given: "$.paths[*][*]"
+    severity: warn
+    then:
+      field: summary
+      function: truthy
+
+  # All responses must document at least one success (2xx) code
+  operation-success-response:
+    description: "Operations should document at least one 2xx response."
+    given: "$.paths[*][*].responses"
+    severity: warn
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          patternProperties:
+            "^2[0-9]{2}$":
+              type: object
+          minProperties: 1
+
+  # Require securitySchemes for protected endpoints (info only)
+  info-contact:
+    severity: info

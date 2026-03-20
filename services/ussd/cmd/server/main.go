@@ -34,6 +34,18 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	tracingShutdown, err := indistrace.Init(ctx, "ussd")
+	if err != nil {
+		log.Fatalf("tracing: %v", err)
+	}
+	defer func() {
+		shutCtx, shutCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutCancel()
+		if err := tracingShutdown(shutCtx); err != nil {
+			log.Printf("tracing shutdown: %v", err)
+		}
+	}()
+
 	pool, err := repository.NewPool(ctx, cfg.DatabaseURL)
 	if err != nil {
 		log.Fatalf("database: %v", err)

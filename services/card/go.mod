@@ -17,3 +17,4 @@ require (
 )
 
 replace github.com/IranProsperityProject/INDIS/pkg/migrate => ../../pkg/migrate
+replace github.com/IranProsperityProject/INDIS/pkg/tracing => ../../pkg/tracing

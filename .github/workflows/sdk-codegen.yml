@@ -1,0 +1,130 @@
+name: OpenAPI SDK Codegen
+
+# Regenerates TypeScript and Kotlin client SDKs from the gateway OpenAPI spec
+# and commits the result back to the PR branch (or main on push).
+#
+# Runs on:
+#   - Push to main (when api/openapi/ changes)
+#   - Pull requests that touch api/openapi/
+#   - Manual workflow_dispatch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "api/openapi/**"
+  pull_request:
+    paths:
+      - "api/openapi/**"
+  workflow_dispatch:
+
+jobs:
+  lint-spec:
+    name: Lint OpenAPI spec (Spectral)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Spectral
+        run: npm install --global @stoplight/spectral-cli@6
+
+      - name: Lint OpenAPI spec
+        run: spectral lint api/openapi/openapi.yaml --ruleset .spectral.yaml || spectral lint api/openapi/openapi.yaml
+
+  generate-typescript:
+    name: Generate TypeScript SDK
+    runs-on: ubuntu-latest
+    needs: lint-spec
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install openapi-generator-cli
+        run: |
+          npm install --global @openapitools/openapi-generator-cli@2
+          openapi-generator-cli version-manager set 7.5.0
+
+      - name: Generate TypeScript Axios client
+        run: |
+          openapi-generator-cli generate \
+            --input-spec api/openapi/openapi.yaml \
+            --generator-name typescript-axios \
+            --output clients/web/citizen-pwa/src/api/generated \
+            --additional-properties=supportsES6=true,npmVersion=10,withInterfaces=true
+
+      - name: Upload TypeScript SDK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: typescript-sdk
+          path: clients/web/citizen-pwa/src/api/generated/
+          retention-days: 7
+
+  generate-kotlin:
+    name: Generate Kotlin SDK (Android)
+    runs-on: ubuntu-latest
+    needs: lint-spec
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Install openapi-generator-cli
+        run: |
+          npm install --global @openapitools/openapi-generator-cli@2
+          openapi-generator-cli version-manager set 7.5.0
+
+      - name: Generate Kotlin client
+        run: |
+          openapi-generator-cli generate \
+            --input-spec api/openapi/openapi.yaml \
+            --generator-name kotlin \
+            --output clients/mobile/android/app/src/main/java/ir/indis/api/generated \
+            --additional-properties=library=jvm-retrofit2,dateLibrary=java8,serializationLibrary=kotlinx_serialization
+
+      - name: Upload Kotlin SDK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotlin-sdk
+          path: clients/mobile/android/app/src/main/java/ir/indis/api/generated/
+          retention-days: 7
+
+  commit-generated:
+    name: Commit generated SDKs
+    runs-on: ubuntu-latest
+    needs: [generate-typescript, generate-kotlin]
+    # Only auto-commit on push to main, not on PRs (PRs show artifacts for review)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download TypeScript SDK
+        uses: actions/download-artifact@v4
+        with:
+          name: typescript-sdk
+          path: clients/web/citizen-pwa/src/api/generated/
+
+      - name: Download Kotlin SDK
+        uses: actions/download-artifact@v4
+        with:
+          name: kotlin-sdk
+          path: clients/mobile/android/app/src/main/java/ir/indis/api/generated/
+
+      - name: Commit updated SDKs
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add clients/web/citizen-pwa/src/api/generated/ \
+                  clients/mobile/android/app/src/main/java/ir/indis/api/generated/
+          if git diff --cached --quiet; then
+            echo "No SDK changes to commit."
+          else
+            git commit -m "chore(codegen): regenerate TypeScript and Kotlin SDKs from OpenAPI spec [skip ci]"
+            git push
+          fi

@@ -23,6 +23,7 @@ import (
 	"time"
 
 	indismetrics "github.com/IranProsperityProject/INDIS/pkg/metrics"
+	indistrace "github.com/IranProsperityProject/INDIS/pkg/tracing"
 	"github.com/IranProsperityProject/INDIS/services/gateway/internal/auth"
 	"github.com/IranProsperityProject/INDIS/services/gateway/internal/config"
 	"github.com/IranProsperityProject/INDIS/services/gateway/internal/cors"
@@ -43,6 +44,23 @@ func main() {
 		log.Fatalf("metrics: %v", err)
 	}
 	log.Printf("Metrics endpoint listening on :%d/metrics", cfg.MetricsPort)
+
+	{
+		traceCtx, traceCancel := context.WithCancel(context.Background())
+		tracingShutdown, err := indistrace.Init(traceCtx, "gateway")
+		if err != nil {
+			log.Fatalf("tracing: %v", err)
+		}
+		defer func() {
+			traceCancel()
+			shutCtx, shutCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer shutCancel()
+			if err := tracingShutdown(shutCtx); err != nil {
+				log.Printf("tracing shutdown: %v", err)
+			}
+		}()
+		_ = traceCtx
+	}
 
 	clients, err := proxy.New(
 		cfg.IdentityAddr,

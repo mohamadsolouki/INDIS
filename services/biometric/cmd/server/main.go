@@ -9,10 +9,12 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	biometricv1 "github.com/IranProsperityProject/INDIS/api/gen/go/biometric/v1"
 	indiscrypto "github.com/IranProsperityProject/INDIS/pkg/crypto"
 	indismetrics "github.com/IranProsperityProject/INDIS/pkg/metrics"
+	indistrace "github.com/IranProsperityProject/INDIS/pkg/tracing"
 	indismigrate "github.com/IranProsperityProject/INDIS/pkg/migrate"
 	indistls "github.com/IranProsperityProject/INDIS/pkg/tls"
 	"github.com/IranProsperityProject/INDIS/services/biometric/internal/config"
@@ -38,6 +40,18 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	tracingShutdown, err := indistrace.Init(ctx, "biometric")
+	if err != nil {
+		log.Fatalf("tracing: %v", err)
+	}
+	defer func() {
+		shutCtx, shutCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutCancel()
+		if err := tracingShutdown(shutCtx); err != nil {
+			log.Printf("tracing shutdown: %v", err)
+		}
+	}()
 
 	pool, err := repository.NewPool(ctx, cfg.DatabaseURL)
 	if err != nil {

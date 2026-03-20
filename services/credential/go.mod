@@ -8,7 +8,8 @@ require (
 	github.com/IranProsperityProject/INDIS/pkg/cache v0.0.0-00010101000000-000000000000
 	github.com/IranProsperityProject/INDIS/pkg/events v0.0.0-00010101000000-000000000000
 	github.com/IranProsperityProject/INDIS/pkg/migrate v0.0.0-00010101000000-000000000000
-	github.com/IranProsperityProject/INDIS/pkg/metrics v0.0.0-00010101000000-000000000000
+	github.com/IranProsperityProject/INDIS/pkg/metrics v0.0.0
+	github.com/IranProsperityProject/INDIS/pkg/tracing v0.0.0-00010101000000-000000000000-00010101000000-000000000000
 	github.com/IranProsperityProject/INDIS/pkg/tls v0.0.0-00010101000000-000000000000
 	github.com/IranProsperityProject/INDIS/pkg/vc v0.0.0-00010101000000-000000000000
 	github.com/jackc/pgx/v5 v5.6.0
@@ -37,4 +38,5 @@ replace (
 	github.com/IranProsperityProject/INDIS/pkg/metrics => ../../pkg/metrics
 	github.com/IranProsperityProject/INDIS/pkg/tls => ../../pkg/tls
 	github.com/IranProsperityProject/INDIS/pkg/vc => ../../pkg/vc
+	github.com/IranProsperityProject/INDIS/pkg/tracing => ../../pkg/tracing
 )

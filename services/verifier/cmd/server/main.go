@@ -10,9 +10,11 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	verifierv1 "github.com/IranProsperityProject/INDIS/api/gen/go/verifier/v1"
 	indismetrics "github.com/IranProsperityProject/INDIS/pkg/metrics"
+	indistrace "github.com/IranProsperityProject/INDIS/pkg/tracing"
 	indismigrate "github.com/IranProsperityProject/INDIS/pkg/migrate"
 	indistls "github.com/IranProsperityProject/INDIS/pkg/tls"
 	"github.com/IranProsperityProject/INDIS/services/verifier/internal/config"
@@ -38,6 +40,18 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	tracingShutdown, err := indistrace.Init(ctx, "verifier")
+	if err != nil {
+		log.Fatalf("tracing: %v", err)
+	}
+	defer func() {
+		shutCtx, shutCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutCancel()
+		if err := tracingShutdown(shutCtx); err != nil {
+			log.Printf("tracing shutdown: %v", err)
+		}
+	}()
 
 	pool, err := repository.NewPool(ctx, cfg.DatabaseURL)
 	if err != nil {

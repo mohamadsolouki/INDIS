@@ -126,6 +126,22 @@ dev-verifier: ## Start verifier terminal dev server (port 5174)
 dev-gov-portal: ## Start gov portal dev server (port 5175)
 	cd clients/gov-portal && npm install && npm run dev -- --port 5175
 
+# ── Load Tests ───────────────────────────────────────────────
+load-test: ## Run all k6 load tests (requires k6 installed and services running)
+	@echo "▸ Running verify load test (PRD target: 556 req/s)..."
+	k6 run tests/load/k6/verify_load.js
+	@echo "▸ Running enrollment load test..."
+	k6 run tests/load/k6/enrollment_load.js
+	@echo "▸ Running credential issuance load test..."
+	k6 run tests/load/k6/credential_issue_load.js
+
+load-test-verify: ## Run only the verification load test
+	k6 run tests/load/k6/verify_load.js
+
+# ── E2E Tests ─────────────────────────────────────────────────
+e2e: ## Run Playwright E2E tests
+	cd tests/e2e/playwright && npm ci && npx playwright install --with-deps chromium && npx playwright test
+
 # ── Clean ────────────────────────────────────────────────────
 clean: ## Clean build artifacts
 	@echo "▸ Cleaning..."
