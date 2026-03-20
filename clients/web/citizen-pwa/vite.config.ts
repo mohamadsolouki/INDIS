@@ -13,7 +13,8 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/api\.indis\.ir\/v1\/credential\/.*/i,
+            // Also cache local dev gateway responses for offline use
+            urlPattern: /\/v1\/credential\/.*/i,
             handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'credential-cache',
@@ -37,6 +38,9 @@ export default defineConfig({
   },
   server: {
     proxy: {
+      // Gateway REST API (v1 prefix)
+      '/v1': { target: 'http://localhost:8080', changeOrigin: true },
+      // Legacy /api prefix kept for backward compatibility
       '/api': { target: 'http://localhost:8080', changeOrigin: true, rewrite: (p) => p.replace(/^\/api/, '') },
     },
   },

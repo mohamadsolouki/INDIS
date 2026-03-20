@@ -12,6 +12,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { cn } from '../../lib/cn';
 import { useEnrollment } from '../../hooks/useEnrollment';
+import CameraCapture from '../../components/CameraCapture/CameraCapture';
 import type { EnrollmentPathway } from '../../types';
 
 /** Wizard step index — 0-4 inclusive */
@@ -68,6 +69,8 @@ export default function Enrollment() {
   const [step, setStep] = useState<Step>(0);
   const [pathway, setPathway] = useState<EnrollmentPathway | null>(null);
   const [completedDid, setCompletedDid] = useState<string | null>(null);
+  const [docImageB64, setDocImageB64] = useState<string | null>(null);
+  const [faceImageB64, setFaceImageB64] = useState<string | null>(null);
   const { initiate, submitBiometrics, complete, loading, error } = useEnrollment();
 
   // ── Step handlers ──────────────────────────────────────────────────────────
@@ -81,7 +84,11 @@ export default function Enrollment() {
   const handleNext = async () => {
     if (step === 2) {
       // Submit placeholder biometrics; real device capture happens here.
-      await submitBiometrics({ face_descriptor: 'placeholder_face_data' });
+      // Pass captured image data URLs as biometric descriptors.
+      // The AI service extracts face embeddings server-side; raw frames are not stored.
+      await submitBiometrics({
+        face_descriptor: faceImageB64 ?? 'placeholder_face_data',
+      });
       setStep(3);
     } else if (step === 3) {
       const result = await complete();
@@ -190,29 +197,39 @@ export default function Enrollment() {
               {t('enrollment.document_capture')}
             </h2>
 
-            <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center space-y-3">
-              <DocumentTextIcon className="w-12 h-12 text-gray-400 mx-auto" aria-hidden="true" />
-              <p className="text-gray-500 text-sm" lang="fa">
-                {pathway === 'standard' && 'کارت ملی یا شناسنامه را اسکن کنید'}
-                {pathway === 'enhanced' && 'مدرک ثبت احوال را بارگذاری کنید'}
-                {pathway === 'social' && 'مدرک هویتی پایه را اسکن کنید'}
-              </p>
-              <label className="inline-block bg-indis-primary text-white rounded-lg px-4 py-2 text-sm cursor-pointer hover:bg-indis-primary-dark transition-colors focus-within:ring-2 focus-within:ring-indis-primary">
-                <span lang="fa">انتخاب تصویر</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  aria-label={t('enrollment.select_image')}
-                />
-              </label>
-            </div>
+            {/* Camera capture — falls back to file input if camera not available */}
+            {docImageB64 ? (
+              <div className="space-y-3">
+                <div className="relative rounded-2xl overflow-hidden aspect-video bg-black">
+                  <img src={docImageB64} alt="سند گرفته‌شده" className="w-full h-full object-cover" />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDocImageB64(null)}
+                  className="text-indis-primary text-sm flex items-center gap-1 hover:underline"
+                >
+                  <DocumentTextIcon className="w-4 h-4" /> دوباره اسکن کنید
+                </button>
+              </div>
+            ) : (
+              <CameraCapture
+                facingMode="environment"
+                label={
+                  pathway === 'standard' ? 'کارت ملی یا شناسنامه را اسکن کنید' :
+                  pathway === 'enhanced' ? 'مدرک ثبت احوال را اسکن کنید' :
+                  'مدرک هویتی پایه را اسکن کنید'
+                }
+                hint="سند را در کادر قرار دهید سپس عکس بگیرید"
+                onCapture={(dataUrl) => setDocImageB64(dataUrl)}
+              />
+            )}
 
             <NavigationButtons
               onNext={() => void handleNext()}
               onBack={handleBack}
               loading={loading}
               t={t}
+              nextLabel={docImageB64 ? undefined : t('enrollment.next')}
             />
           </section>
         )}
@@ -224,40 +241,45 @@ export default function Enrollment() {
               {t('enrollment.biometric_capture')}
             </h2>
 
-            <div className="space-y-3">
-              {/* Face capture placeholder */}
-              <div
-                className="border-2 border-dashed border-blue-200 rounded-xl p-6 text-center bg-blue-50 space-y-2"
-                role="region"
-                aria-label="تشخیص چهره"
-              >
-                <div
-                  className="w-20 h-20 mx-auto rounded-full bg-blue-100 flex items-center justify-center"
-                  aria-hidden="true"
-                >
-                  {/* Camera emoji as a simple face-capture placeholder */}
-                  <span className="text-3xl" role="img" aria-label="دوربین">📷</span>
+            <div className="space-y-4">
+              {/* Face capture — real camera via getUserMedia */}
+              {faceImageB64 ? (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-gray-700" lang="fa">تشخیص چهره</p>
+                  <div className="relative rounded-2xl overflow-hidden aspect-square max-w-xs mx-auto bg-black">
+                    <img src={faceImageB64} alt="تصویر چهره" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      {/* Oval face guide */}
+                      <div className="w-40 h-52 border-2 border-green-400/70 rounded-full" />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFaceImageB64(null)}
+                    className="text-indis-primary text-sm flex items-center gap-1 hover:underline"
+                  >
+                    دوباره عکس بگیرید
+                  </button>
                 </div>
-                <p className="font-medium text-blue-800 text-sm" lang="fa">
-                  تشخیص چهره
-                </p>
-                <p className="text-blue-600 text-xs" lang="fa">
-                  روبه‌رو به دوربین نگاه کنید
-                </p>
-              </div>
+              ) : (
+                <CameraCapture
+                  facingMode="user"
+                  label="تشخیص چهره"
+                  hint="مستقیم به دوربین نگاه کنید — صورت خود را در کادر بیضی قرار دهید"
+                  onCapture={(dataUrl) => setFaceImageB64(dataUrl)}
+                />
+              )}
 
-              {/* Fingerprint capture placeholder */}
+              {/* Fingerprint — hardware sensor placeholder; not available in browser */}
               <div
-                className="border-2 border-dashed border-indigo-200 rounded-xl p-6 text-center bg-indigo-50 space-y-2"
-                role="region"
+                className="border border-indigo-200 rounded-xl p-4 text-center bg-indigo-50 space-y-1"
+                role="note"
                 aria-label="اثر انگشت"
               >
-                <FingerPrintIcon className="w-12 h-12 text-indigo-400 mx-auto" aria-hidden="true" />
-                <p className="font-medium text-indigo-800 text-sm" lang="fa">
-                  اثر انگشت
-                </p>
-                <p className="text-indigo-600 text-xs" lang="fa">
-                  انگشت اشاره را روی سنسور قرار دهید
+                <FingerPrintIcon className="w-8 h-8 text-indigo-400 mx-auto" aria-hidden="true" />
+                <p className="font-medium text-indigo-800 text-sm" lang="fa">اثر انگشت</p>
+                <p className="text-indigo-500 text-xs" lang="fa">
+                  در نسخه موبایل یا دستگاه‌های دارای سنسور فعال می‌شود
                 </p>
               </div>
             </div>

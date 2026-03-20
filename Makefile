@@ -111,14 +111,14 @@ migrate: ## Run SQL migrations (requires DATABASE_URL; optional MIGRATIONS_DIR)
 # ── Frontend ─────────────────────────────────────────────────
 build-frontend: ## Build all frontend apps (requires Node.js)
 	@echo "▸ Building citizen PWA..."
-	cd clients/pwa && npm install --silent && npm run build
+	cd clients/web/citizen-pwa && npm install --silent && npm run build
 	@echo "▸ Building verifier terminal..."
 	cd clients/verifier && npm install --silent && npm run build
 	@echo "▸ Building gov portal..."
 	cd clients/gov-portal && npm install --silent && npm run build
 
 dev-pwa: ## Start citizen PWA dev server (port 5173)
-	cd clients/pwa && npm install && npm run dev
+	cd clients/web/citizen-pwa && npm install && npm run dev
 
 dev-verifier: ## Start verifier terminal dev server (port 5174)
 	cd clients/verifier && npm install && npm run dev -- --port 5174

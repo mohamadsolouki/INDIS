@@ -8,6 +8,21 @@
     <string name="onboarding_tagline">Iran National Digital Identity System</string>
     <string name="onboarding_start">Start Enrollment</string>
     <string name="onboarding_already_enrolled">I already have an account</string>
+    <!-- Wallet -->
+    <string name="wallet_empty">No credentials yet</string>
+    <!-- Verify -->
+    <string name="verify_select_predicate">Select claim to prove</string>
+    <string name="verify_generate_proof">Generate ZK Proof</string>
+    <string name="verify_qr_hint">Show this QR code to the verifier</string>
+    <string name="verify_generating">Generating proof…</string>
+    <string name="verify_error">Proof generation failed</string>
+    <!-- Enrollment -->
+    <string name="enrollment_next">Next</string>
+    <string name="enrollment_submit">Submit</string>
+    <string name="enrollment_doc_title">Step 1: Capture Identity Document</string>
+    <string name="enrollment_face_title">Step 2: Face Biometric</string>
+    <string name="enrollment_capture">Capture</string>
+    <string name="enrollment_retake">Retake</string>
     <!-- Notifications -->
     <string name="notif_default_title">INDIS</string>
     <string name="notif_channel_name">INDIS Notifications</string>

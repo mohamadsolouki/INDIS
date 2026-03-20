@@ -63,7 +63,7 @@ INDIS/
 │   └── cairo/              # STARK (electoral)
 ├── clients/                # Frontend applications
 │   ├── mobile/             # Android / iOS / HarmonyOS
-│   ├── pwa/                # Progressive Web App
+│   ├── web/                # Progressive Web App
 │   ├── verifier/           # Verifier terminal
 │   └── gov-portal/         # Government portal
 ├── deploy/                 # Infrastructure-as-code

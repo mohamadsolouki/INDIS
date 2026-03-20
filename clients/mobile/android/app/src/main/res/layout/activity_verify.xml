@@ -1,13 +1,81 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="24dp">
+    android:background="#F4F6FA">
 
-    <TextView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/verify_title"
-        android:textSize="22sp" />
+        android:orientation="vertical"
+        android:layoutDirection="rtl"
+        android:padding="20dp">
 
-</FrameLayout>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/verify_title"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="20dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/verify_select_predicate"
+            android:textSize="14sp"
+            android:layout_marginBottom="8dp" />
+
+        <Spinner
+            android:id="@+id/spinner_predicate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            android:padding="12dp"
+            android:background="@android:color/white" />
+
+        <Button
+            android:id="@+id/btn_generate_proof"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/verify_generate_proof"
+            android:layout_marginBottom="20dp" />
+
+        <FrameLayout
+            android:id="@+id/frame_qr"
+            android:layout_width="200dp"
+            android:layout_height="200dp"
+            android:layout_gravity="center_horizontal"
+            android:visibility="gone"
+            android:background="@android:color/white"
+            android:padding="12dp"
+            android:layout_marginBottom="12dp">
+
+            <ImageView
+                android:id="@+id/img_qr_code"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="QR code" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/tv_qr_hint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/verify_qr_hint"
+            android:textSize="12sp"
+            android:textColor="#6B7280"
+            android:gravity="center"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tv_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:textColor="#C23030"
+            android:layout_marginTop="12dp" />
+
+    </LinearLayout>
+</ScrollView>

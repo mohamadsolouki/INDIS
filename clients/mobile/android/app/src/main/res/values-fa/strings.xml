@@ -7,6 +7,21 @@
     <string name="onboarding_tagline">سامانه هویت دیجیتال ملی ایران</string>
     <string name="onboarding_start">شروع ثبت‌نام</string>
     <string name="onboarding_already_enrolled">قبلاً ثبت‌نام کرده‌ام</string>
+    <!-- Wallet -->
+    <string name="wallet_empty">هنوز اعتبارنامه‌ای ندارید</string>
+    <!-- Verify -->
+    <string name="verify_select_predicate">ادعای مورد اثبات را انتخاب کنید</string>
+    <string name="verify_generate_proof">تولید اثبات ZK</string>
+    <string name="verify_qr_hint">این کد QR را به تأییدکننده نشان دهید</string>
+    <string name="verify_generating">در حال تولید اثبات…</string>
+    <string name="verify_error">تولید اثبات ناموفق بود</string>
+    <!-- Enrollment -->
+    <string name="enrollment_next">بعدی</string>
+    <string name="enrollment_submit">ارسال</string>
+    <string name="enrollment_doc_title">مرحله ۱: عکس‌برداری از سند هویتی</string>
+    <string name="enrollment_face_title">مرحله ۲: تصویر بیومتریک چهره</string>
+    <string name="enrollment_capture">عکس بگیر</string>
+    <string name="enrollment_retake">دوباره بگیر</string>
     <string name="notif_default_title">ایندیس</string>
     <string name="notif_channel_name">اعلان‌های ایندیس</string>
 </resources>

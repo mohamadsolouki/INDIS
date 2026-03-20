@@ -125,5 +125,21 @@
     "unauthorized": "لطفاً وارد شوید",
     "not_found": "مورد یافت نشد",
     "server_error": "خطای داخلی سرور"
+  },
+  "login": {
+    "title": "ورود به ایندیس",
+    "biometric_tab": "بیومتریک",
+    "pin_tab": "DID + رمز",
+    "biometric_prompt": "از اثر انگشت یا تشخیص چهره دستگاه برای ورود استفاده کنید",
+    "biometric_btn": "ورود بیومتریک",
+    "register_device": "ثبت دستگاه جدید",
+    "did_label": "شناسه دیجیتال (DID)",
+    "pin_label": "رمز عبور / PIN",
+    "submit": "ورود",
+    "no_account": "هنوز هویت دیجیتال ندارید؟",
+    "enroll_link": "ثبت‌نام کنید",
+    "dev_mode": "حالت توسعه‌دهنده",
+    "dev_token_hint": "توکن از make dev-token",
+    "dev_login_btn": "ورود با توکن"
   }
 }
