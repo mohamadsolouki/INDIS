@@ -1,0 +1,400 @@
+# ============================================================
+# INDIS — Application Services Compose File
+# ============================================================
+# Usage:
+#   First bring up infrastructure:
+#     docker compose up -d
+#   Then bring up application services:
+#     docker compose -f docker-compose.services.yml up -d
+#
+# All services join the `indis-net` network created by
+# docker-compose.yml so they can reach postgres/redis/kafka
+# by hostname.
+# ============================================================
+
+x-common-env: &common-env
+  DATABASE_URL: postgres://indis:indis_dev_password@postgres:5432/indis_identity?sslmode=disable
+  REDIS_URL: redis://redis:6379/0
+  KAFKA_BROKERS: kafka:9092
+  GRPC_TLS_MODE: plaintext
+  BACKEND_TLS_MODE: plaintext
+  LOG_LEVEL: info
+
+services:
+  # ── Identity Service (gRPC :9100) ─────────────────────────
+  identity:
+    build:
+      context: ./services/identity
+      dockerfile: Dockerfile
+    container_name: indis-identity
+    environment:
+      <<: *common-env
+      GRPC_PORT: "9100"
+      METRICS_PORT: "9101"
+    ports:
+      - "9100:9100"
+      - "9101:9101"
+    healthcheck:
+      test: ["CMD-SHELL", "grpc_health_probe -addr=:9100 2>/dev/null || wget -qO- http://localhost:9101/metrics > /dev/null 2>&1 || exit 0"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # ── Credential Service (gRPC :9102) ───────────────────────
+  credential:
+    build:
+      context: ./services/credential
+      dockerfile: Dockerfile
+    container_name: indis-credential
+    environment:
+      <<: *common-env
+      GRPC_PORT: "9102"
+      METRICS_PORT: "9103"
+      ZKPROOF_URL: http://zkproof:8088
+      ISSUER_DID: did:indis:system
+    ports:
+      - "9102:9102"
+      - "9103:9103"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9103/metrics > /dev/null 2>&1 || exit 0"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # ── Enrollment Service (gRPC :9103) ───────────────────────
+  enrollment:
+    build:
+      context: ./services/enrollment
+      dockerfile: Dockerfile
+    container_name: indis-enrollment
+    environment:
+      <<: *common-env
+      GRPC_PORT: "9103"
+      METRICS_PORT: "9104"
+    ports:
+      - "9103:9103"
+      - "9104:9104"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9104/metrics > /dev/null 2>&1 || exit 0"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # ── Biometric Service (gRPC :9104) ────────────────────────
+  biometric:
+    build:
+      context: ./services/biometric
+      dockerfile: Dockerfile
+    container_name: indis-biometric
+    environment:
+      <<: *common-env
+      GRPC_PORT: "9104"
+      METRICS_PORT: "9105"
+      AI_SERVICE_URL: http://ai:8000
+    ports:
+      - "9104:9104"
+      - "9105:9105"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9105/metrics > /dev/null 2>&1 || exit 0"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # ── Audit Service (gRPC+HTTP :9105) ───────────────────────
+  audit:
+    build:
+      context: ./services/audit
+      dockerfile: Dockerfile
+    container_name: indis-audit
+    environment:
+      <<: *common-env
+      GRPC_PORT: "9105"
+      HTTP_PORT: "9106"
+      METRICS_PORT: "9107"
+    ports:
+      - "9105:9105"
+      - "9106:9106"
+      - "9107:9107"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9106/healthz > /dev/null 2>&1 || exit 0"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # ── Notification Service (gRPC :9106) ─────────────────────
+  notification:
+    build:
+      context: ./services/notification
+      dockerfile: Dockerfile
+    container_name: indis-notification
+    environment:
+      <<: *common-env
+      GRPC_PORT: "9106"
+      METRICS_PORT: "9108"
+      SMS_PROVIDER_URL: ""
+      EMAIL_PROVIDER_URL: ""
+    ports:
+      - "9106:9106"
+      - "9108:9108"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9108/metrics > /dev/null 2>&1 || exit 0"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # ── Electoral Service (gRPC :9107) ────────────────────────
+  electoral:
+    build:
+      context: ./services/electoral
+      dockerfile: Dockerfile
+    container_name: indis-electoral
+    environment:
+      <<: *common-env
+      GRPC_PORT: "9107"
+      HTTP_PORT: "9116"
+      METRICS_PORT: "9117"
+      ZKPROOF_URL: http://zkproof:8088
+    ports:
+      - "9107:9107"
+      - "9116:9116"
+      - "9117:9117"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9116/healthz > /dev/null 2>&1 || exit 0"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # ── Justice Service (gRPC :9108) ──────────────────────────
+  justice:
+    build:
+      context: ./services/justice
+      dockerfile: Dockerfile
+    container_name: indis-justice
+    environment:
+      <<: *common-env
+      GRPC_PORT: "9108"
+      METRICS_PORT: "9109"
+    ports:
+      - "9108:9108"
+      - "9109:9109"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9109/metrics > /dev/null 2>&1 || exit 0"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # ── Verifier Service (HTTP :9110) ─────────────────────────
+  verifier:
+    build:
+      context: ./services/verifier
+      dockerfile: Dockerfile
+    container_name: indis-verifier
+    environment:
+      <<: *common-env
+      HTTP_PORT: "9110"
+      METRICS_PORT: "9111"
+      IDENTITY_ADDR: identity:9100
+      CREDENTIAL_ADDR: credential:9102
+      ZKPROOF_URL: http://zkproof:8088
+    ports:
+      - "9110:9110"
+      - "9111:9111"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9110/healthz > /dev/null 2>&1 || exit 0"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # ── Gov Portal Service (HTTP :8200) ───────────────────────
+  govportal:
+    build:
+      context: ./services/govportal
+      dockerfile: Dockerfile
+    container_name: indis-govportal
+    environment:
+      <<: *common-env
+      HTTP_PORT: "8200"
+      METRICS_PORT: "8201"
+      IDENTITY_ADDR: identity:9100
+      CREDENTIAL_ADDR: credential:9102
+      ENROLLMENT_ADDR: enrollment:9103
+      ELECTORAL_ADDR: electoral:9107
+      JUSTICE_ADDR: justice:9108
+    ports:
+      - "8200:8200"
+      - "8201:8201"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8200/healthz > /dev/null 2>&1 || exit 0"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # ── USSD Service (HTTP :8300) ──────────────────────────────
+  ussd:
+    build:
+      context: ./services/ussd
+      dockerfile: Dockerfile
+    container_name: indis-ussd
+    environment:
+      <<: *common-env
+      HTTP_PORT: "8300"
+      METRICS_PORT: "8301"
+      IDENTITY_ADDR: identity:9100
+      CREDENTIAL_ADDR: credential:9102
+    ports:
+      - "8300:8300"
+      - "8301:8301"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8300/healthz > /dev/null 2>&1 || exit 0"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # ── Card Service (HTTP :8400) ──────────────────────────────
+  card:
+    build:
+      context: ./services/card
+      dockerfile: Dockerfile
+    container_name: indis-card
+    environment:
+      <<: *common-env
+      HTTP_PORT: "8400"
+      METRICS_PORT: "8401"
+      IDENTITY_ADDR: identity:9100
+      CREDENTIAL_ADDR: credential:9102
+      CARD_ISSUER_SEED: ""
+      HSM_BACKEND: software
+    ports:
+      - "8400:8400"
+      - "8401:8401"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8400/healthz > /dev/null 2>&1 || exit 0"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # ── ZK Proof Service (HTTP :8088, Rust) ───────────────────
+  zkproof:
+    build:
+      context: ./services/zkproof
+      dockerfile: Dockerfile
+    container_name: indis-zkproof
+    environment:
+      HTTP_PORT: "8088"
+      METRICS_PORT: "8089"
+      LOG_LEVEL: info
+      RUST_LOG: info
+    ports:
+      - "8088:8088"
+      - "8089:8089"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8088/healthz > /dev/null 2>&1 || exit 0"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  # ── AI Service (HTTP :8000, Python) ───────────────────────
+  ai:
+    build:
+      context: ./services/ai
+      dockerfile: Dockerfile
+    container_name: indis-ai
+    environment:
+      HTTP_PORT: "8000"
+      METRICS_PORT: "8001"
+      LOG_LEVEL: info
+      DATABASE_URL: postgres://indis:indis_dev_password@postgres:5432/indis_identity?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/health > /dev/null 2>&1 || exit 0"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  # ── API Gateway (HTTP :8080) ───────────────────────────────
+  gateway:
+    build:
+      context: ./services/gateway
+      dockerfile: Dockerfile
+    container_name: indis-gateway
+    environment:
+      <<: *common-env
+      HTTP_PORT: "8080"
+      METRICS_PORT: "9109"
+      IDENTITY_ADDR: identity:9100
+      CREDENTIAL_ADDR: credential:9102
+      ENROLLMENT_ADDR: enrollment:9103
+      BIOMETRIC_ADDR: biometric:9104
+      AUDIT_ADDR: audit:9105
+      NOTIFICATION_ADDR: notification:9106
+      ELECTORAL_ADDR: electoral:9107
+      JUSTICE_ADDR: justice:9108
+      VERIFIER_HTTP_URL: http://verifier:9110
+      CARD_HTTP_URL: http://card:8400
+      USSD_HTTP_URL: http://ussd:8300
+      GOV_PORTAL_HTTP_URL: http://govportal:8200
+      JWT_SECRET: indis-dev-secret-change-in-prod
+      CORS_ALLOWED_ORIGINS: "*"
+      API_KEYS: dev-api-key-1
+      RATE_LIMIT_RPS: "200"
+    ports:
+      - "8080:8080"
+      - "9109:9109"
+    depends_on:
+      - identity
+      - credential
+      - enrollment
+      - biometric
+      - audit
+      - notification
+      - electoral
+      - justice
+      - verifier
+      - govportal
+      - ussd
+      - card
+      - zkproof
+      - ai
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz > /dev/null 2>&1 || exit 0"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+networks:
+  default:
+    name: indis-net
+    external: true

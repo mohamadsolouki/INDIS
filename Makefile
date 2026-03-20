@@ -3,10 +3,10 @@
 # Top-level Makefile
 # ============================================================
 
-.PHONY: all build test lint clean proto-gen docker-build dev-up dev-down migrate help
+.PHONY: all build test lint clean proto-gen docker-build dev-up dev-down dev-seed dev-token migrate help
 
 # Go services (order: shared packages first, then services)
-GO_SERVICES := identity credential enrollment biometric audit notification electoral justice gateway
+GO_SERVICES := identity credential enrollment biometric audit notification electoral justice gateway verifier govportal ussd card
 RUST_SERVICES := zkproof
 PYTHON_SERVICES := ai
 
@@ -18,7 +18,7 @@ help: ## Show this help
 # ── Build ────────────────────────────────────────────────────
 all: build ## Build everything
 
-build: build-go build-rust build-python ## Build all services
+build: build-go build-rust build-python build-frontend ## Build all services
 
 build-go: ## Build all Go services
 	@echo "▸ Building Go services..."
@@ -91,6 +91,15 @@ dev-up: ## Start local development environment
 dev-down: ## Stop local development environment
 	docker compose down
 
+dev-seed: ## Seed local database with test data for frontend development
+	@echo "▸ Seeding development database..."
+	GOWORK=off go run tools/devtoken/main.go --help 2>/dev/null || true
+	GOWORK=off go run tools/seed/main.go
+
+dev-token: ## Generate a development JWT for local testing
+	@echo "▸ Generating dev JWT..."
+	GOWORK=off go run tools/devtoken/main.go $(ARGS)
+
 # ── Database Migrations ─────────────────────────────────────
 migrate: ## Run SQL migrations (requires DATABASE_URL; optional MIGRATIONS_DIR)
 	@if [ -z "$$DATABASE_URL" ]; then \
@@ -98,6 +107,24 @@ migrate: ## Run SQL migrations (requires DATABASE_URL; optional MIGRATIONS_DIR)
 		exit 1; \
 	fi
 	cd pkg/migrate && go run ./cmd/indis-migrate --database-url "$$DATABASE_URL" $${MIGRATIONS_DIR:+--migrations-dir "$$MIGRATIONS_DIR"}
+
+# ── Frontend ─────────────────────────────────────────────────
+build-frontend: ## Build all frontend apps (requires Node.js)
+	@echo "▸ Building citizen PWA..."
+	cd clients/pwa && npm install --silent && npm run build
+	@echo "▸ Building verifier terminal..."
+	cd clients/verifier && npm install --silent && npm run build
+	@echo "▸ Building gov portal..."
+	cd clients/gov-portal && npm install --silent && npm run build
+
+dev-pwa: ## Start citizen PWA dev server (port 5173)
+	cd clients/pwa && npm install && npm run dev
+
+dev-verifier: ## Start verifier terminal dev server (port 5174)
+	cd clients/verifier && npm install && npm run dev -- --port 5174
+
+dev-gov-portal: ## Start gov portal dev server (port 5175)
+	cd clients/gov-portal && npm install && npm run dev -- --port 5175
 
 # ── Clean ────────────────────────────────────────────────────
 clean: ## Clean build artifacts

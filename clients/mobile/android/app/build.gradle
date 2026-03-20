@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
+    id 'com.google.gms.google-services'
 }
 
 android {
@@ -46,4 +47,14 @@ dependencies {
     implementation 'androidx.security:security-crypto:1.1.0-alpha06'
     implementation 'androidx.room:room-runtime:2.6.1'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1'
+
+    // Push notifications
+    implementation 'com.google.firebase:firebase-messaging-ktx:24.0.0'
+    // OkHttp for gateway communication
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    // JSON serialization
+    implementation 'com.squareup.moshi:moshi-kotlin:1.15.1'
+    // QR code scanning
+    implementation 'com.google.zxing:core:3.5.3'
+    implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
 }

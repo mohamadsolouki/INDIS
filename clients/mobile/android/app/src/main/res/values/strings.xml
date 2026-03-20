@@ -4,4 +4,11 @@
     <string name="wallet_title">Credential Wallet</string>
     <string name="verify_title">Verification</string>
     <string name="settings_title">Settings</string>
+    <!-- Onboarding -->
+    <string name="onboarding_tagline">Iran National Digital Identity System</string>
+    <string name="onboarding_start">Start Enrollment</string>
+    <string name="onboarding_already_enrolled">I already have an account</string>
+    <!-- Notifications -->
+    <string name="notif_default_title">INDIS</string>
+    <string name="notif_channel_name">INDIS Notifications</string>
 </resources>
