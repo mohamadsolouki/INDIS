@@ -16,7 +16,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/IranProsperityProject/INDIS/pkg/hsm"
 	indismigrate "github.com/IranProsperityProject/INDIS/pkg/migrate"
+	indistrace "github.com/IranProsperityProject/INDIS/pkg/tracing"
 	"github.com/IranProsperityProject/INDIS/services/card/internal/config"
 	"github.com/IranProsperityProject/INDIS/services/card/internal/handler"
 	"github.com/IranProsperityProject/INDIS/services/card/internal/repository"
@@ -61,6 +63,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("service init: %v", err)
 	}
+
+	// Wire HSM-backed issuer key manager.
+	// CARD_ISSUER_SEED remains the dev fallback; HSM_BACKEND=vault activates production HSM.
+	cardKM := hsm.New()
+	if err := cardKM.GenerateKey(ctx, "card-issuer", hsm.KeyTypeEd25519); err != nil {
+		log.Printf("HSM: card-issuer key init: %v (may already exist)", err)
+	}
+	svc.SetKeyManager(cardKM, "card-issuer")
+	log.Printf("HSM backend wired for card signing")
 
 	h := handler.New(svc)
 

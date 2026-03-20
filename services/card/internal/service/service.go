@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/IranProsperityProject/INDIS/pkg/hsm"
 	"github.com/IranProsperityProject/INDIS/services/card/internal/repository"
 )
 
@@ -55,6 +56,8 @@ type Service struct {
 	repo       CardRepository
 	privateKey ed25519.PrivateKey
 	publicKey  ed25519.PublicKey
+	keyManager hsm.KeyManager // HSM-backed signing (production); nil in dev
+	hsmKeyName string          // key name in the HSM for issuer signing
 }
 
 // New creates a Service. seedHex is a 32-byte hex-encoded Ed25519 seed; if empty
@@ -82,6 +85,14 @@ func New(repo CardRepository, seedHex string) (*Service, error) {
 	}
 
 	return &Service{repo: repo, privateKey: priv, publicKey: pub}, nil
+}
+
+// SetKeyManager wires an HSM-backed KeyManager for card issuer signing.
+// When set, GenerateCard uses HSM signing instead of the in-process key.
+// keyName must already exist in the HSM before GenerateCard is called.
+func (s *Service) SetKeyManager(km hsm.KeyManager, keyName string) {
+	s.keyManager = km
+	s.hsmKeyName = keyName
 }
 
 // GenerateCard produces a full ICAO 9303-compliant card record for the given DID,
@@ -126,8 +137,17 @@ func (s *Service) GenerateCard(ctx context.Context, req GenerateRequest) (*CardD
 
 	// Sign SHA-256(mrz1 || mrz2 || chipDataHex).
 	sigInput := sha256.Sum256([]byte(mrz1 + mrz2 + chipDataHex))
-	sig := ed25519.Sign(s.privateKey, sigInput[:])
-	issuerSig := hex.EncodeToString(sig)
+	var rawSig []byte
+	if s.keyManager != nil {
+		var signErr error
+		rawSig, signErr = s.keyManager.Sign(ctx, s.hsmKeyName, sigInput[:])
+		if signErr != nil {
+			return nil, fmt.Errorf("service: hsm sign card: %w", signErr)
+		}
+	} else {
+		rawSig = ed25519.Sign(s.privateKey, sigInput[:])
+	}
+	issuerSig := hex.EncodeToString(rawSig)
 
 	// Generate a unique record ID.
 	id, err := generateID("card_")

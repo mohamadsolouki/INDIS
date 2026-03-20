@@ -16,6 +16,7 @@ import (
 
 	"github.com/IranProsperityProject/INDIS/pkg/blockchain"
 	"github.com/IranProsperityProject/INDIS/pkg/events"
+	"github.com/IranProsperityProject/INDIS/pkg/hsm"
 	"github.com/IranProsperityProject/INDIS/pkg/vc"
 	"github.com/IranProsperityProject/INDIS/services/credential/internal/repository"
 )
@@ -53,6 +54,8 @@ type CredentialService struct {
 	chain       blockchain.BlockchainAdapter
 	issuerDID   string
 	privateKey  ed25519.PrivateKey // issuer signing key (loaded from HSM/config in production)
+	keyManager  hsm.KeyManager    // HSM-backed signing (production); nil in dev
+	hsmKeyName  string             // key name used in the HSM for issuer signing
 	events      credentialEventPublisher
 	cache       credentialRevocationCache
 	zkProofURL  string            // HTTP base URL of the zkproof service
@@ -105,6 +108,14 @@ func (s *CredentialService) SetRevocationCache(c credentialRevocationCache) {
 	s.cache = c
 }
 
+// SetKeyManager wires an HSM-backed KeyManager for credential signing.
+// When set, IssueCredential uses HSM signing instead of the in-process
+// Ed25519 private key. keyName must already exist in the HSM.
+func (s *CredentialService) SetKeyManager(km hsm.KeyManager, keyName string) {
+	s.keyManager = km
+	s.hsmKeyName = keyName
+}
+
 // protoTypeToVC maps proto enum ints to pkg/vc CredentialType strings.
 // Ref: credential.proto CredentialType enum
 var protoTypeToVC = map[int32]vc.CredentialType{
@@ -135,15 +146,31 @@ func (s *CredentialService) IssueCredential(ctx context.Context, subjectDID stri
 	subject := vc.CredentialSubject{ID: subjectDID, Claims: claims}
 	verificationMethod := s.issuerDID + "#key-1"
 
-	credential, err := vc.Issue(
-		credType,
-		s.issuerDID,
-		verificationMethod,
-		subject,
-		time.Now().UTC(),
-		nil,
-		s.privateKey,
-	)
+	var credential *vc.VerifiableCredential
+	var err error
+	if s.keyManager != nil {
+		credential, err = vc.IssueWithSigner(
+			credType,
+			s.issuerDID,
+			verificationMethod,
+			subject,
+			time.Now().UTC(),
+			nil,
+			func(data []byte) ([]byte, error) {
+				return s.keyManager.Sign(ctx, s.hsmKeyName, data)
+			},
+		)
+	} else {
+		credential, err = vc.Issue(
+			credType,
+			s.issuerDID,
+			verificationMethod,
+			subject,
+			time.Now().UTC(),
+			nil,
+			s.privateKey,
+		)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("service: issue credential: %w", err)
 	}

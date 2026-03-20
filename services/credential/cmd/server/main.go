@@ -19,6 +19,7 @@ import (
 	"github.com/IranProsperityProject/INDIS/pkg/blockchain"
 	"github.com/IranProsperityProject/INDIS/pkg/cache"
 	"github.com/IranProsperityProject/INDIS/pkg/events"
+	"github.com/IranProsperityProject/INDIS/pkg/hsm"
 	indismetrics "github.com/IranProsperityProject/INDIS/pkg/metrics"
 	indistrace "github.com/IranProsperityProject/INDIS/pkg/tracing"
 	indismigrate "github.com/IranProsperityProject/INDIS/pkg/migrate"
@@ -79,6 +80,17 @@ func main() {
 	repo := repository.New(pool)
 	chain := blockchain.NewMockAdapter()
 	svc := service.New(repo, chain, cfg.IssuerDID, privateKey)
+
+	// Wire HSM-backed signing key manager.
+	// In development HSM_BACKEND defaults to "software" (in-memory, ephemeral).
+	// In production set HSM_BACKEND=vault with VAULT_ADDR/VAULT_TOKEN/VAULT_TRANSIT_MOUNT.
+	km := hsm.New()
+	if err := km.GenerateKey(ctx, "credential-issuer", hsm.KeyTypeEd25519); err != nil {
+		// Key may already exist in software backend — ignore
+		log.Printf("HSM: credential-issuer key init: %v (may already exist)", err)
+	}
+	svc.SetKeyManager(km, "credential-issuer")
+	log.Printf("HSM backend wired for credential signing (backend=%s)", os.Getenv("HSM_BACKEND"))
 
 	// Wire zkproof service for ZK proof verification (PRD §FR-002).
 	if cfg.ZKProofURL != "" {

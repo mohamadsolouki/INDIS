@@ -17,6 +17,7 @@ import (
 	"time"
 
 	indismigrate "github.com/IranProsperityProject/INDIS/pkg/migrate"
+	indistrace "github.com/IranProsperityProject/INDIS/pkg/tracing"
 	"github.com/IranProsperityProject/INDIS/services/ussd/internal/config"
 	"github.com/IranProsperityProject/INDIS/services/ussd/internal/handler"
 	"github.com/IranProsperityProject/INDIS/services/ussd/internal/repository"

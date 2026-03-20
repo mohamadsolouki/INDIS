@@ -27,4 +27,5 @@ use (
 	./services/ussd
 	./services/verifier
 	./services/govportal
+	./tools/pqc-migrate
 )

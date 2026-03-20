@@ -64,7 +64,7 @@ INDIS/
 ├── pkg/                        # Shared Go libraries (all production-ready)
 │   ├── crypto/                 # Ed25519, ECDSA P-256, AES-256-GCM, Dilithium3
 │   ├── did/                    # W3C DID Core 1.0 — generate, parse, resolve
-│   ├── vc/                     # W3C VC 2.0 — issue, verify (11 credential types)
+│   ├── vc/                     # W3C VC 2.0 — issue, verify, IssueWithSigner (HSM-safe)
 │   ├── i18n/                   # Solar Hijri calendar, Persian numerals, RTL, 6 locales
 │   ├── blockchain/             # Hyperledger Fabric adapter + MockAdapter
 │   ├── hsm/                    # HashiCorp Vault KeyManager + SoftwareKeyManager
@@ -72,7 +72,8 @@ INDIS/
 │   ├── events/                 # Kafka producer/consumer (enrollment→credential chain)
 │   ├── migrate/                # SQL migration runner + CLI
 │   ├── metrics/                # Prometheus metrics + gRPC interceptor
-│   └── tls/                    # mTLS helpers for gRPC servers and clients
+│   ├── tls/                    # mTLS helpers for gRPC servers and clients
+│   └── tracing/                # OpenTelemetry OTLP/gRPC; all 15 services wired
 ├── circuits/                   # Zero-knowledge circuits
 │   └── circom/                 # Groth16/PLONK — age_proof, citizenship, voter, credential
 │       └── lib/                # merkle_proof, range_check (poseidon.circom is stub)
@@ -91,7 +92,7 @@ INDIS/
 │       ├── ios/                # SwiftUI — not started (0%)
 │       └── harmonyos/          # ArkTS — not started (0%)
 ├── db/
-│   └── migrations/             # 10 SQL migration files (applied at startup)
+│   └── migrations/             # 11 SQL migration files (applied at startup)
 ├── deploy/                     # Infrastructure-as-code
 │   ├── helm/                   # Helm charts for all 15 services + infra
 │   ├── terraform/              # Cloud-agnostic infra provisioning
@@ -101,7 +102,9 @@ INDIS/
 │   ├── architecture/           # Architecture Decision Records
 │   └── security/               # Security policies, threat model, mTLS guide
 ├── scripts/                    # Helper scripts
-└── tools/                      # Dev tools (devtoken, pqc-migrate)
+└── tools/                      # Dev tools
+    ├── devtoken/               # Generate dev JWTs for local testing
+    └── pqc-migrate/            # Batch re-sign credentials with Dilithium3 (--tags circl)
 ```
 
 ## Quick Start
@@ -193,9 +196,9 @@ W3C DID Core 1.0 • W3C VC 2.0 • OpenID4VP • ISO/IEC 18013-5 (mDL) • ISO 
 | Verifier terminal PWA | ✅ ~90% — QR scan, JWT auth, history, offline revocation cache (PWA) |
 | Android app | ✅ ~95% — full MVVM (WalletViewModel, EnrollmentViewModel, VerifyViewModel), BiometricAuthHelper, CredentialDetailActivity, pathway selector layout, biometric wallet gate, complete string resources (en + fa) |
 | iOS app | ✅ ~90% — full SwiftUI app: Secure Enclave DID, wallet, enrollment, ZK verify, privacy center, settings, BGTask revocation cache |
-| HarmonyOS app | ✅ ~90% — full ArkTS/ArkUI app: DID, wallet, enrollment (3 pathways), ZK verify QR, privacy center, settings, RevocationRefreshWorker, Solar Hijri calendar |
+| HarmonyOS app | ✅ ~95% — full ArkTS/ArkUI app: DID, wallet, enrollment (3 pathways), ZK verify QR (real `@ohos.scanBarcode` camera), privacy center, settings, RevocationRefreshWorker, Solar Hijri calendar |
 | Diaspora portal | ✅ ~95% — React+Vite, 4-step enrollment wizard, status page, fa/en/fr i18n, RTL layout |
-| **Overall system** | **~96%** |
+| **Overall system** | **~97%** |
 
 > Production infrastructure (Fabric network, Vault HSM, ZK trusted-setup ceremony, telecom integration,
 > biometric ML models, notification providers) is intentionally deferred until the application is

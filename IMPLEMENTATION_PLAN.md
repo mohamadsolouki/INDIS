@@ -1,39 +1,43 @@
-# INDIS Implementation Plan
-# نقشه راه پیاده‌سازی INDIS
+# INDIS Implementation Plan — نقشه راه پیاده‌سازی INDIS
 
-> **Last updated:** 2026-03-21 (T3.25 Android app complete + Gov Portal enrollment/issuance pages)
+> **Last updated:** 2026-03-21 (T3.25 + HSM wiring + cert auth + HarmonyOS camera + PQC tool + E2E tests)
 > **Build status:** All 15 Go services + Rust zkproof + Python AI compile cleanly. 80 Go test packages pass. All Rust crates check clean.
-> **Backend completion:** ~99% | **Frontend completion:** ~99% | **System-wide:** ~96%
+> **Backend:** ~99% | **Frontend:** ~98% | **System-wide:** ~97%
 
-> **⚠️ Development Strategy Note:**
-> The project is being developed and validated **locally** before any production environment is provisioned.
-> All production-infrastructure tasks (Hyperledger Fabric network deployment, HashiCorp Vault HSM, ZK
-> trusted setup ceremony, telecom operator integration, SMS/email delivery providers, NFC hardware, print
-> bureau API, biometric ML model training) are **intentionally deferred** until the full application is
-> feature-complete and verified end-to-end on local infrastructure. Dev stubs and mock adapters are the
-> correct state for those items right now. The focus is: **build everything first, harden for production
-> second.**
+> **Development Strategy:** Build everything locally first; harden for production second. All production-infrastructure tasks (Fabric network, Vault HSM, ZK trusted setup ceremony, telecom integration, SMS/email/push providers, NFC hardware, print bureau API, biometric ML model training) are intentionally deferred until the full application is feature-complete and verified end-to-end on local infrastructure.
 
 ---
 
 ## Table of Contents
-1. [Current State Inventory](#current-state-inventory)
-2. [Overall Completion by Layer](#overall-completion-by-layer)
-3. [Service Port Map](#service-port-map)
-4. [Priority Tiers](#priority-tiers)
-5. [Issues & Bugs Found](#issues--bugs-found)
-6. [Production Blockers](#production-blockers)
-7. [Tier 1 — Day 40 ✅](#tier-1--day-40-working-end-to-end-enrollment--vetting-)
-8. [Tier 2 — Day 60 + Month 4 ✅](#tier-2--day-60--month-4-electoral--justice-)
-9. [Tier 3 — Months 4–12 🟡](#tier-3--months-412-national-rollout)
-10. [Tier 4 — Months 12–24 🔴](#tier-4--months-1224-full-coverage)
-11. [Frontend Roadmap](#frontend-roadmap)
-12. [Production Wiring Checklist](#production-wiring-checklist)
-13. [Improvements & Suggestions](#improvements--suggestions)
-14. [Gateway API Reference](#gateway-api-reference)
-15. [Key Decision Gates](#key-decision-gates)
-16. [Architecture Decisions](#architecture-decisions)
-17. [Recent Updates](#recent-updates)
+
+1. [Next Priority Tasks](#next-priority-tasks)
+2. [Current State Inventory](#current-state-inventory)
+3. [Overall Completion by Layer](#overall-completion-by-layer)
+4. [Service Port Map](#service-port-map)
+5. [Remaining Work: Active Items](#remaining-work-active-items)
+6. [Production Wiring Checklist](#production-wiring-checklist)
+7. [Key Decision Gates](#key-decision-gates)
+8. [Architecture Decisions](#architecture-decisions-settled)
+9. [Gateway API Reference](#gateway-api-reference)
+
+---
+
+## Next Priority Tasks
+
+Ordered by PRD deadline alignment and remaining impact. All backend APIs are complete; remaining work is frontend completeness, mobile parity, and production hardening.
+
+| # | Task | PRD Alignment | Effort |
+|---|------|--------------|--------|
+| **1** | **Citizen PWA — Playwright E2E coverage ≥50%** | FR-006, FR-013 | 1–2 weeks |
+| **2** | **Android — Detox E2E tests** | Month 12 rollout | 1–2 weeks |
+| **3** | **iOS — Xcode `.xcodeproj` + Rust ZK bridge** | Month 12 rollout | 2–3 weeks |
+| **4** | **Gov Portal Backend — role PUT handler + bulk execution wiring** | FR-009/010/011 | 3–5 days |
+| **5** | **T4.2 HSM — gateway JWT secret management** | Security / Month 12 | 2–3 days |
+| **6** | **T4.1 PQC — `go get filippo.io/circl` + `--pqc-mode` flag on credential service** | Months 12–24 | 3–5 days |
+| **7** | **T4.6 Production Biometric AI** — FaceNet/ArcFace ONNX + NIST NBIS fingerprint + iris + liveness | Month 2 (unblocks reliable dedup) | 4–6 weeks |
+| **8** | **T4.5 Circom formal verification** — replace Poseidon stub, `circom --r1cs`, snarkjs ceremony, Ecne/Picus | Phase 4 / audit | 3–4 weeks |
+| **9** | **T4.4 International interoperability** — `did:indis:` method spec, OpenID4VP, ISO 18013-5 | Months 12–24 | 4–6 weeks |
+| **10** | **Playwright E2E for Verifier terminal + Android Detox** | Month 12 rollout | 1–2 weeks |
 
 ---
 
@@ -41,88 +45,94 @@
 
 ### Shared Go Packages (`pkg/`)
 
-| Package | Status | Completion | Notes |
-|---------|--------|-----------|-------|
-| **pkg/crypto** | ✅ Complete | 100% | Ed25519, ECDSA P-256, AES-256-GCM; Dilithium3 API surface (dev placeholder) |
-| **pkg/did** | ✅ Complete | 100% | W3C DID Core 1.0 generation, parsing, validation |
-| **pkg/vc** | ✅ Complete | 100% | W3C VC 2.0 issue + verify round-trip; 11 credential types |
-| **pkg/i18n** | ✅ Complete | 100% | Solar Hijri (fixed), Persian numerals, RTL, 6-language support |
-| **pkg/blockchain** | ✅ Complete | 100% | `BlockchainAdapter` + `MockAdapter` + `FabricAdapter` + factory; 27 tests |
-| **pkg/hsm** | ✅ Complete | 100% | `KeyManager` interface; `VaultKeyManager` (Vault Transit REST); `SoftwareKeyManager` (dev); rotation policy |
-| **pkg/cache** | ✅ Complete | 100% | Redis revocation cache, 72h TTL |
-| **pkg/events** | ✅ Complete | 100% | Kafka producer/consumer; enrollment→credential→audit→notification chain |
-| **pkg/migrate** | ✅ Complete | 100% | Startup migration runner, CLI tool, idempotency tests |
-| **pkg/metrics** | ✅ Complete | 100% | Prometheus metrics, gRPC interceptor, Grafana dashboard |
-| **pkg/tls** | ✅ Complete | 100% | mTLS helpers, `ServerOptionsFromEnv`, client cert support |
+| Package | Status | Notes |
+|---------|--------|-------|
+| **pkg/crypto** | ✅ 100% | Ed25519, ECDSA P-256, AES-256-GCM; Dilithium3 circl build-tag ready |
+| **pkg/did** | ✅ 100% | W3C DID Core 1.0 |
+| **pkg/vc** | ✅ 100% | W3C VC 2.0; 11 credential types |
+| **pkg/i18n** | ✅ 100% | Solar Hijri, Persian numerals, RTL, 6 languages |
+| **pkg/blockchain** | ✅ 100% | `BlockchainAdapter` + `MockAdapter` + `FabricAdapter` + `AnchorAuditEvent`; 27 tests |
+| **pkg/hsm** | ✅ 100% | `VaultKeyManager` + `SoftwareKeyManager` + rotation policy; wired into credential + card services |
+| **pkg/cache** | ✅ 100% | Redis revocation cache, 72h TTL |
+| **pkg/events** | ✅ 100% | Kafka producer/consumer; enrollment→credential→audit→notification chain |
+| **pkg/migrate** | ✅ 100% | Startup migration runner, CLI, idempotency tests; 11 SQL migrations incl. social-attestation DB constraint |
+| **pkg/metrics** | ✅ 100% | Prometheus metrics, gRPC interceptor, Grafana dashboard |
+| **pkg/tls** | ✅ 100% | mTLS helpers, `ServerOptionsFromEnv`, client cert support |
+| **pkg/tracing** | ✅ 100% | OpenTelemetry OTLP/gRPC; no-op when `OTEL_EXPORTER_OTLP_ENDPOINT` unset; all 15 services wired |
 
 ### Backend Services
 
-| Service | Status | Completion | Key Gap |
-|---------|--------|-----------|---------|
-| **Identity** | ✅ Complete | 95% | Background blockchain reconciler TODO |
-| **Credential** | ✅ Complete | 95% | HSM signing wiring pending (Tier 4) |
-| **Enrollment** | ✅ Complete | 95% | — |
-| **Biometric** | ✅ Complete | 90% | Production ML model pending |
-| **Audit** | ✅ Complete | 95% | — |
-| **Notification** | ✅ Complete | 95% | SMS/email/push delivery providers not integrated |
-| **Electoral** | ✅ Complete | 95% | — |
-| **Justice** | ✅ Complete | 95% | — |
-| **Gateway** | ✅ Complete | 98% | Circuit-breaker, JWT jti replay protection, ZK proof size limits |
-| **Verifier** | ✅ Complete | 95% | — |
-| **Gov Portal (backend)** | ✅ Complete | 95% | Frontend NOT STARTED |
-| **USSD** | ✅ Complete | 95% | Telecom operator integration pending |
-| **Card** | ✅ Complete | 90% | NFC/APDU + print bureau + HSM wiring pending |
-| **ZK Service (Rust)** | ✅ Complete | 92% | Groth16 + STARK + real Bulletproofs; dev trusted setup seeds |
-| **AI Service (Python)** | 🟡 Dev baseline | 60% | Perceptual hash only; no real CNN/minutiae/iris |
+| Service | Status | Key Gap |
+|---------|--------|---------|
+| **identity** | ✅ 95% | Background blockchain reconciler TODO |
+| **credential** | ✅ 98% | HSM signing wired (`IssueWithSigner` + `SetKeyManager`); gateway JWT HSM pending |
+| **enrollment** | ✅ 95% | — |
+| **biometric** | ✅ 90% | Production ML model pending (T4.6) |
+| **audit** | ✅ 95% | Fabric anchor wired; deterministic dev setup only |
+| **notification** | ✅ 95% | SMS/email/push providers not integrated |
+| **electoral** | ✅ 95% | — |
+| **justice** | ✅ 95% | — |
+| **gateway** | ✅ 98% | — |
+| **verifier** | ✅ 95% | — |
+| **govportal** | ✅ 95% | mTLS cert-based login wired; role PUT handler + bulk execution wiring incomplete |
+| **ussd** | ✅ 95% | Telecom operator integration pending |
+| **card** | ✅ 93% | HSM wired (`SetKeyManager`); NFC APDU encoding + print bureau pending |
+| **zkproof (Rust)** | ✅ 92% | Groth16 + STARK (real 3-column AIR) + real Bulletproofs; dev trusted setup seeds |
+| **ai (Python)** | 🟡 60% | Perceptual hash only; no real CNN/minutiae/iris |
 
 ### ZK / Cryptography Infrastructure
 
-| Component | Status | Completion | Notes |
-|-----------|--------|-----------|-------|
-| **Groth16 (arkworks)** | ✅ Real circuits | 85% | `AgeRange`, `VoterEligibility`, `CredentialValidity`; dev trusted setup |
-| **Winterfell STARK** | ✅ Real AIR | 92% | 3-column eligibility AIR (voter/age/nullifier commitments); 31 tests; 95-bit PQ security; dev setup |
-| **Bulletproofs** | ✅ Real | 90% | `BulletproofsEngine` using `bulletproofs` 4.x crate; Pedersen commitment; dev trusted setup |
-| **Circom circuits** | 🟡 Logic written | 50% | `poseidon.circom` is stub; no R1CS compile or trusted setup |
+| Component | Status | Notes |
+|-----------|--------|-------|
+| **Groth16 (arkworks)** | ✅ 85% | `AgeRange`, `VoterEligibility`, `CredentialValidity` circuits; dev trusted setup |
+| **Winterfell STARK** | ✅ 92% | 3-column eligibility AIR (voter/age/nullifier commitments); 31 tests; 95-bit PQ security |
+| **Bulletproofs** | ✅ 90% | `BulletproofsEngine` using `bulletproofs` 4.x crate; Pedersen commitment |
+| **Circom circuits** | 🟡 50% | Constraint logic written; Poseidon stub; no R1CS compile or trusted setup |
 
 ### Blockchain
 
-| Component | Status | Completion | Notes |
-|-----------|--------|-----------|-------|
-| **did-registry chaincode** | ✅ Complete | 95% | Personal-data deny-list enforced |
-| **credential-anchor chaincode** | ✅ Complete | 95% | Hash anchoring + revocation registry |
-| **audit-log chaincode** | ✅ Complete | 95% | Append-only; O(1) count |
-| **electoral chaincode** | ✅ Complete | 95% | Nullifier + STARK hash anchoring |
-| **Fabric network deployment** | 🔴 Not done | 0% | 21+ peers, 4 orderers, Raft consensus pending |
+| Component | Status | Notes |
+|-----------|--------|-------|
+| **did-registry chaincode** | ✅ 95% | Personal-data deny-list enforced |
+| **credential-anchor chaincode** | ✅ 95% | Hash anchoring + revocation registry |
+| **audit-log chaincode** | ✅ 95% | Append-only; wired from audit service |
+| **electoral chaincode** | ✅ 95% | Nullifier + STARK hash anchoring |
+| **Fabric network deployment** | 🔴 0% | 21+ peers, 4 orderers, Raft consensus — deferred to production phase |
 
 ### API Definitions
 
-| Component | Status | Completion |
-|-----------|--------|-----------|
-| **OpenAPI 3.0 spec** | ✅ Complete | 100% — 1,720 lines, 40+ routes, 11 tag groups |
-| **Proto definitions** | ✅ Complete | 100% — 10 services |
-| **DB migrations** | ✅ Complete | 100% — 10 SQL files applied at startup |
+| Component | Status |
+|-----------|--------|
+| **OpenAPI 3.0 spec** | ✅ 100% — 1,720 lines, 40+ routes, 11 tag groups |
+| **Proto definitions** | ✅ 100% — 10 services |
+| **DB migrations** | ✅ 100% — 11 SQL files |
 
 ### Infrastructure
 
-| Component | Status | Completion |
-|-----------|--------|-----------|
-| **Docker (all services)** | ✅ Complete | 100% |
-| **Kubernetes / Helm** | ✅ Complete | 95% — new services need Helm templates |
-| **Terraform** | ✅ Complete | 95% |
-| **Prometheus / Grafana** | ✅ Complete | 100% |
-| **GitLab CI/CD** | ✅ Complete | 100% |
+| Component | Status |
+|-----------|--------|
+| **Docker (all services)** | ✅ 100% |
+| **Kubernetes / Helm** | ✅ 95% |
+| **Terraform** | ✅ 95% |
+| **Prometheus / Grafana** | ✅ 100% |
+| **GitLab CI/CD** | ✅ 100% |
+| **OpenAPI SDK codegen CI** | ✅ 100% — TypeScript Axios + Kotlin Retrofit2 auto-gen on push |
+| **Playwright E2E CI** | ✅ 100% — workflow + specs for citizen/verifier/diaspora |
+| **k6 Load Tests** | ✅ 100% — 556 VU verify, enrollment, credential issue load scripts |
+| **testcontainers-go** | ✅ 100% — Postgres/Redis/Kafka helpers; unblocks 10 previously skipped integration tests |
+| **Jaeger tracing** | ✅ 100% — all-in-one v1.57 in docker-compose |
 
 ### Frontends / Clients
 
-| Client | Status | Completion | Notes |
-|--------|--------|-----------|-------|
-| **Citizen PWA** | ✅ Complete | 95% | Full app + WASM ZK bridge (offline proof generation, PRD FR-006 cache check, mock fallback) |
-| **Gov portal frontend** | ✅ Complete | 98% | EnrollmentReviewPage (approve/reject/biometric-request), CredentialIssuancePage (5 types, 5s polling), DashboardPage (7-stat grid + activity feed), AuditPage (paginated + filtered), role gating, RTL CSS |
-| **Verifier terminal PWA** | ✅ Complete | 90% | QR scanner + binary result + JWT auth + PWA offline cache (Workbox) |
-| **Android app** | ✅ Complete | 95% | Full MVVM: WalletViewModel, EnrollmentViewModel, VerifyViewModel, BiometricAuthHelper, CredentialDetailActivity, pathway selector layout, all string resources (en + fa) |
-| **iOS app** | ✅ Complete | 90% | Secure Enclave DID, full SwiftUI app, unit tests; Xcode project file + Rust ZK bridge pending |
-| **HarmonyOS app** | ✅ Complete | 90% | Full ArkTS/ArkUI app (11 files): EntryAbility, model, network, utils, worker, 6 pages; Solar Hijri calendar; RevocationRefreshWorker; Secure storage |
-| **Diaspora portal** | ✅ Complete | 95% | React+Vite: LoginPage, EnrollmentPage (4-step wizard), StatusPage; fa/en/fr i18n; RTL layout; dev bypass |
+| Client | Status | Notes |
+|--------|--------|-------|
+| **Citizen PWA** | ✅ 95% | Full app + WASM ZK bridge (offline proof, 72h revocation cache, mock fallback). Playwright E2E partial. |
+| **Gov portal frontend** | ✅ 98% | EnrollmentReviewPage, CredentialIssuancePage, DashboardPage (7-stat grid), AuditPage (paginated+filtered), role gating, RTL CSS |
+| **Verifier terminal PWA** | ✅ 90% | QR scanner + binary result + JWT auth + offline revocation cache. Playwright E2E pending. |
+| **Android app** | ✅ 95% | Full MVVM: WalletViewModel, EnrollmentViewModel, VerifyViewModel, BiometricAuthHelper, CredentialDetailActivity, PrivacyCenterActivity, RevocationCacheWorker, SettingsActivity. Detox E2E pending. |
+| **iOS app** | ✅ 90% | Full SwiftUI: Secure Enclave DID, Keychain wallet, BGAppRefreshTask revocation, ZK proof manager, enrollment/wallet/verify/privacy/settings. Xcode `.xcodeproj` + Rust ZK bridge pending. |
+| **HarmonyOS app** | ✅ 95% | Full ArkTS/ArkUI: 11 files, 8 pages, Solar Hijri, RevocationRefreshWorker. Real `@ohos.scanBarcode` camera QR scan wired. Final device testing pending. |
+| **Diaspora portal** | ✅ 95% | React+Vite: LoginPage, EnrollmentPage (4-step wizard, 3-file upload), StatusPage; fa/en/fr i18n; RTL layout |
 
 ---
 
@@ -130,7 +140,7 @@
 
 | Layer | Completion | Status |
 |-------|-----------|--------|
-| **Shared Go packages** (`pkg/`) | ~100% | ✅ All 11 packages production-ready |
+| **Shared Go packages** (`pkg/`) | ~100% | ✅ All 12 packages production-ready |
 | **Backend Go services** (15 services) | ~97% | ✅ All core logic; production wiring pending |
 | **ZK proof service** (Rust) | ~92% | ✅ Groth16 + STARK + real Bulletproofs; dev seeds |
 | **AI biometric service** (Python) | ~60% | 🟡 Dev baseline only; real ML pending |
@@ -138,9 +148,9 @@
 | **Database migrations** (SQL) | ~100% | ✅ Complete |
 | **API specs** (OpenAPI + Proto) | ~100% | ✅ Complete |
 | **Infra / DevOps** | ~97% | ✅ Docker, Helm, Terraform, CI/CD |
-| **Frontend web** | ~98% | ✅ Citizen PWA 95%; Gov Portal 98%; Verifier Terminal 90%; Diaspora Portal 95% |
-| **Mobile** | ~93% | ✅ Android 95%; iOS 90%; HarmonyOS 90% |
-| **OVERALL SYSTEM** | **~96%** | All frontends functional; Android MVVM complete; Gov Portal fully featured; E2E tests; WASM ZK bridge; Dilithium circl-backed build tag |
+| **Frontend web** | ~96% | ✅ Citizen PWA 95%; Gov Portal 98%; Verifier 90%; Diaspora 95% |
+| **Mobile** | ~93% | ✅ Android 95%; iOS 90%; HarmonyOS 95% |
+| **OVERALL SYSTEM** | **~97%** | Feature-complete for local dev; production wiring deferred |
 
 ---
 
@@ -166,113 +176,166 @@
 
 ---
 
-## Priority Tiers
+## Remaining Work: Active Items
 
-- **Tier 1** → Day 40 (military vetting) ✅ **COMPLETE**
-- **Tier 2** → Day 60 (justice) + Month 4 (referendum) ✅ **COMPLETE**
-- **Tier 3** → Months 4–12 (national rollout) 🟡 **Backend complete; frontends/infra pending**
-- **Tier 4** → Months 12–24 (full coverage) 🟡 **APIs in place; production wiring + new features pending**
+### Gov Portal Backend — Remaining Gaps
 
----
+`services/govportal` (HTTP :8200) — core flows exist, but:
 
-
-## Production Blockers
-
-The following items MUST be resolved before production deployment of each phase:
-
-### Phase 1 (Day 40) — Currently using dev infrastructure
-1. ⚠️ **ZK trusted setup ceremony** — must replace deterministic dev seeds before any ZK proof is considered secure
-2. ⚠️ **Notification delivery** — SMS/email/push provider contract required before citizen alerting works
-3. ⚠️ **Biometric AI model** — production CNN + minutiae extractor + iris matching required before enrollment deduplication is reliable
-
-### Phase 2 (Month 4) — Referendum
-4. ✅ ~~**Bulletproofs real implementation**~~ — RESOLVED 2026-03-20 (real `BulletproofsEngine` using `bulletproofs` 4.x)
-5. ⚠️ **Hyperledger Fabric network** — electoral nullifiers must be anchored on-chain, not mocked, before a public referendum
-
-### Phase 3 (Month 12) — National Rollout
-6. ⚠️ **USSD telecom integration** — obtain USSD short codes; contract with national operator
-7. ⚠️ **HSM Vault production deployment** — card issuer keys, credential signing keys, JWT secrets
-8. ⚠️ **Android app completion** — ~40% done; most Tier 3 citizens will use mobile
-9. ⚠️ **Gov portal frontend** — ministry operators cannot use the system without a frontend
-10. ⚠️ **Verifier terminal PWA** — QR scanner and binary result done; full gateway integration + Playwright tests pending
-11. ⚠️ **Card NFC/APDU encoding** — physical cards cannot be read by existing readers
-12. ⚠️ **Print bureau API** — physical card printing requires integration with NIA print contractor
+- ✅ `POST /v1/portal/auth/login` — mTLS X.509 cert-based auth wired (Subject CN match + 8h JWT)
+- `PUT /v1/portal/users/{id}/role` — role assignment HTTP handler not wired into mux
+- Bulk operation execution — approval updates state but does not call `CredentialService`/`EnrollmentService` or produce per-target `result_summary`
+- Gateway route alignment for `/v1/portal/*` and `/graphql`
 
 ---
 
-## Tier 1 — Day 40: Working End-to-End Enrollment + Vetting ✅
+### Citizen PWA — Remaining
 
-All T1 items are complete.
-
-| Item | What was built |
-|------|---------------|
-| T1.1 Integration tests | `service_test.go` for identity/credential/enrollment; `pkg/{crypto,did,vc,i18n}` unit tests |
-| T1.2 DB migrations | `pkg/migrate` runner + CLI + startup wiring in all DB-backed services |
-| T1.3 Kafka wiring | enrollment→credential→audit→notification chain; `pkg/events` producer/consumer |
-| T1.4 Redis revocation cache | `pkg/cache`; 72h TTL; credential service wired |
-| T1.5 mTLS | `pkg/tls`; all gRPC services; gateway backend transport modes |
-| T1.6 AI biometric dedup | 256-dim multi-scale hash + SimHash LSH (dev baseline) |
-| T1.7 Android skeleton | RTL baseline, Kotlin, stubs |
-| T1.8 Prometheus metrics | `/metrics` on all services; Grafana dashboard |
-
-**Remaining for T1 production hardening:**
-- Replace biometric AI with production CNN (see H3 above)
-- Complete ZK trusted setup ceremony (see H2 above)
-- Integrate notification SMS provider (see H5 above)
-
----
-
-## Tier 2 — Day 60 + Month 4: Electoral + Justice ✅
-
-All T2 items are complete.
-
-| Item | What was built |
-|------|---------------|
-| T2.1 Groth16 (Rust) | Real arkworks R1CS circuits: `AgeRangeCircuit`, `VoterEligibilityCircuit`, `CredentialValidityCircuit` |
-| T2.2 Winterfell STARK | `WinterfellStarkEngine`; `VoterEligibilityAir`; ≥95-bit PQ security; 24 tests pass |
-| T2.3 Electoral→ZK | Electoral service posts STARK proofs to zkproof `/verify` |
-| T2.4 Justice→ZK | Justice calls zkproof `/prove`+`/verify` (Bulletproofs citizenship — **stub; see H1**) |
-| T2.5 Auto credential issuance | Kafka: `enrollment.completed` → auto-issue Citizenship + AgeRange + VoterEligibility |
-| T2.6 Remote voting | Anti-replay nonce window, timestamp skew guard, `SubmitRemoteBallot`, DB migrations 008-010 |
-| T2.7 Integration tests | Electoral full-flow; justice full-flow |
-
-**Remaining for T2 production hardening:**
-- Replace Bulletproofs stub with real implementation (see H1)
-- Deploy Hyperledger Fabric network for on-chain electoral anchoring (see H7)
-- Run multi-party ZK trusted setup ceremony (see H2)
-
----
-
-## Tier 3 — Months 4–12: National Rollout
-
-### T3.1 — Government Portal Backend 🟡 In progress (FR-009/010/011)
-
-`services/govportal` (HTTP :8200) — ministry operator endpoints for portal user management and bulk operations exist, GraphQL endpoint is present but minimal/stubbed, and HMAC-JWT authorization/role hierarchy exist at the service layer.
+`clients/web/citizen-pwa/` — 95% complete.
 
 **Remaining:**
-- `POST /v1/portal/auth/login` (certificate-based auth not implemented yet)
-- `PUT /v1/portal/users/{id}/role` (role assignment handler not wired in HTTP mux yet)
-- Bulk operation execution wiring (approval currently updates state but does not execute via `CredentialService`/`EnrollmentService` and does not produce per-target `result_summary`)
-- Audit logging integration (gov portal actions should append to `services/audit`)
-- Gateway proxying + public route alignment for gov-portal (`/v1/portal/*`, `/graphql`)
-- FR-010 / FR-011 module UI pages and dev-friendly payload inputs
+
+- Playwright E2E coverage ≥50% (currently < 20% of flows covered)
+
+**Quick start:** `cd clients/web/citizen-pwa && npm install && npm run dev`
 
 ---
 
-### T3.2 — Verifier Terminal Backend ✅ COMPLETE
+### Test Suite — Remaining
 
-`services/verifier` (gRPC :9110) + gateway proxy routes — registration, cert issuance, ZK dispatch, history.
-
-**Remaining:** Frontend verifier terminal PWA (`clients/web/verifier/`) with QR scanner + binary ZK result display.
+| Gap | Status |
+|-----|--------|
+| Playwright E2E for Citizen PWA (≥50% flows) | ⚠️ Partial |
+| Playwright E2E for Verifier terminal | ⚠️ Not written |
+| Android Detox E2E | ⚠️ Not started (data layer now complete — unblocked) |
+| Rust fuzzing for zkproof circuits | ⚠️ Not started |
 
 ---
 
-### T3.3 — Hyperledger Fabric Chaincode ✅ CODE COMPLETE / 🔴 DEPLOYMENT PENDING
+### Mobile Apps — Remaining
 
-4 chaincodes written and unit-tested. Fabric network not deployed.
+**Android (95%):** Detox E2E is the only remaining gap.
 
-**To activate Fabric in production:**
+**iOS (90%):**
+
+- Xcode `.xcodeproj` / `.xcworkspace` — SPM `Package.swift` is the authoritative build descriptor; Xcode project requires Xcode IDE
+- Rust ZK bridge via `swift-bridge` or `uniffi` linking `services/zkproof` crate
+- Real AVCaptureSession biometric capture + Core NFC fingerprint
+- APNs push notifications
+
+**HarmonyOS (95%):**
+
+- ✅ Real camera QR scanning via `@ohos.scanBarcode.startScanForResult` wired
+- Final device testing on HarmonyOS 4.x hardware
+
+---
+
+### T4.1 — Post-Quantum Migration (CRYSTALS-Dilithium)
+
+**Built:** `pkg/crypto/dilithium_circl.go` — `//go:build circl` real Dilithium3 via `filippo.io/circl/sign/dilithium/mode3`.
+
+**Done:**
+
+- ✅ `tools/pqc-migrate/` — batch re-signing tool with `--dry-run`, `--batch-size`, `--issuer-did` flags; build: `go build -tags circl -o pqc-migrate ./tools/pqc-migrate/`
+
+**Remaining:**
+
+1. `go get filippo.io/circl` → add to `go.sum`
+2. Add `--pqc-mode` flag to `services/credential` for issuing Dilithium-signed VCs
+
+---
+
+### T4.2 — HSM Integration (HashiCorp Vault)
+
+**Built:** `pkg/hsm/` — `VaultKeyManager` + `SoftwareKeyManager` + rotation policy.
+
+**Done:**
+
+- ✅ Credential service: `IssueWithSigner` + `SetKeyManager()` — HSM sign callback, key never exported
+- ✅ Card service: `SetKeyManager()` — signs MRZ/card payload via `keyManager.Sign()`
+
+**Remaining:**
+
+1. Wire into gateway JWT secret management
+2. Configure Vault AppRole / Kubernetes auth for production
+
+**To activate Vault:**
+
+```sh
+HSM_BACKEND=vault
+VAULT_ADDR=http://vault:8200
+VAULT_TOKEN=<token>           # replace with AppRole in production
+VAULT_TRANSIT_MOUNT=transit
 ```
+
+---
+
+### T4.3 — Diaspora Portal ✅ 95% COMPLETE
+
+`clients/web/diaspora/` — React 18+Vite, LoginPage, 4-step EnrollmentPage (national ID validation, 3-file upload), StatusPage; fa/en/fr i18n; RTL CSS.
+
+**Remaining:** Diaspora voting eligibility rules (policy TBD by electoral authority).
+
+---
+
+### T4.4 — International Interoperability 🔴 NOT STARTED
+
+Items:
+
+- Publish W3C `did:indis:` DID method specification
+- Implement OpenID4VP (Verifiable Presentations) for cross-border presentation
+- ISO/IEC 18013-5 mobile driving licence interoperability layer
+- Embassy integration API for foreign credential acceptance
+
+---
+
+### T4.5 — Circom ZK Circuit Formal Verification 🟡 50%
+
+**Built:** `circuits/circom/` — constraint logic for `age_proof`, `voter_eligibility`, `credential_validity`.
+
+**Remaining:**
+
+1. Replace `lib/poseidon.circom` stub with official circomlib Poseidon
+2. Run `circom *.circom --r1cs --wasm` to generate R1CS + witness generators
+3. Execute Phase 1 (powers of tau) + Phase 2 (snarkjs ceremony) with multi-party + international observers
+4. Formal verification with Ecne or Picus; publish audit reports in `docs/audits/`
+
+---
+
+### T4.6 — Production Biometric AI 🔴 NOT STARTED
+
+**Current state:** Python AI service uses 256-dim perceptual hash + SimHash LSH only.
+
+**Remaining:**
+
+1. Face recognition: FaceNet / VGGFace / ArcFace (ONNX export)
+2. Fingerprint: NIST NBIS or open-source minutiae extractor
+3. Iris: IrisTechnology or open-source iris segmentation
+4. Multi-modal fusion + threshold calibration (FAR < 0.001%)
+5. Liveness detection: anti-spoofing for face and fingerprint
+6. `/readiness` should block until models loaded
+
+---
+
+### Physical Card NFC (T3.4 gap)
+
+`services/card` code-complete for ICAO 9303 MRZ + Ed25519 signing + QR payload.
+
+**Remaining:**
+
+- NFC chip encoding (ISO 7816 APDU — PRD FR-016.3)
+- Physical card print bureau API integration (vendor TBD)
+- HSM-backed issuer key (see T4.2)
+
+---
+
+### Hyperledger Fabric Deployment (T3.3 gap)
+
+4 chaincodes code-complete. Fabric network not deployed.
+
+**To activate in production:**
+
+```sh
 BLOCKCHAIN_TYPE=fabric
 FABRIC_GATEWAY_URL=http://peer0.org1:7080
 FABRIC_CHANNEL_ID=did-registry-channel
@@ -282,647 +345,7 @@ FABRIC_KEY_PEM=<base64 PEM>
 FABRIC_TLS_CA_CERT_PEM=<base64 PEM>
 ```
 
-**Remaining:**
-1. Provision 21+ peer nodes (3 orgs × 7 peers) + 4 orderers (Raft consensus)
-2. Configure NIA MSP, channel policies, endorsement policies (3-of-5 NIA)
-3. Install and instantiate 4 chaincodes
-4. Run smoke tests via `peer chaincode query`
-5. Switch all services to `BLOCKCHAIN_TYPE=fabric`
-
----
-
-### T3.4 — Physical Card Service ✅ CODE COMPLETE
-
-`services/card` (HTTP :8400) — ICAO 9303 MRZ, check digits, Ed25519 signing, QR payload, card invalidation.
-
-**Remaining:**
-- NFC chip encoding (ISO 7816 APDU command set for contactless readers)
-- Physical card print bureau API integration (vendor TBD)
-- HSM-backed issuer key: replace `CARD_ISSUER_SEED` with `pkg/hsm` VaultKeyManager
-
----
-
-### T3.5 — USSD / SMS Gateway ✅ CODE COMPLETE / 🔴 INTEGRATION PENDING
-
-`services/ussd` (HTTP :8300) — full USSD state machine (voter/pension/credential), 5 locales, OTP, PII hashed.
-
-**Remaining:**
-- Obtain USSD short codes (`*ID#`, `*PENSION#`, `*CRED#`) from telecom regulator
-- Integrate with national telecom operator USSD gateway (MCI/Hamrah-e-Avval/Irancell API)
-- Integrate SMS delivery provider (Africa's Talking, Infobip, or national operator API)
-
----
-
-### T3.6 — Citizen PWA 🟡 IN PROGRESS (~50%)
-
-`clients/web/citizen-pwa/` — React 18 + TypeScript 5 + Vite 5 + Tailwind CSS 3 + Workbox
-
-**Implemented (41 source files):**
-
-| Module | Notes |
-|--------|-------|
-| i18n (6 locales) | fa/en/ckb/kmr/ar/az; RTL-first |
-| Solar Hijri (TS) | Exact port of Go `pkg/i18n` |
-| Gateway API client | All 40+ endpoints typed |
-| JWT + WebAuthn | Device-bound keys per FR-001.4 |
-| Ed25519 (WebCrypto) | Non-extractable private key |
-| IndexedDB wallet | `idb` library |
-| Identity Card (FR-007) | Islamic pattern background, masked NID |
-| Home page | Card + enrollment CTA |
-| Enrollment wizard | 3-pathway (standard/enhanced/social), 5-step |
-| Privacy Center (FR-008) | 4-tab: history/sharing/consent/export |
-| Credential wallet | All 11 VC types, filter chips |
-| QR display | Expand + PNG download |
-| Verify page | Approve/deny ZK requests |
-| Settings | Lang/numerals/calendar/font/theme |
-
-**Remaining:**
-- `/login` route — token acquisition via WebAuthn or SSO deep-link
-- Real camera capture via `MediaDevices.getUserMedia()` in enrollment biometric step
-- WebSocket or SSE for live verification request push (currently requires page reload)
-- Complete i18n content for Kurdish, Arabic, Azerbaijani (partially stubbed)
-- Playwright E2E test suite
-
-**Start dev:** `cd clients/web/citizen-pwa && npm install && npm run dev`
-
----
-
-### T3.7 — Full Test Suite 🟡 PARTIAL
-
-**Implemented:**
-- All `pkg/*` packages — full unit tests (~2,682 LoC)
-- Services: identity, credential, enrollment, biometric, electoral, justice, gateway, audit, notification — service-level tests (~3,129 LoC)
-- `pkg/blockchain` — 27 FabricAdapter unit tests
-- `pkg/hsm` — software backend unit tests
-- `services/verifier, govportal, ussd, card` — 54 new service tests added 2026-03-20
-
-**Missing:**
-- `testcontainers-go` integration tests with real Postgres + Redis + Kafka (10 skipped tests)
-- k6 load scripts for 2M verifications/hour (Phase 2 referendum scale)
-- Playwright E2E tests for Citizen PWA
-- Detox E2E tests for Android
-- Rust fuzzing for zkproof circuits (important for security)
-
----
-
-### T3.8 — Kubernetes Deployment ✅ COMPLETE
-
-All 15 services have Helm charts. HPAs, PVCs, liveness/readiness probes, ingress configured. Helm templates for verifier, govportal, ussd, and card added 2026-03-20.
-
----
-
-### T3.9 — CI/CD Pipeline ✅ COMPLETE
-
-GitLab CI: lint → test → build → scan → deploy. All services covered.
-
-**Suggested additions:**
-- Add Playwright stage for PWA E2E tests
-- Add `cargo fuzz` stage for zkproof security testing
-- Add OpenAPI spec validation (`spectral lint`)
-
----
-
-### T3.10 — Mobile Apps 🟡 PARTIAL / 🔴 NOT STARTED
-
-#### Android (`clients/mobile/android/`) — 15%
-- ✅ RTL baseline, Gradle/Kotlin project structure
-- 🔴 DIDManager, ZKProofManager, CredentialRepository — all stubs
-- 🔴 No Retrofit2 wiring to gateway
-- 🔴 No Room encrypted wallet schema
-- 🔴 No enrollment flow, biometric capture, privacy center
-
-**Full remaining work:**
-1. Wire Retrofit2 against gateway API (generate client from `api/openapi/openapi.yaml`)
-2. Room encrypted credential wallet with schema matching 11 VC types
-3. JNI bridge for offline Groth16 proof generation (`cargo ndk` → zkproof Rust crates)
-4. Enrollment flow: document capture → biometric → DID generation → credential issuance
-5. Privacy Control Center UI (all `/v1/privacy/*` endpoints)
-6. Push notifications (Firebase Cloud Messaging or self-hosted)
-7. Offline revocation list cache (Service Worker equivalent via WorkManager)
-
-#### iOS (`clients/mobile/ios/`) — 90% ✅
-
-Full SwiftUI app complete (T3.23): Secure Enclave DID, Keychain wallet, BGAppRefreshTask revocation cache, ZK proof manager, enrollment wizard, credential wallet, verify QR, privacy center, settings, 4 unit test files. Remaining: Xcode `.xcodeproj` file + wiring Rust WASM ZK bridge.
-
-#### HarmonyOS (`clients/mobile/harmonyos/`) — 90% ✅
-
-Full ArkTS/ArkUI app complete (T3.24): EntryAbility, AppStorage (preferences-backed), CredentialModel, GatewayClient, PersianCalendar (manual Gregorian→Solar Hijri), PersianNumerals, RevocationRefreshWorker (6h periodic, 72h cache), Index/Onboarding/Main/Wallet/Enrollment/Verify/PrivacyCenter/Settings pages. Remaining: real camera QR scanning integration (`@ohos.multimedia.camera`) and final device testing.
-
----
-
-## Tier 4 — Months 12–24: Full Coverage
-
-### T4.1 — Post-Quantum Migration (CRYSTALS-Dilithium) 🟡 CIRCL BUILD-TAG READY
-
-**Built:**
-
-- `pkg/crypto/dilithium.go` — Ed25519 placeholder (default build, no network dependency).
-- `pkg/crypto/dilithium_circl.go` — `//go:build circl`-gated real CRYSTALS-Dilithium3 via `filippo.io/circl/sign/dilithium/mode3`. Enable: `go get filippo.io/circl && go build -tags circl ./...`.
-- `pqc.go` — API surface (key types, size constants).
-
-**Remaining:**
-
-1. Run `go get filippo.io/circl` and add to `go.sum` (requires outbound network in build environment)
-2. Wire `pkg/hsm` VaultKeyManager into credential signing
-3. Build migration tool `tools/pqc-migrate/` — re-signs existing long-term credentials in batches
-4. Add `--pqc-mode` flag to `services/credential` for issuing Dilithium-signed VCs
-
----
-
-### T4.2 — HSM Integration (HashiCorp Vault) 🟡 API COMPLETE
-
-**Built:** `pkg/hsm/` — `VaultKeyManager` + `SoftwareKeyManager` + rotation policy.
-
-**Remaining:**
-1. Wire into credential service signing (replace `crypto.GenerateEd25519KeyPair()`)
-2. Wire into card service (replace `CARD_ISSUER_SEED`)
-3. Wire into gateway JWT secret management
-4. Configure Vault AppRole / Kubernetes auth for production (no static tokens)
-5. Document Vault secret engine mount paths and rotation schedules
-
-**To activate Vault:**
-```
-HSM_BACKEND=vault
-VAULT_ADDR=http://vault:8200
-VAULT_TOKEN=<token>           # replace with AppRole in production
-VAULT_TRANSIT_MOUNT=transit
-```
-
----
-
-### T4.3 — Diaspora Portal 🔴 NOT STARTED
-
-**Target:** `clients/web/diaspora/`
-
-- Multi-language: Persian, English, French
-- Embassy agent interface for supervised enrollment
-- Postal address verification for physical card delivery
-- International timezone handling
-- Backed by existing gateway API + enrollment service (diaspora pathway already coded)
-
----
-
-### T4.4 — International Interoperability 🔴 NOT STARTED
-
-- Publish W3C `did:indis:` DID method specification
-- Implement OpenID4VP (Verifiable Presentations) for cross-border presentation
-- ISO/IEC 18013-5 mobile driving licence interoperability layer
-- Embassy integration API for foreign credential acceptance
-
----
-
-### T4.5 — Circom ZK Circuit Formal Verification 🟡 LOGIC WRITTEN
-
-**Built:** `circuits/circom/` — constraint logic for `age_proof`, `voter_eligibility`, `credential_validity`.
-
-**Remaining:**
-1. Replace `lib/poseidon.circom` stub with official circomlib Poseidon (import from `https://github.com/iden3/circomlib`)
-2. Run `circom *.circom --r1cs --wasm` to generate R1CS + witness generators
-3. Execute Phase 1 (powers of tau) + Phase 2 (snarkjs ceremony) with multi-party + international observers
-4. Formal verification with Ecne or Picus
-5. Publish audit reports in `docs/audits/`
-
----
-
-### T4.6 — Production Biometric AI 🔴 NOT STARTED
-
-**Current state:** Python AI service uses 256-dim perceptual hash + SimHash LSH.
-
-**Remaining:**
-1. Face recognition: integrate FaceNet / VGGFace / ArcFace (ONNX export)
-2. Fingerprint: integrate NIST NBIS or open-source minutiae extractor
-3. Iris: integrate IrisTechnology or open-source iris segmentation
-4. Multi-modal fusion: combine face + fingerprint + iris similarity scores
-5. Threshold calibration: set FAR/FRR per policy (e.g., FAR < 0.001%)
-6. Liveness detection: anti-spoofing model for face and fingerprint
-7. Model loading on startup: `/readiness` should block until models are loaded
-
----
-
-### T3.11 — OpenTelemetry Distributed Tracing ✅ COMPLETE
-
-**What was built:**
-
-- New `pkg/tracing` package: `Init(ctx, serviceName)` installs a global `TracerProvider` with OTLP/gRPC exporter; no-op when `OTEL_EXPORTER_OTLP_ENDPOINT` is unset (safe for dev without Jaeger). `ServerOption()` / `DialOption()` helpers wrap `otelgrpc` stats handlers.
-- All 15 Go service `cmd/server/main.go` files wired: `indistrace.Init()` + `indistrace.ServerOption()` on every `grpc.NewServer()`. Gateway wires `Init()` (HTTP server, no gRPC server-side stats handler needed).
-- Python AI service (`services/ai/src/main.py`): `_configure_tracing()` installs OTel `TracerProvider` + OTLP gRPC exporter; `FastAPIInstrumentor.instrument_app(app)` auto-instruments all routes. `opentelemetry-sdk`, `opentelemetry-instrumentation-fastapi`, `opentelemetry-exporter-otlp-proto-grpc` added to `pyproject.toml`.
-- Jaeger all-in-one v1.57 added to `docker-compose.yml`: UI on `:16686`, OTLP gRPC on `:4317`, OTLP HTTP on `:4318`. Set `OTEL_EXPORTER_OTLP_ENDPOINT=localhost:4317` in any service to start exporting spans.
-
----
-
-### T3.12 — Audit Service → Fabric Chaincode Integration ✅ COMPLETE
-
-The `chaincode/audit-log` chaincode is written and deployed, but `services/audit` never calls it. Audit events are only stored in PostgreSQL (mutable). For tamper-evidence, every audit event must also be anchored on-chain at commit time.
-
-**Steps:**
-
-1. Inject `blockchain.BlockchainAdapter` into `services/audit/internal/service/audit_service.go`
-2. On every `LogEvent()` call, after the DB write, call `adapter.StoreAuditLog(ctx, eventID, eventHash)`
-3. Add a background reconciler that retries failed anchors (reuse the retry-queue pattern from identity/credential)
-4. Wire `BLOCKCHAIN_TYPE` env var into audit service config (already in `pkg/blockchain/factory.go`)
-5. Add integration test: log an event → verify the hash appears in the mock blockchain adapter
-
----
-
-### T3.13 — STARK Circuit Real Constraints ✅ COMPLETE
-
-`VoterEligibilityAir` currently uses a doubling-trace placeholder. Before referendum use, the AIR must encode real eligibility: age ≥ 18, Merkle inclusion in voter roll, DID linkage, and nullifier uniqueness.
-
-**Steps:**
-
-1. Replace doubling-trace in `services/zkproof/crates/zkproof-core/src/stark/winterfell_stark.rs` with full AIR:
-   - Transition constraint: `age_field ≥ 18_field`
-   - Boundary constraint: Merkle root matches published voter-roll root
-   - Boundary constraint: nullifier = Poseidon(DID, election_id) not in nullifier set
-2. Update `VoterEligibilityPublicInputs` struct to carry `voter_roll_root`, `election_id`, `nullifier`
-3. Expand test suite from 24 → 40+ tests covering edge cases (age=17, duplicate nullifier, wrong root)
-4. Update electoral service to pass the new public inputs when calling `/prove`
-
----
-
-### T3.14 — Level 4 Emergency Override ✅ COMPLETE
-
-PRD §FR-012 requires a Level 4 verification mode: full identity disclosure to a certified authority with mandatory audit trail and multi-party authorization. No service currently implements this flow.
-
-**Steps:**
-
-1. Add `VerificationLevel` enum (L1–L4) to `api/proto/verifier/v1/verifier.proto`; regenerate stubs
-2. Add `POST /v1/verifier/override` gateway route (requires `admin` role + hardware token claim)
-3. In `services/verifier`, implement L4 handler: dual-officer approval (2-of-2 ministry JWT), decrypt identity attributes from HSM, return full disclosure response
-4. Every L4 call must synchronously write an immutable audit event (via T3.12 Fabric anchor)
-5. Add time-bounded L4 session tokens (15-minute TTL, non-renewable)
-6. Add rate limit: max 10 L4 requests/day per verifier org
-
----
-
-### T3.15 — Social Attestation Database Constraint ✅ COMPLETE
-
-The enrollment service checks "3+ co-attestors" only in service logic. A direct DB write bypassing the service layer could create an under-attested enrollment. This must be a hard DB constraint.
-
-**Steps:**
-
-1. Add migration `011_social_attestation_constraint.sql`:
-   - Add `CHECK` constraint: enrollments with `pathway = 'social'` must have ≥ 3 rows in `attestations` before status advances to `completed`
-   - Alternatively: enforce via trigger that raises exception on `UPDATE enrollments SET status='completed' WHERE pathway='social' AND (SELECT COUNT(*) FROM attestations WHERE enrollment_id = NEW.id) < 3`
-2. Add integration test confirming the DB rejects under-attested social completions
-
----
-
-### T3.16 — Remove Dead Cairo Directory ✅ COMPLETE
-
-`circuits/cairo/electoral_proof/electoral_proof.cairo` is empty and the Cairo approach was superseded by Winterfell STARK. The directory creates confusion for new contributors.
-
-**Steps:**
-
-1. `git rm -r circuits/cairo/`
-2. Add a note to `circuits/README.md` and `docs/architecture/` explaining the decision (Winterfell STARK in Rust replaced Cairo)
-3. Remove the Cairo row from `CLAUDE.md` ZK Circuits section
-
----
-
-### T3.17 — OpenAPI Client SDK Auto-generation ✅ COMPLETE
-
-**What was built:**
-
-- `.github/workflows/sdk-codegen.yml`: GitHub Actions workflow with three jobs: `lint-spec` (Spectral), `generate-typescript` (TypeScript Axios → `clients/web/citizen-pwa/src/api/generated/`), `generate-kotlin` (Kotlin Retrofit2 → `clients/mobile/android/.../generated`). On push to `main`, a fourth `commit-generated` job auto-commits updated SDKs with `[skip ci]`.
-- `.spectral.yaml`: Extends `spectral:oas` ruleset; adds rules for operation summaries and 2xx response documentation.
-- Workflow triggers on changes to `api/openapi/**` on push/PR, plus `workflow_dispatch` for manual runs.
-
----
-
-### T3.18 — E2E Test Suites ✅ COMPLETE
-
-**What was built:**
-
-- `tests/e2e/playwright/` — standalone Playwright project with `package.json` and `playwright.config.ts`.
-- Three projects: `citizen` (Desktop Chrome → port 5173), `verifier` (Desktop Chrome → port 5174), `citizen-mobile` (Pixel 7, `fa-IR` locale).
-- Test files:
-  - `tests/citizen/home.spec.ts` — page load, RTL direction, API gateway reachability, navigation links.
-  - `tests/citizen/credential-wallet.spec.ts` — wallet reachability; live credential list + ZK QR generation guarded by `INDIS_E2E_LIVE=1`.
-  - `tests/verifier/terminal.spec.ts` — scan UI smoke; live PASS/FAIL verification flows guarded by `INDIS_E2E_LIVE=1`.
-- `.github/workflows/e2e.yml`: CI workflow running Playwright on every push/PR; JUnit + HTML report artifacts; `workflow_dispatch` with `live` boolean input for staging runs.
-- `make e2e` target added to Makefile.
-- Android Detox deferred until Android data layer (T3.10) is complete.
-
----
-
-### T3.19 — k6 Load Tests ✅ COMPLETE
-
-**What was built:**
-
-- `tests/load/k6/verify_load.js` — ramps to 556 VUs (PRD §4.1 peak) over 2 min, sustains 5 min, ramps down. Thresholds: p95 < 200 ms, error rate < 0.1%. Custom `verify_errors` Rate and `verify_duration_ms` Trend metrics. Inline `handleSummary` writes JSON to `results/` and prints a human-readable summary.
-- `tests/load/k6/enrollment_load.js` — burst to 50 VUs → step to 6 VUs (average 5.8 req/s). Threshold: p95 < 500 ms.
-- `tests/load/k6/credential_issue_load.js` — burst to 30 VUs → step to 3 VUs. Threshold: p95 < 1000 ms (signing overhead).
-- `tests/load/k6/results/.gitkeep` — placeholder so result directory is tracked.
-- Postgres read replica added to `docker-compose.yml` under `profiles: [loadtest]`; activate with `docker compose --profile loadtest up`.
-- `make load-test` and `make load-test-verify` targets added to Makefile.
-
----
-
-### T3.20 — Frontend Sprint: i18n Completion + Verifier Login/History + Gov Portal Create-User ✅ COMPLETE
-
-**What was built (2026-03-20):**
-
-- **Citizen PWA — i18n fully populated:** All 4 minority-language locale files (`ckb`, `kmr`, `ar`, `az`) now contain every translation key: `home`, `enrollment`, `wallet`, `privacy`, `verify`, `settings`, `common`, `errors`. Missing keys `enrollment.back_home`, `enrollment.progress`, `enrollment.select_pathway_desc` added to `fa.json` and `en.json` (used by `Enrollment/index.tsx`).
-
-- **Verifier terminal — Login/registration page** (`clients/verifier/src/pages/LoginPage.tsx`): dual-tab (ورود / ثبت پایانه). Login tab stores verifier ID from `localStorage`; register tab POSTs to `POST /v1/verifier/register` and stores the returned ID + cert. Dev-bypass button in DEV mode. Auth guard added to `App.tsx` — unauthenticated sessions redirect to `/login`.
-
-- **Verifier terminal — History page** (`clients/verifier/src/pages/HistoryPage.tsx`): fetches `GET /v1/verifier/{id}/history?limit=50`; displays timestamp, predicate, credential type, proof system, and boolean result with green/red border accent. Accessible from scan page header.
-
-- **Gov portal — Create-user modal** (`clients/gov-portal/src/pages/UsersPage.tsx`): "+ کاربر جدید" button opens a modal with username, initial password, ministry (8 options), and role fields. POSTs to `POST /v1/portal/users`; inserts the new user at the top of the table on success. Click-outside-to-close.
-
----
-
-### T3.21 — Frontend Sprint 2: Android Data Layer + Gov Portal Role Gating + PWA Service Worker ✅ COMPLETE
-
-**What was built (2026-03-20):**
-
-**Android (40% → 65%):**
-
-- **`GatewayCredentialRepository`** (`data/repository/GatewayCredentialRepository.kt`): concrete `CredentialRepository` implementation. Online: fetches `GET /v1/identity/{did}/credentials`, upserts all results into Room via `CredentialDao`. Offline: falls back to Room cache. `WalletActivity` now uses this repo instead of calling the DAO directly.
-- **`GatewayIdentityRepository`** (`data/repository/GatewayIdentityRepository.kt`): concrete `IdentityRepository`. Generates DID from `DIDManager` (AndroidKeyStore), registers via `POST /v1/identity/register`, persists DID + JWT in SharedPreferences.
-- **`CredentialCardAdapter`** (`ui/wallet/CredentialCardAdapter.kt`): new `RecyclerView.Adapter<CredentialCard>` with revocation badge; replaces old `CredentialAdapter<CredentialEntity>`.
-- **`PrivacyCenterActivity`** (`ui/wallet/PrivacyCenterActivity.kt`): three-tab screen (تاریخچه / رضایت / خروجی). Loads history from `GET /v1/privacy/history`, consent rules from `GET /v1/privacy/consent`, data export via `POST /v1/privacy/export`. Accessible from SettingsActivity.
-- **`RevocationCacheWorker`** (`service/RevocationCacheWorker.kt`): `CoroutineWorker` (WorkManager) that fetches `GET /v1/credential/revocations` every 6 hours on NETWORK_CONNECTED. Caches JSON + timestamp in SharedPreferences; `getCachedRevocations()` helper returns null if cache is older than 72h. Wired into `IndisApplication.onCreate()`.
-- **`SettingsActivity`** — full implementation: language spinner (fa/en/ckb/kmr/ar/az) wired to `AppCompatDelegate.setApplicationLocales()`, Persian numerals toggle, configurable gateway URL, privacy center shortcut, app version display, logout with confirmation dialog. All labels translated in both `values/strings.xml` and `values-fa/strings.xml`.
-- **`build.gradle`**: `androidx.work:work-runtime-ktx:2.9.0` added.
-
-**Gov Portal (60% → 75%):**
-
-- **Role-based UI gating**: `useGovAuth` hook (`hooks/useGovAuth.ts`) decodes JWT payload to extract `role` + `ministry`; `hasRole()` helper enforces hierarchy (viewer < operator < senior < admin). `App.tsx` passes `role` + `token` down to `BulkOperationsPage` and `UsersPage`.
-- **Approve button**: visible only to `operator`+. **Create user**: visible only to `senior`+. **Role change select**: editable only to `senior`+.
-- **CSS migration**: all inline styles removed from `App.tsx`, `Sidebar.tsx`, `BulkOperationsPage.tsx`, `UsersPage.tsx`. New files: `App.css`, `Sidebar.css`, `Page.css` (shared table, button, modal, form, status-badge styles). Status badges use CSS modifier classes (`status-badge--warning/info/success/error`) instead of inline color strings.
-- **Accessibility fixes**: all form inputs have `id`/`htmlFor` label associations and `placeholder`; selects have `title` + `aria-label`; modal has `role="dialog"` + `aria-modal` + `aria-labelledby`; all buttons have explicit `type`.
-
-**Citizen PWA:**
-
-- **Service worker extended**: two new `runtimeCaching` entries in `vite.config.ts` — `revocation-cache` for `GET /v1/credential/revocations` (72h TTL, 1 entry) and `privacy-cache` for `GET /v1/privacy/*` (24h TTL, 50 entries). Completes PRD FR-006 offline revocation checking.
-
----
-
-### T3.22 — Frontend Sprint 3: Verifier JWT Auth + Offline PWA + Gov Portal Polish ✅ COMPLETE
-
-**What was built (2026-03-20):**
-
-**Verifier Terminal (63% → 88%):**
-
-- **JWT auth login flow**: `LoginPage.tsx` now POSTs credentials to `POST /v1/verifier/auth/login` and stores the returned JWT as `verifier_token` in localStorage. Registration flow also persists a token if the gateway returns one. A dev-bypass shortcut stores `dev-token` for offline development.
-- **Authenticated API calls**: `ScanPage.tsx` reads `verifier_token` from localStorage and includes `Authorization: Bearer <token>` in every `POST /v1/verifier/verify` request. `HistoryPage.tsx` does the same for `GET /v1/verifier/{id}/history`.
-- **Offline revocation cache**: `vite-plugin-pwa` added to dev dependencies; `vite.config.ts` now configures `VitePWA` with a `StaleWhileRevalidate` Workbox rule for `GET /v1/credential/revocations` (72h TTL, 1 entry). Completes PRD FR-006 for verifier terminals.
-- **PWA manifest**: name/short_name/theme_color/display/orientation/icons embedded in `vite.config.ts`.
-
-**Gov Portal (75% → 95%):**
-
-- **`result_summary` column**: `BulkOp` interface extended with optional `result_summary` field; table header now includes «نتیجه» column; completed operations display their execution summary or `—` if not yet available.
-- **Checklist sync**: role-based UI gating and RTL-first CSS migration (completed in T3.21) now marked done in roadmap.
-
----
-
-### T3.23 — iOS App: Full Swift/SwiftUI Implementation ✅ COMPLETE
-
-**What was built (2026-03-20):**
-
-**iOS App (0% → 90%):**
-
-- **Project scaffold**: `Package.swift` (Swift Package Manager, iOS 14+, Swift 5.9). `IndisApp.swift` (`@main`), `AppState.swift` (ObservableObject — DID, JWT, locale, numerals), `ContentView.swift` (auth router).
-
-- **Data / Network layer**:
-  - `GatewayAPIClient.swift` — `actor`-isolated URLSession wrapper with `get<T>()`, `post<B,T>()`, `put<B,T>()` generics; throws `GatewayError` on non-2xx.
-  - `APIModels.swift` — Codable request/response types for all endpoints: identity register, credential list, enrollment start/biometric/status, revocation list, privacy history/consent/export, verifier verify.
-
-- **Local storage**:
-  - `EncryptedWalletStore.swift` — Keychain (`kSecClassGenericPassword`, `kSecAttrAccessibleAfterFirstUnlock`) for DID, JWT, gateway URL, locale.
-  - `CredentialStore.swift` — JSON-serialised credential cache in app Documents directory with `.completeFileProtection`; upsert-by-id semantics.
-
-- **Repositories**:
-  - `IdentityRepository.swift` — protocol + `GatewayIdentityRepository`: Secure Enclave DID → `POST /v1/identity/register` → Keychain persist.
-  - `CredentialRepository.swift` — protocol + `GatewayCredentialRepository`: network-first + `CredentialStore` offline fallback (PRD FR-006).
-  - `EnrollmentRepository.swift` — protocol + `EnrollmentRepository`: start/biometric/status for all three enrollment pathways.
-
-- **Domain layer**:
-  - `DIDManager.swift` — Secure Enclave P-256 key generation; public key SHA-256 → 20-byte hex suffix → `did:indis:<hex>`. Private key never leaves Secure Enclave.
-  - `ZKProofManager.swift` — async `generateProof(predicate:vcJson:)` with dev mock; Rust FFI bridge slot (TODO: `swift-bridge` / `uniffi`).
-  - `PersianCalendar.swift` — `Calendar(identifier: .persian)` wrappers: `format()`, `formatShort()`, `formatISO()`, `currentYear`.
-  - `PersianNumerals.swift` — digit map + `String.toPersian()` extension; mirrors `pkg/i18n`.
-
-- **UI (SwiftUI)**:
-  - `OnboardingView.swift` — 3-page TabView intro with `RegistrationSheet` (`POST /v1/identity/register`, async/await, error display); dev bypass.
-  - `MainTabView.swift` — 4-tab bottom bar: Home / Wallet / Verify / Settings; Home shows DID card + quick-action grid.
-  - `EnrollmentView.swift` — 4-step progress bar flow: pathway selection (Standard/Enhanced/Social), document capture, biometric capture, approval wait.
-  - `DocumentStepView.swift` — front/back card capture tiles (camera integration slot).
-  - `BiometricStepView.swift` — face + fingerprint capture tiles (AVCaptureSession/Core NFC slot).
-  - `WalletView.swift` — async credential list with refresh, privacy center toolbar button.
-  - `CredentialCardView.swift` — per-credential card: icon, type, issuer, Solar Hijri dates, status badge (valid/revoked/expired).
-  - `PrivacyCenterView.swift` — 3-tab sheet: history (`GET /v1/privacy/history`), consent rules (`GET /v1/privacy/consent`), data export (`POST /v1/privacy/export`).
-  - `VerifyView.swift` — dual-mode: **Present** (ZK proof → QR code via CIQRCodeGenerator) + **Scan** (AVCaptureSession QR decode → `POST /v1/verifier/verify` → full-screen boolean result, PRD FR-013).
-  - `QRScannerView.swift` — `UIViewControllerRepresentable` wrapping `AVCaptureSession` + `AVCaptureMetadataOutput`; centre 250×250 finder box; torch-ready.
-  - `SettingsView.swift` — language picker (6 locales), Persian numerals toggle, gateway URL editor, privacy center shortcut, DID display, version, logout with confirmation dialog.
-
-- **Service**:
-  - `RevocationCacheService.swift` — `BGAppRefreshTask` registered for `org.indis.app.revocation-refresh`; 6h periodic refresh; 72h staleness check; eager fetch on first launch (PRD FR-006).
-
-- **Resources**:
-  - `Info.plist` — bundle ID `org.indis.app`, display name «هویت ملی», `BGTaskSchedulerPermittedIdentifiers`, `NSCameraUsageDescription` (Persian), `NSFaceIDUsageDescription`, ATS local networking exemption, 6 locales, portrait UI.
-
-- **Tests** (`Tests/IndisAppTests/`):
-  - `DIDManagerTests.swift` — DID format + determinism (hex suffix length, prefix, uniqueness).
-  - `PersianCalendarTests.swift` — Solar Hijri year for 2026-03-20, current year range.
-  - `PersianNumeralsTests.swift` — digit conversion, mixed string, int format, String extension.
-  - `CredentialStoreTests.swift` — save/load, upsert-update, revoked flag.
-
-**Pending (Tier 4 / production)**:
-
-- Xcode `.xcodeproj` / `.xcworkspace` — requires Xcode; SPM manifest is the authoritative build descriptor.
-- Rust ZK bridge via `swift-bridge` or `uniffi` linking `services/zkproof` crate.
-- Real camera/biometric integration (AVCaptureSession face liveness, Core NFC fingerprint).
-- Push notifications via APNs (equivalent of Android FCM service).
-
----
-
-## Frontend Development Prerequisites
-
-Before frontend development can begin in earnest, the following must be running locally:
-
-| Prerequisite | Status | How to start |
-| --- | --- | --- |
-| Infrastructure (Postgres, Redis, Kafka) | ✅ Ready | `make dev-up` |
-| All 15 backend services | ✅ Ready | `docker-compose -f docker-compose.services.yml up` |
-| Gateway (single entry point) | ✅ Ready | Included in services compose |
-| Seed test data | ✅ Ready | `make dev-seed` |
-| CORS for localhost | ✅ Ready | `CORS_ALLOWED_ORIGINS=*` (default dev) |
-
-**Quick start for frontend devs:**
-
-```sh
-make dev-up                                         # start infra
-docker-compose -f docker-compose.services.yml up   # start all services
-make dev-seed                                       # seed test data
-# Gateway available at http://localhost:8080
-# OpenAPI spec: api/openapi/openapi.yaml
-```
-
-**Test JWT for dev (HS256, secret=indis-dev-secret):**
-
-Use `tools/devtoken/main.go` to generate a dev JWT:
-
-```sh
-go run tools/devtoken/main.go --did did:indis:test --role citizen
-```
-
----
-
-### T3.24 — HarmonyOS App + Diaspora Portal + E2E Tests + WASM ZK Bridge + Dilithium circl ✅ COMPLETE
-
-**What was built (2026-03-20):**
-
-**HarmonyOS App (0% → 90%) — `clients/mobile/harmonyos/`:**
-
-- `oh-package.json5` — project manifest; `module.json5` — CAMERA, INTERNET, USE_BIOMETRIC permissions; `string.json` — all Persian UI strings; `main_pages.json` — page routing.
-- `EntryAbility.ets` — app entry point; loads AppStorage; schedules `RevocationRefreshWorker`.
-- `AppStorage.ets` — `@ohos.data.preferences`-backed state: DID, JWT, gateway URL, locale, Persian numerals flag, revocation cache with 72h staleness check (PRD FR-006).
-- `CredentialModel.ets` — `CredentialRecord` interface; `isRevoked()`, `isExpired()`; `CredentialStore` JSON-backed local cache.
-- `GatewayClient.ets` — `@ohos.net.http`-based client with typed `get<T>()`, `post<T>()`, `put<T>()` generics; auth header injection.
-- `PersianCalendar.ets` — full manual Gregorian→Solar Hijri conversion (HarmonyOS has no built-in Jalali support).
-- `PersianNumerals.ets` — digit map `0→۰` through `9→۹`.
-- `RevocationRefreshWorker.ets` — WorkScheduler extension; 6-hour periodic fetch of `/v1/credential/revocations`; 72-hour cache.
-- **6 pages**: `Index.ets` (auth router), `OnboardingPage.ets` (3-slide intro + `POST /v1/identity/register`), `MainPage.ets` (Tabs bottom bar: Home/Wallet/Verify/Settings), `WalletPage.ets` (network-first + local cache fallback, CredentialCard, Solar Hijri dates, status badges), `EnrollmentPage.ets` (4-step flow: pathway→document→biometric→wait; standard/enhanced/social pathways), `VerifyPage.ets` (ZK proof QR display + scan mode, boolean result per PRD FR-013), `PrivacyCenterPage.ets` (3-tab: history/consent/export), `SettingsPage.ets` (6 locales, Persian numerals toggle, gateway URL, DID display, logout).
-
-**Diaspora Portal (0% → 95%) — `clients/web/diaspora/`:**
-
-- `package.json`, `vite.config.ts`, `index.html` — React 18 + Vite + i18next scaffold; `/v1` proxy to gateway.
-- `src/i18n/` — fa/en/fr locale JSONs (login, enrollment, status, nav, errors).
-- `src/App.css` — full CSS: dark sidebar, stepper, upload zones, form inputs, status badges, cards, buttons, RTL layout, login shell.
-- `src/App.tsx` — `diaspora_token` auth guard, dir switching per locale, routes to EnrollmentPage/StatusPage.
-- `src/components/Sidebar.tsx` — INDIS branding, nav links (enroll/status/logout), language selector.
-- `src/pages/LoginPage.tsx` — email/password form; `POST /v1/diaspora/auth/login`; dev bypass; language selector overlay.
-- `src/pages/EnrollmentPage.tsx` — 4-step wizard (Personal Info → Documents → Embassy Appointment → Review); national ID validation (10-digit); 3 file upload zones (passport/photo/proof); `FormData` multipart submit.
-- `src/pages/StatusPage.tsx` — enrollment ID input; `GET /v1/diaspora/enrollment/:id/status`; status badge (pending/approved/rejected); dev `DEV-` prefix fallback.
-
-**Playwright E2E Tests:**
-
-- `tests/e2e/playwright/tests/citizen/enrollment.spec.ts` — enrollment redirect, 4-step wizard, national ID validation, offline PWA shell cache test.
-- `tests/e2e/playwright/tests/verifier/auth.spec.ts` — login page fields, dev bypass, token persistence, logout clears localStorage.
-- `tests/e2e/playwright/tests/diaspora/enrollment.spec.ts` — login, 4-step wizard advancement, status page DEV- tracking code, sidebar navigation.
-- `playwright.config.ts` — `diaspora` project added (port 5175).
-
-**testcontainers-go Integration Tests — `tests/integration/testcontainers/`:**
-
-- `containers.go` — `StartPostgres()`, `StartRedis()`, `StartKafka()` helpers wrapping `testcontainers-go` modules.
-- `migration_suite_test.go` — `TestMain` spins up Postgres; sets `MIGRATE_TEST_DATABASE_URL` so existing per-service `t.Skip("set MIGRATE_TEST_DATABASE_URL…")` tests are unblocked; `TestRedisContainerStartsAndAcceptsConnections`, `TestKafkaContainerStartsAndReturnsBrokers` — graceful skip if Docker is unavailable.
-
-**Citizen PWA WASM ZK Bridge — `clients/web/citizen-pwa/src/crypto/zkBridge.ts`:**
-
-- `generateZKProof()` — online path delegates to gateway; offline path uses WASM bundle or mock fallback.
-- `loadWasmModule()` — lazy dynamic import of wasm-pack output at `VITE_ZK_WASM_PATH`; module-scope cache.
-- `isRevocationCacheFresh()` — reads `indis_revocation_cache_ts` from localStorage; enforces 72h PRD FR-006 limit.
-- `RevocationCacheStaleError` — thrown when offline proof attempted with stale cache.
-- `encodeProofForQR()` — compact JSON encoding; public signals only (PRD FR-013 boolean-only result); never embeds raw identity attributes.
-- `Verify/index.tsx` — wired: offline `useEffect` calls `generateZKProof({forceOffline:true})`; stale-cache warning; generating spinner; `isRevocationCacheFresh()` guard; shows offline QR only when proof ready.
-
-**Dilithium circl build-tag path — `pkg/crypto/`:**
-
-- `dilithium.go` — improved Ed25519 placeholder with clearer error messages and build-tag documentation (`-tags circl` instruction).
-- `dilithium_circl.go` — new file, `//go:build circl` tag; real CRYSTALS-Dilithium3 via `filippo.io/circl/sign/dilithium/mode3`; replaces all three functions (`GenerateDilithiumKeyPair`, `SignDilithium`, `VerifyDilithium`) with circl-backed implementations; no function duplication at link time. Run `go get filippo.io/circl && go build -tags circl ./...` to enable.
-
-**Checklist updates:**
-
-- HarmonyOS: 0% → 90%
-- Diaspora portal: 0% → 95%
-- Citizen PWA: 75% → 95%
-- Verifier Terminal: 75% → 90%
-- Frontend overall: ~70% → ~88%
-- System-wide: ~90% → ~94%
-
----
-
-### T3.25 — Android App Complete + Gov Portal Enrollment/Issuance Pages ✅ COMPLETE
-
-**What was built (2026-03-21):**
-
-**Android App (65% → 95%):**
-
-- **`WalletViewModel`** (`ui/wallet/WalletViewModel.kt`): `AndroidViewModel` + `LiveData` — `credentials`, `isLoading`, `error`. Network-first via `GatewayCredentialRepository.listCredentials()`; falls back to `listCredentialsCached()` on error.
-- **`EnrollmentViewModel`** (`ui/enrollment/EnrollmentViewModel.kt`): manages multi-step wizard state (`Step` enum: PATHWAY/DOCUMENT/BIOMETRIC/SUBMIT/SUCCESS/ERROR); `Pathway` enum (STANDARD/ENHANCED/SOCIAL); submits via `EnrollmentRepository.submitEnrollment(doc, face, pathway)`.
-- **`VerifyViewModel`** (`ui/verify/VerifyViewModel.kt`): async ZK proof generation; produces `qrBitmap: LiveData<Bitmap?>`; encodes boolean-only QR payload (PRD FR-013).
-- **`BiometricAuthHelper`** (`domain/biometric/BiometricAuthHelper.kt`): `androidx.biometric` wrapper; `BIOMETRIC_STRONG or DEVICE_CREDENTIAL`; gates wallet access.
-- **`CredentialDetailActivity`** (`ui/wallet/CredentialDetailActivity.kt`): programmatic layout showing credential type, partial ID (last 16 chars), Solar Hijri-formatted dates, revocation status badge; "Show Offline QR" button generates boolean-only ZK presentation QR (PRD FR-013) — encodes `cred_type`, partial `did_hint` (last 8 chars), `valid: true`, never raw identity.
-- **`WalletActivity`** rewritten: MVVM via `WalletViewModel`; biometric gate on launch; `CredentialCardAdapter` with tap→`openDetail()`.
-- **`EnrollmentActivity`** rewritten: MVVM via `EnrollmentViewModel`; pathway selection → document → biometric → submit flow; `StepConfig` data class.
-- **`VerifyActivity`** rewritten: MVVM via `VerifyViewModel`; DID from SharedPreferences; predicate spinner.
-- **`activity_enrollment.xml`**: added `layout_pathway_selector` LinearLayout with `btn_pathway_standard`, `btn_pathway_enhanced`, `btn_pathway_social` (outlined button style).
-- **`EnrollmentRepository`** updated: new `submitEnrollment(documentBase64, faceBase64, pathway)` signature returning enrollment ID from response JSON; old callback-based `submit()` removed.
-- **`GatewayCredentialRepository`** updated: `toCard()` maps to new `CredentialCard` fields (`id`, `type`, `issuedAt`, `isRevoked`); `listCredentialsCached()` method added.
-- **`AndroidManifest.xml`**: `CredentialDetailActivity` registered.
-- **`build.gradle`**: `androidx.biometric:biometric:1.2.0-alpha05` added.
-- **String resources**: both `values/strings.xml` and `values-fa/strings.xml` fully populated (66 keys each).
-
-**Gov Portal (75% → 98%):**
-
-- **`EnrollmentReviewPage.tsx`**: lists enrollment applications with status filter + search; ReviewModal with approve/reject/request-biometric actions + notes textarea; role-gated (`canReview = hasRole(role, 'operator')`, `canOverride = hasRole(role, 'admin')`).
-- **`CredentialIssuancePage.tsx`**: lists issuance jobs with 5s polling for active (queued/issuing) jobs; IssueCredentialModal with enrollment_id input + 5 credential types (CitizenshipCredential, VoterEligibilityCredential, HealthInsuranceCredential, AgeRangeCredential, ResidencyCredential); `senior`+ gated.
-- **`DashboardPage.tsx`** rewritten: 7-card stats grid from `GET /v1/portal/stats`; recent activity feed from `GET /v1/audit/events?limit=8`; quick-access link grid.
-- **`AuditPage.tsx`** rewritten: category filter (10 Persian labels) + action text filter; offset-based pagination; "load more" button; filter change resets to page 0.
-- **`App.tsx`**: routes `/enrollments` → `EnrollmentReviewPage`, `/issuance` → `CredentialIssuancePage`.
-- **`Sidebar.tsx`**: two new nav items — «بررسی ثبت‌نام‌ها» (📝) and «صدور اعتبارنامه» (🎫).
-- **`Page.css`**: 18 new CSS classes (`.stats-grid`, `.stat-card`, `.pathway-badge`, `.activity-feed`, `.search-input`, etc.).
-
----
-
-## Frontend Roadmap
-
-All backend APIs are available and contract-defined in `api/openapi/openapi.yaml`. Frontend work is the critical path for national rollout.
-
-### Priority Order (next 4–6 months)
-
-| Priority | Item | Estimated effort |
-|----------|------|-----------------|
-| 1 | **Android app** completion | 8–12 weeks |
-| 2 | **Citizen PWA** remaining items | 2–3 weeks |
-| 3 | **Verifier terminal PWA** | 3–4 weeks |
-| 4 | **Gov portal frontend** | 4–6 weeks |
-| 5 | **iOS app** | 8–12 weeks |
-| 6 | **HarmonyOS app** | 6–10 weeks |
-| 7 | **Diaspora portal** | 4–6 weeks |
-
-### Citizen PWA Completion Checklist
-
-```
-[x] /login page with WebAuthn passkey + fallback PIN
-[x] MediaDevices.getUserMedia() in enrollment biometric step
-[x] WebSocket/SSE subscription for incoming verification requests
-[x] i18n content: all 6 locale files fully populated (fa/en/ckb/kmr/ar/az) — 2026-03-20
-[ ] Service Worker: offline ZK credential presentation (WASM ZK bridge)
-[ ] Playwright E2E test suite (>50% coverage)
-```
-
-### Gov Portal Frontend Checklist
-
-```
-[x] React 18 + Apollo Client + Vite project scaffold
-[x] Implement gov portal login flow (`POST /v1/portal/auth/login`)
-[x] Ministry user management: role assignment UI + `PUT /v1/portal/users/{id}/role`
-[x] Create-user modal: `POST /v1/portal/users` with ministry/role selection — 2026-03-20
-[x] Bulk operations workflow (approve) and status table
-[x] Audit log viewer wired to `GET /v1/audit/events`
-[x] FR-010 Electoral Authority module UI
-[x] FR-011 Transitional Justice module UI
-[x] Align bulk-op execution to produce `result_summary` per target — 2026-03-20
-[x] Role-based UI gating (viewer/operator/senior/admin access levels) — 2026-03-20
-[x] RTL-first UI polish (CSS classes replacing all inline styles) — 2026-03-20
-```
-
-### Verifier Terminal PWA Checklist
-
-```
-[x] React PWA + Vite project scaffold
-[x] html5-qrcode QR scanner via camera
-[x] Binary full-screen APPROVED/DENIED result (FR-013: no citizen data shown); auto-returns after 5s
-[x] Verifier registration + login flow (`POST /v1/verifier/register`) — 2026-03-20
-[x] Verification history page (`GET /v1/verifier/{id}/history`) — 2026-03-20
-[x] Gateway integration — wire POST /v1/verifier/verify with real JWT — 2026-03-20
-[x] 72h offline revocation cache via Service Worker (vite-plugin-pwa) — 2026-03-20
-[ ] Playwright E2E tests
-```
+Steps: provision 21+ peer nodes (3 orgs × 7 peers) + 4 orderers (Raft consensus), configure NIA MSP, install and instantiate 4 chaincodes.
 
 ---
 
@@ -934,72 +357,45 @@ All backend APIs are available and contract-defined in `api/openapi/openapi.yaml
 | **HSM** | `HSM_BACKEND=software` | Deploy HashiCorp Vault + HSM unsealing; set `HSM_BACKEND=vault` |
 | **ZK trusted setup** | Deterministic dev seeds | Run multi-party trusted setup ceremony (international observers) |
 | **Circom Poseidon** | Stub | Replace with circomlib; run snarkjs ceremony |
-| **Dilithium** | Ed25519 placeholder | Replace with `filippo.io/circl/sign/dilithium` |
-| **STARK circuit** | Doubling-trace AIR | Expand to full voter-eligibility AIR (age≥18, DID linkage, Merkle exclusion) |
+| **Dilithium** | Ed25519 placeholder (circl build-tag ready) | `go get filippo.io/circl && go build -tags circl ./...` |
 | **AI biometric** | Perceptual hash | Replace with CNN (face) + minutiae extractor (fingerprint) + iris model |
-| **Card issuer key** | `CARD_ISSUER_SEED` / ephemeral | Wire to `pkg/hsm` VaultKeyManager |
-| **Notification delivery** | Logs only | Wire real SMS/push/email providers (Infobip, FCM, SMTP) |
+| **Card issuer key** | ✅ `pkg/hsm` wired | Activate Vault backend via `HSM_BACKEND=vault` |
+| **Card NFC APDU** | Not implemented | Implement ISO 7816 APDU encoding |
+| **Notification delivery** | Logs only | Wire SMS/push/email providers (Infobip, FCM, SMTP) |
 | **USSD delivery** | No telecom | Contract with national operator; integrate USSD gateway |
-| **Android JNI ZK** | Placeholder | Build `cargo ndk` bridge to zkproof Rust crates |
-| **Bulletproofs** | ✅ Real (2026-03-20) | `BulletproofsEngine` with `bulletproofs` 4.x; justice service wired |
+| **Bulletproofs** | ✅ Real (`bulletproofs` 4.x) | No action needed |
 
 ---
 
-## Improvements & Suggestions
+## Key Decision Gates
 
-### Architecture & Reliability
+| Decision | Blocks | Status |
+|----------|--------|--------|
+| ZK trusted setup ceremony | Production ZK proofs | ⚠️ Dev seeds in use |
+| Biometric SDK selection (face/fingerprint/iris) | T4.6 production dedup | ⚠️ Perceptual-hash baseline |
+| Blockchain platform deployment | Fabric production use | ⚠️ Chaincodes ready; network pending |
+| Circom Poseidon replacement | T4.5 formal verification | ⚠️ Stub in place |
+| Notification delivery provider contract | SMS/push alerting | ⚠️ No contract signed |
+| USSD short code approval | USSD service | ⚠️ No code assigned |
+| Diaspora voting eligibility rules | T4.3 diaspora voting | ⚠️ Rules TBD by electoral authority |
+| iOS Xcode project + Rust ZK bridge | iOS App Store release | ⚠️ SPM manifest ready; Xcode file pending |
+| HarmonyOS camera integration | HarmonyOS QR scanning | ✅ `@ohos.scanBarcode` wired; device test pending |
 
-1. **Add circuit-breaker to gateway** — Use `github.com/sony/gobreaker` for each backend service. Prevents cascade failure when a downstream service is overloaded. Pattern: Open after 5 failures in 30s; half-open probe after 60s.
+---
 
-2. **Add blockchain anchor retry queue** — Currently fire-and-forget. Add a Kafka topic `blockchain.anchor.retry` with exponential backoff. Services publish failed anchors; a dedicated reconciler retries and alerts on permanent failure.
+## Architecture Decisions (Settled)
 
-3. **Replace polling in notification dispatcher** — The 30s poll in `notification/service.go` is inefficient at scale. Replace with a Kafka consumer listening on a `notifications.due` topic; the scheduler publishes timed events.
-
-4. **Add distributed tracing** — Wire OpenTelemetry (OTLP) into all services. gRPC already has the `stats.Handler` hook. Export to Jaeger or Tempo. This is essential for debugging multi-hop ZK proof flows.
-
-5. **STARK circuit needs real constraints** — Current `VoterEligibilityAir` uses a doubling-trace (value doubles each step). This is a demo placeholder. Replace with real eligibility constraints: age≥18, Merkle inclusion in voter roll, DID linkage, nullifier uniqueness.
-
-6. **Add read replicas for Postgres** — Electoral service under referendum load (2M/hour) needs a read replica for `VerifyEligibility` queries. Primary handles writes; read replica handles verification history lookups.
-
-7. **Separate admin HTTP ports** — Electoral (:9200) and Justice (:9300) admin servers share port numbers with audit. Consolidate into a single admin API behind gateway with `ministry` role enforcement.
-
-### Security
-
-8. **Audit log tamper evidence** — The hash-chain in `services/audit` is stored in Postgres which is mutable. For production, publish audit event hashes to the Fabric `audit-log` chaincode at commit time (immutable anchor). The code for this exists in `chaincode/audit-log` but is not called from the audit service.
-
-9. **Rate limiting per DID, not just per IP** — Gateway rate limiter is IP-based. Add DID-based rate limiting (after authentication) to prevent authenticated credential flooding.
-
-10. **Add nonce to JWT claims** — Current JWT validation checks `exp` and `role`. Add `jti` (JWT ID) and maintain a short-lived Redis set of consumed JTIs to prevent replay of captured tokens.
-
-11. **Rotate Redis TLS** — `pkg/cache` connects to Redis via `REDIS_URL`. Add mutual TLS support (Redis 6 TLS) for production to prevent sniffing of revocation list contents.
-
-12. **ZK proof size validation** — Services accept ZK proof bytes from HTTP request bodies without size limiting. Add max-size validation (Groth16 ~200 bytes; STARK ~15KB) to prevent DoS via oversized proofs.
-
-### Developer Experience
-
-13. **Generate OpenAPI client SDKs** — `api/openapi/openapi.yaml` is complete. Add `openapi-generator` CI step to auto-generate TypeScript (for citizen-pwa), Kotlin (for Android), and Swift (for iOS) client libraries.
-
-14. **Add `make dev-seed`** — A database seed target that creates test identities, enrollments, and credentials for local development. Required for frontend devs to work without running the full enrollment flow.
-
-15. **Add `make integration-test`** — Runs `testcontainers-go` tests with real Postgres/Redis/Kafka. Currently the 10 skipped integration tests need this target to run automatically in CI.
-
-16. **Consolidate Docker Compose** — There are separate compose files per service. Create a single `docker-compose.dev.yml` at root that spins up all 15 services + infrastructure with hot reload.
-
-17. **Remove `circuits/cairo/` dead directory** — Cairo circuits were superseded by Winterfell STARK. The empty directory creates confusion. Remove it and add a note in `docs/ARCHITECTURE.md` explaining the decision.
-
-### PRD Compliance Gaps
-
-18. **FR-001.4 device-bound keys** — Citizen PWA implements WebAuthn + non-extractable Ed25519 (WebCrypto). Android has a placeholder `DIDManager`. iOS has nothing. Compliance requires all 3 platforms.
-
-19. **FR-013 verifier terminal** — PRD requires ZK result is binary (PASS/FAIL only); no PII shown. Backend enforces this. Frontend (verifier terminal PWA) is not built yet — this is a PRD compliance gap.
-
-20. **FR-015.6 USSD privacy** — State machine correctly hashes PII. But the telecom integration (not yet done) must ensure session data is also purged at operator side; this requires a contractual SLA.
-
-21. **FR-016 physical card** — ICAO 9303 MRZ is implemented. NFC APDU encoding (FR-016.3) is not. Cards cannot be read by border control readers without this.
-
-22. **Level 4 emergency override** — PRD requires a Level 4 verification mode with full audit trail and override capability. No service currently implements a "Level 4" flow or override mechanism.
-
-23. **Social attestation threshold** — Enrollment service accepts social attestation pathway but does not enforce "3+ community co-attestors" at the database level; only checked in service logic. Should be a DB constraint.
+- **Go** for all backend services — no NodeJS, no Java
+- **Rust** for ZK proof service — memory safety in crypto is non-negotiable
+- **gRPC** for all inter-service communication — REST only at the gateway boundary
+- **PostgreSQL 16** as primary data store
+- **ZK proofs as the privacy mechanism** — no "privacy policy" alternative
+- **Citizen private keys never leave the device** — no server-side key escrow
+- **No foreign cloud** — no AWS/Azure/GCP at any tier
+- **Blockchain stores hashes only** — no personal data on-chain, enforced at chaincode level
+- **OpenAPI contract-first** — `api/openapi/openapi.yaml` is the source of truth for all client codegen
+- **Winterfell STARK (Rust), not Cairo** — Cairo circuits removed; Rust STARK is the electoral proof engine
+- **Kubernetes/Helm for all deployments** — no ad-hoc Docker Compose in production
 
 ---
 
@@ -1007,14 +403,15 @@ All backend APIs are available and contract-defined in `api/openapi/openapi.yaml
 
 The gateway (`services/gateway`, HTTP :8080) is the single entry point for all frontends. Complete spec in `api/openapi/openapi.yaml`.
 
-### Authentication
+**Authentication:**
+
 - `Authorization: Bearer <jwt>` — HS256 JWT; claims: `sub` (DID), `role`, `ministry`, `exp`
 - `X-API-Key: <key>` — SHA-256 of key stored in `API_KEYS` env var
 - Public routes (no auth): `GET /health`, `GET /v1/identity/{did}`, `GET /v1/credential/{id}`, `POST /v1/electoral/verify`, `POST /v1/ussd`
 
-### Core Routes (abbreviated)
+**Core Routes (abbreviated):**
 
-```
+```text
 Identity:     POST /v1/identity/register
               GET  /v1/identity/{did}
               POST /v1/identity/{did}/deactivate
@@ -1042,6 +439,7 @@ Justice:      POST /v1/justice/testimony
 Verifier:     POST /v1/verifier/register
               GET  /v1/verifier/{id}
               POST /v1/verifier/verify
+              POST /v1/verifier/override          (admin + X-Officer-DID, Level 4)
 
 Privacy:      GET  /v1/privacy/history
               GET  /v1/privacy/sharing
@@ -1063,65 +461,21 @@ Audit:        POST /v1/audit/events   (API key only)
               GET  /v1/audit/events   (ministry role)
 ```
 
----
+**Test JWT for dev (HS256, secret=indis-dev-secret):**
 
-## Key Decision Gates
+```sh
+go run tools/devtoken/main.go --did did:indis:test --role citizen
+```
 
-| Decision | Blocks | Deadline | Status |
-|----------|--------|----------|--------|
-| ZK trusted setup ceremony | T2 production keys | Before Phase 2 launch | ⚠️ Dev seeds in use |
-| Biometric SDK selection (face/fingerprint/iris) | T1 production dedup | End of Month 2 | ⚠️ Perceptual-hash baseline |
-| Blockchain platform deployment | T3.3 production Fabric | Before Phase 3 | ⚠️ Chaincodes ready; network pending |
-| Circom Poseidon replacement | T4.5 formal verification | Before Phase 4 | ⚠️ Stub in place |
-| Notification delivery provider contract | T3.5 USSD/SMS | Before Phase 1 | ⚠️ No contract signed |
-| USSD short code approval | T3.5 USSD | Before Phase 3 | ⚠️ No code assigned |
-| iOS/HarmonyOS development start | T3.10 mobile | Before Phase 3 | 🔴 Not started |
-| Diaspora voting eligibility rules | T4.3 diaspora portal | Before Phase 4 | ⚠️ Rules TBD |
+**Frontend dev quick start:**
 
----
-
-## Architecture Decisions (Settled)
-
-- **Go** for all backend services — no NodeJS, no Java
-- **Rust** for ZK proof service — memory safety in crypto is non-negotiable
-- **gRPC** for all inter-service communication — REST only at the gateway boundary
-- **PostgreSQL 16** as primary data store
-- **ZK proofs as the privacy mechanism** — no "privacy policy" alternative
-- **Citizen private keys never leave the device** — no server-side key escrow
-- **No foreign cloud** — no AWS/Azure/GCP at any tier
-- **Blockchain stores hashes only** — no personal data on-chain, enforced at chaincode level
-- **OpenAPI contract-first** — `api/openapi/openapi.yaml` is the source of truth for all client codegen
-- **Winterfell STARK (Rust), not Cairo** — Cairo circuits directory is dead; Rust STARK is the electoral proof engine
-- **Kubernetes/Helm for all deployments** — no ad-hoc Docker Compose in production
+```sh
+make dev-up                                         # start infra
+docker-compose -f docker-compose.services.yml up   # start all services
+make dev-seed                                       # seed test data
+# Gateway available at http://localhost:8080
+```
 
 ---
 
-## Recent Updates
-
-- **2026-03-20 (this session — T3.24):** **HarmonyOS app** (0%→90%): 11 ArkTS files — EntryAbility, AppStorage (`@ohos.data.preferences`), CredentialModel, GatewayClient (`@ohos.net.http`), PersianCalendar (manual Gregorian→Solar Hijri), PersianNumerals, RevocationRefreshWorker (6h/72h), 6 pages (Index/Onboarding/Main/Wallet/Enrollment/Verify/PrivacyCenter/Settings). **Diaspora Portal** (0%→95%): `clients/web/diaspora/` — React 18+Vite, LoginPage, EnrollmentPage (4-step wizard, national ID validation, file upload), StatusPage (status badge), fa/en/fr i18n, RTL CSS. **Playwright E2E**: citizen enrollment spec, verifier auth spec, diaspora enrollment spec; `diaspora` project added to playwright.config.ts. **testcontainers-go**: `tests/integration/testcontainers/` — `StartPostgres/Redis/Kafka()` helpers; `TestMain` sets `MIGRATE_TEST_DATABASE_URL` to unblock 10 skipped per-service migration tests. **Citizen PWA WASM ZK bridge**: `src/crypto/zkBridge.ts` — lazy WASM load, offline proof generation, `isRevocationCacheFresh()` (PRD FR-006), `RevocationCacheStaleError`, `encodeProofForQR()` (boolean-only, PRD FR-013); Verify page wired with offline spinner/error/cache-stale guards. **Dilithium circl build-tag**: `dilithium_circl.go` with `//go:build circl` — real `filippo.io/circl/sign/dilithium/mode3` implementation; default build keeps Ed25519 placeholder. Frontend: ~88%→~97%. System-wide: ~90%→~94%.
-- **2026-03-20 (this session — T3.11 through T3.19 sprint complete):**
-  **T3.11 (OpenTelemetry):** New `pkg/tracing` package — `Init()` installs global `TracerProvider` with OTLP/gRPC exporter; no-op when `OTEL_EXPORTER_OTLP_ENDPOINT` unset. All 15 Go service `main.go` files wired with `indistrace.Init()` + `indistrace.ServerOption()` on every gRPC server. Python AI service: `_configure_tracing()` + `FastAPIInstrumentor.instrument_app()`; OTel deps added to `pyproject.toml`. Jaeger all-in-one v1.57 added to `docker-compose.yml` (UI :16686, OTLP gRPC :4317).
-  **T3.17 (OpenAPI SDK codegen CI):** `.github/workflows/sdk-codegen.yml` — Spectral lint → TypeScript Axios codegen → Kotlin Retrofit2 codegen → auto-commit on main push. `.spectral.yaml` ruleset added.
-  **T3.18 (Playwright E2E):** `tests/e2e/playwright/` with Playwright config (3 projects: citizen/verifier/citizen-mobile), citizen home + wallet tests, verifier terminal tests. `.github/workflows/e2e.yml` CI workflow. `make e2e` target added.
-  **T3.19 (k6 load tests):** `tests/load/k6/` — `verify_load.js` (556 VUs, PRD §4.1), `enrollment_load.js`, `credential_issue_load.js`; all with thresholds and `handleSummary`. Postgres read replica in docker-compose under `loadtest` profile. `make load-test` + `make load-test-verify` targets added. Backend completion: 97% → 99%. System-wide: 78% → 82%.
-- **2026-03-20 (this session — T3.12 through T3.16 + plan/README update):**
-  **T3.16 (Cairo removal):** `git rm -r circuits/cairo/`; updated `circuits/README.md` to explain Winterfell STARK supersedes Cairo.
-  **T3.15 (Social attestation DB constraint):** Added `db/migrations/011_social_attestation_constraint.sql` — PostgreSQL trigger `trg_social_attestation_minimum` that raises an exception if a social-pathway enrollment is completed with fewer than 3 co-attestors (PRD §FR-005.3).
-  **T3.12 (Audit→Fabric):** Added `AnchorAuditEvent(ctx, eventID, entryHash string)` to `pkg/blockchain.BlockchainAdapter` interface; implemented in `MockAdapter` and `FabricAdapter`; wired into `services/audit/internal/service` — every `AppendEvent` call now makes a best-effort on-chain anchor call; added `BLOCKCHAIN_TYPE` config var; updated 3 service test `mockChain` structs. All 33 Go packages pass.
-  **T3.13 (STARK real constraints):** Upgraded `WinterfellStarkEngine` from 1-column doubling trace to 3-column eligibility AIR — separate columns for `voter_commitment`, `age_commitment`, `nullifier_commitment`, each with domain-separated SHA3 hashes (`indis:stark:voter:`, `indis:stark:age:`, `indis:stark:nullifier:`); 6 public assertions (start+end of each column); all three pillars independently tampering-evident. Updated `VoterEligibilityStarkAir` in `zkproof-circuits` to include `age_commitment_b64` field. Added 7 new STARK tests covering per-pillar tamper detection. 31 Rust tests pass.
-  **T3.14 (Level 4 emergency override):** Added `POST /v1/verifier/override` gateway route — requires `admin` role + `X-Officer-DID` header (dual-officer 2-of-2 approval); enforces distinct-officer check; daily rate-limit of 10 overrides per org; 15-minute session token; synchronous mandatory audit event (`EVENT_CATEGORY_ADMIN`, `action=level4.override`); returns full DID document from identity service. All 33 Go packages pass.
-  **README + IMPLEMENTATION_PLAN updates:** README rewritten to reflect accurate repo structure (all 15 services, 11 pkg packages, correct client paths, Winterfell not Cairo, Hyperledger Fabric confirmed). IMPLEMENTATION_PLAN: fixed stale entries (H1 resolved in Phase 2 blockers, Android 40%, Bulletproofs wiring, Verifier Terminal checklist); added T3.11–T3.19 planning steps.
-- **2026-03-20 (this session — frontend sprint):** **Citizen PWA** bootstrapped with Vite + React + TypeScript: full 5-page app (Login, Home, Wallet, Enrollment with camera capture, Verify ZK-proof, Settings); `useAuth` / `useCredentials` hooks; IndexedDB wallet via `idb`; RTL-first CSS design tokens; Vite-PWA service worker with 72h revocation cache; dev-bypass token input. M10 (no login page) resolved. **Verifier Terminal PWA** bootstrapped: `html5-qrcode` QR scanner; binary full-screen APPROVED/DENIED result per PRD §FR-013; gateway integration; auto-returns after 5s. **Gov Portal frontend** bootstrapped: React + Apollo GraphQL; Login, Dashboard (stats cards), Bulk Operations (approve flow), Users (role picker), Audit (read-only log). **Android app** extended: `OnboardingActivity` (first-launch flow), `MainActivity` (bottom nav → 4 activities), `IndisFirebaseMessagingService` (FCM push with NotificationChannel), `GatewayApiClient` upgraded to OkHttp with auth header; FCM + OkHttp + Moshi + ZXing deps added; `AndroidManifest` updated (INTERNET, CAMERA, BIOMETRIC, POST_NOTIFICATIONS permissions, FCM service registered). **Makefile** extended with `build-frontend`, `dev-pwa`, `dev-verifier`, `dev-gov-portal` targets. Frontend completion: ~55% (was 12%). System-wide: ~78% (was ~65–70%).
-- **2026-03-20 (this session — implementation):** Implemented all backend items completable without production infrastructure. **Bulletproofs (Rust):** real `BulletproofsEngine` using `bulletproofs` 4.x + `merlin` 3.x crates; `RangeProof::prove_single`/`verify_single` with Pedersen commitment; 3 tests pass; wired into zkproof-server `/prove` and `/verify` routes; `CitizenshipRangePublicInputs` added to zkproof-circuits; H1 issue resolved. **Go service tests:** `service_test.go` written for verifier (13 tests), govportal (14 tests), ussd (14 tests), card (13 tests) — 54 new tests, all pass; repository interface injection added to all 4 service constructors. **Gateway circuit-breaker:** `internal/circuitbreaker/` package; Closed→Open after 5 failures, HalfOpen after 30s, probe-success closes; wired into all 8 gRPC backend call sites; HTTP 503 on open; 4 tests pass; M3 issue resolved. **JWT jti replay protection:** `NonceCache` with background GC; backward-compatible (absent `jti` allowed); 3 tests pass; M10 partially resolved. **ZK proof size validation:** 100KB limit on electoral ballot/verify and justice testimony endpoints; M12 resolved. **Helm charts:** 16 new templates for verifier, govportal, ussd, card (deployment, service, HPA, configmap); M8 resolved. **AI readiness endpoint:** actual startup health check instead of mock `true`. Overall test count: 26→80 Go packages. Backend completion updated to ~90%.
-- **2026-03-20 (this session — audit):** Comprehensive codebase audit. Updated plan to reflect accurate system-wide completion (~60–65% vs previously stated ~82% which was backend-only). Added Issues & Bugs section (8 high-priority, 10 medium, 8 low). Added Production Blockers section. Added Improvements & Suggestions section (23 items). Added PRD Compliance Gaps tracking. Corrected STARK doubling-trace placeholder to L2 issue. Removed Cairo reference as superseded. Clarified Bulletproofs is H1 critical issue. Added Frontend Roadmap with checklists. Backend ~82% accurate; full system ~60–65%.
-- **2026-03-20 (prior):** Completed all 7 scaffolded Go backend services. Electoral time-based lifecycle, FinalizeElection admin HTTP (:9200). Justice AdvanceCaseStatus state machine, admin HTTP (:9300). Notification background dispatcher worker. Identity ResolveIdentity full DID document round-trip. All 26 Go test packages pass.
-- **2026-03-19:** Added 4 new backend services (verifier, govportal, ussd, card). Added 4 Hyperledger Fabric chaincodes + FabricAdapter. Added pkg/hsm. Added Dilithium3 API. Added JWT auth + CORS + Privacy Center + security headers to gateway. Generated OpenAPI 3.0 spec. Fixed Solar Hijri algorithm bug.
-- **2026-03-19:** Winterfell ZK-STARK — real `WinterfellStarkEngine`, `VoterEligibilityAir`, 24 tests pass.
-- **2026-03-19:** Groth16 real circuits — `AgeRangeCircuit`, `VoterEligibilityCircuit`, `CredentialValidityCircuit`.
-- **2026-03-19:** Circom circuits — full constraint logic written (poseidon is still stub).
-- **2026-03-19:** Remote voting — anti-replay nonce, timestamp skew guard, DB migrations 008-010.
-- **2026-03-19:** Kafka event chain, Redis cache, mTLS, DB migrations, Prometheus — all Tier 1 items complete.
-
----
-
-*نسخه: ۳.۰ | تاریخ: ۱۴۰۴/۱۲/۲۸ | IranProsperityProject.org*
+نسخه: ۴.۰ | تاریخ: ۱۴۰۴/۱۲/۳۰ | IranProsperityProject.org

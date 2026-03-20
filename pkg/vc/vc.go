@@ -136,6 +136,58 @@ func Issue(
 	return vc, nil
 }
 
+// IssueWithSigner creates and signs a new VerifiableCredential using an
+// external signing function. This is the HSM-safe variant of Issue — the
+// signing function receives the canonical payload bytes and must return a
+// raw Ed25519 signature. Use this when the private key is held in an HSM
+// and cannot be exported.
+//
+// Ref: INDIS PRD §4.3 — FIPS 140-2 Level 3 HSM; W3C VC Data Model 2.0 §4.
+func IssueWithSigner(
+	credType CredentialType,
+	issuerDID string,
+	verificationMethod string,
+	subject CredentialSubject,
+	validFrom time.Time,
+	validUntil *time.Time,
+	sign func([]byte) ([]byte, error),
+) (*VerifiableCredential, error) {
+	id, err := generateID()
+	if err != nil {
+		return nil, fmt.Errorf("vc: id generation: %w", err)
+	}
+
+	credential := &VerifiableCredential{
+		Context:           []string{"https://www.w3.org/2018/credentials/v1"},
+		ID:                id,
+		Type:              []string{"VerifiableCredential", string(credType)},
+		Issuer:            issuerDID,
+		ValidFrom:         validFrom.UTC(),
+		ValidUntil:        validUntil,
+		CredentialSubject: subject,
+		Status:            StatusActive,
+	}
+
+	payload, err := signingPayload(credential)
+	if err != nil {
+		return nil, fmt.Errorf("vc: payload serialization: %w", err)
+	}
+
+	sig, err := sign(payload)
+	if err != nil {
+		return nil, fmt.Errorf("vc: sign: %w", err)
+	}
+
+	credential.Proof = &Proof{
+		Type:               "Ed25519Signature2020",
+		Created:            time.Now().UTC().Format(time.RFC3339),
+		VerificationMethod: verificationMethod,
+		ProofPurpose:       "assertionMethod",
+		ProofValue:         base64.RawURLEncoding.EncodeToString(sig),
+	}
+	return credential, nil
+}
+
 // Verify checks the cryptographic proof on vc against publicKey.
 // Returns nil if valid; a descriptive error otherwise.
 func Verify(vc *VerifiableCredential, publicKey ed25519.PublicKey) error {

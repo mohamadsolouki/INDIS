@@ -1,3 +1,5 @@
+import camera from '@ohos.multimedia.camera'
+import scanBarcode from '@ohos.scanBarcode'
 import router from '@ohos.router'
 import { AppStorage } from '../model/AppStorage'
 import { GatewayClient } from '../network/GatewayClient'
@@ -14,7 +16,8 @@ interface VerifyProofResponse {
  * PRD FR-013: verifiers see ONLY a boolean result — no raw citizen data.
  *
  * Present mode: generates a mock ZK proof and displays it as a QR matrix.
- * Scan mode: uses the camera scanner to decode a citizen's QR and verify.
+ * Scan mode: uses the HarmonyOS system barcode scanner to decode a citizen's
+ *            QR and verify via the gateway /v1/verifier/verify endpoint.
  */
 @Entry
 @Component
@@ -140,10 +143,10 @@ struct VerifyPage {
         SymbolGlyph($r('sys.symbol.qrcode_viewfinder')).fontSize(80).fontColor(['#374151'])
           .margin({ top: 40 })
         Text('QR تأیید‌کننده را اسکن کنید').fontSize(14).fontColor('#9ca3af')
-        // HarmonyOS camera scanner would be invoked here via @ohos.multimedia.camera
+        // HarmonyOS system barcode scanner via @ohos.scanBarcode
         Button('شروع اسکن').width('88%').height(52)
           .backgroundColor('#1a56db').fontColor(Color.White).fontSize(16).borderRadius(14)
-          .onClick(() => { this.simulateScan() })
+          .onClick(() => { this.startCameraScan() })
         Blank()
       }
     }
@@ -165,22 +168,30 @@ struct VerifyPage {
     }, 600)
   }
 
-  private simulateScan(): void {
-    // In production: use @ohos.multimedia.camera + barcode decoding
-    this.verifying = true
-    const mockPayload = JSON.stringify({
-      verifier_id:       'dev-verifier',
-      proof_b64:         btoa(String.fromCharCode(...new Array(128).fill(0xAB))),
-      nonce:             'mock-nonce',
-      predicate:         'age_over_18',
-      credential_type:   'national_id',
-      proof_system:      'groth16',
-      public_inputs_b64: '',
-    })
-    const client = new GatewayClient()
-    client.post<VerifyProofResponse>('/v1/verifier/verify', JSON.parse(mockPayload))
-      .then((resp: VerifyProofResponse) => { this.verifyResult = resp.valid })
-      .catch(() => { this.verifyResult = false })
-      .finally(() => { this.verifying = false })
+  private startCameraScan(): void {
+    // HarmonyOS 4.x system barcode scanner (PRD §FR-006 offline-capable scanning).
+    // scanBarcode.startScanForResult opens the system scanner UI; on success
+    // the scanned string is parsed as the verify payload and POSTed to the gateway.
+    scanBarcode.startScanForResult(getContext(this))
+      .then((result: scanBarcode.ScanResult) => {
+        const scannedStr = result.originalValue
+        let payload: object
+        try {
+          payload = JSON.parse(scannedStr)
+        } catch (_e) {
+          this.verifyResult = false
+          return
+        }
+        this.verifying = true
+        const client = new GatewayClient()
+        client.post<VerifyProofResponse>('/v1/verifier/verify', payload)
+          .then((resp: VerifyProofResponse) => { this.verifyResult = resp.valid })
+          .catch(() => { this.verifyResult = false })
+          .finally(() => { this.verifying = false })
+      })
+      .catch(() => {
+        // Scanner cancelled or error — leave state unchanged
+        this.verifyResult = false
+      })
   }
 }

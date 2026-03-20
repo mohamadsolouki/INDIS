@@ -227,6 +227,51 @@ func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Certificate-based authentication path (PRD §FR-009.3 mTLS portal access).
+	// If a valid TLS client certificate is present, use its Subject CN as the
+	// username and bypass password verification.
+	if r.TLS != nil && len(r.TLS.PeerCertificates) > 0 {
+		cert := r.TLS.PeerCertificates[0]
+		certUsername := cert.Subject.CommonName
+		if certUsername != "" {
+			certUsers, lookupErr := h.svc.ListPortalUsers(r.Context(), "")
+			if lookupErr != nil {
+				writeError(w, http.StatusInternalServerError, lookupErr.Error())
+				return
+			}
+			var certUser *repository.PortalUserRecord
+			for _, candidate := range certUsers {
+				if candidate.Username == certUsername {
+					certUser = candidate
+					break
+				}
+			}
+			if certUser != nil {
+				certExp := time.Now().Add(8 * time.Hour).Unix()
+				certClaims := jwtClaims{
+					Sub:      certUser.ID,
+					Ministry: certUser.Ministry,
+					Role:     certUser.Role,
+					Exp:      certExp,
+				}
+				certToken, mintErr := h.mintJWT(certClaims)
+				if mintErr != nil {
+					writeError(w, http.StatusInternalServerError, mintErr.Error())
+					return
+				}
+				_ = h.svc.AppendAuditEvent(
+					r.Context(),
+					auditv1.EventCategory_EVENT_CATEGORY_ADMIN,
+					"govportal.auth.login.cert",
+					certUser.ID, "", "",
+					map[string]any{"ministry": certUser.Ministry, "role": certUser.Role, "cert_cn": certUsername},
+				)
+				writeJSON(w, http.StatusOK, loginResponse{Token: certToken})
+				return
+			}
+		}
+	}
+
 	// Dev-only authentication: compare password's sha256 hex with stored api_key_hash.
 	users, err := h.svc.ListPortalUsers(r.Context(), "")
 	if err != nil {
