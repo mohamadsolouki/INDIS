@@ -26,6 +26,7 @@
         <activity android:name=".ui.verify.VerifyActivity" />
         <activity android:name=".ui.wallet.WalletActivity" />
         <activity android:name=".ui.enrollment.EnrollmentActivity" />
+        <activity android:name=".ui.wallet.CredentialDetailActivity" />
 
         <!-- Push notification service (FCM) -->
         <service

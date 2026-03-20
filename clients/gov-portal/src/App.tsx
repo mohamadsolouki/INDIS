@@ -8,6 +8,8 @@ import UsersPage from './pages/UsersPage'
 import AuditPage from './pages/AuditPage'
 import ElectoralAuthorityPage from './pages/ElectoralAuthorityPage'
 import TransitionalJusticePage from './pages/TransitionalJusticePage'
+import EnrollmentReviewPage from './pages/EnrollmentReviewPage'
+import CredentialIssuancePage from './pages/CredentialIssuancePage'
 import Sidebar from './components/Sidebar'
 
 export default function App() {
@@ -33,6 +35,8 @@ export default function App() {
           <Route path="/users" element={<UsersPage role={auth.role} token={auth.token} />} />
           <Route path="/justice" element={<TransitionalJusticePage />} />
           <Route path="/audit" element={<AuditPage />} />
+          <Route path="/enrollments" element={<EnrollmentReviewPage role={auth.role} token={auth.token} />} />
+          <Route path="/issuance" element={<CredentialIssuancePage role={auth.role} token={auth.token} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

@@ -16,28 +16,24 @@ class EnrollmentRepository(private val api: GatewayApiClient) {
     /**
      * Submits document + face images for enrollment.
      *
-     * @param docImageB64  Base64-encoded JPEG of the identity document rear face.
-     * @param faceImageB64 Base64-encoded JPEG of the citizen's face.
-     * @param token        Citizen's JWT (may be empty for first-time enrollment).
-     * @param onSuccess    Called on the calling thread when the server accepts.
-     * @param onError      Called on the calling thread with the failure message.
+     * @param documentBase64 Base64-encoded JPEG of the identity document.
+     * @param faceBase64     Base64-encoded JPEG of the citizen's face.
+     * @param pathway        Enrollment pathway: "standard", "enhanced", or "social".
+     * @return               Server-assigned enrollment tracking ID.
+     * @throws Exception     On network or server error.
      */
-    fun submit(
-        docImageB64: String,
-        faceImageB64: String,
-        token: String,
-        onSuccess: () -> Unit,
-        onError: (String) -> Unit,
-    ) {
+    fun submitEnrollment(
+        documentBase64: String,
+        faceBase64: String,
+        pathway: String,
+    ): String {
         val body = JSONObject().apply {
-            put("document_image", docImageB64)
-            put("face_image",     faceImageB64)
+            put("document_image", documentBase64)
+            put("face_image",     faceBase64)
+            put("pathway",        pathway)
         }.toString()
 
-        runCatching { api.post("/v1/enrollment/submit", body, token) }
-            .fold(
-                onSuccess = { onSuccess() },
-                onFailure = { onError(it.message ?: "Enrollment failed") },
-            )
+        val response = api.post("/v1/enrollment/submit", body, token = "")
+        return JSONObject(response).getString("enrollment_id")
     }
 }

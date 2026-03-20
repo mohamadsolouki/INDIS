@@ -9,9 +9,11 @@ interface SidebarProps {
 
 const items = [
   { to: '/', label: 'داشبورد', icon: '📊', end: true },
-  { to: '/electoral', label: 'ماژول انتخابات', icon: '🗳️', end: false },
+  { to: '/enrollments', label: 'بررسی ثبت‌نام‌ها', icon: '📝', end: false },
+  { to: '/issuance', label: 'صدور اعتبارنامه', icon: '🎫', end: false },
   { to: '/bulk-operations', label: 'عملیات گروهی', icon: '📦', end: false },
   { to: '/users', label: 'کاربران پرتال', icon: '👤', end: false },
+  { to: '/electoral', label: 'ماژول انتخابات', icon: '🗳️', end: false },
   { to: '/justice', label: 'عدالت انتقالی', icon: '⚖️', end: false },
   { to: '/audit', label: 'گزارش حسابرسی', icon: '📋', end: false },
 ]

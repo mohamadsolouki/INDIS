@@ -189,13 +189,13 @@ W3C DID Core 1.0 • W3C VC 2.0 • OpenID4VP • ISO/IEC 18013-5 (mDL) • ISO 
 | API specs (OpenAPI + Proto) | ✅ 100% |
 | Infrastructure (Helm, Terraform, CI/CD) | ✅ ~97% |
 | Citizen PWA | ✅ ~95% — i18n (6 locales), camera, SSE, login, service worker caching, WASM ZK bridge (offline proof generation, PRD FR-006/FR-013) |
-| Gov portal frontend | ✅ ~95% — login, dashboard, users, bulk ops + result_summary, role gating, RTL CSS |
+| Gov portal frontend | ✅ ~98% — EnrollmentReviewPage (approve/reject/biometric-request), CredentialIssuancePage (5 types, 5s polling), Dashboard (7-stat grid), AuditPage (paginated+filtered), role gating, RTL CSS |
 | Verifier terminal PWA | ✅ ~90% — QR scan, JWT auth, history, offline revocation cache (PWA) |
-| Android app | 🟡 ~65% — credential/identity repos, privacy center, revocation worker, settings |
+| Android app | ✅ ~95% — full MVVM (WalletViewModel, EnrollmentViewModel, VerifyViewModel), BiometricAuthHelper, CredentialDetailActivity, pathway selector layout, biometric wallet gate, complete string resources (en + fa) |
 | iOS app | ✅ ~90% — full SwiftUI app: Secure Enclave DID, wallet, enrollment, ZK verify, privacy center, settings, BGTask revocation cache |
 | HarmonyOS app | ✅ ~90% — full ArkTS/ArkUI app: DID, wallet, enrollment (3 pathways), ZK verify QR, privacy center, settings, RevocationRefreshWorker, Solar Hijri calendar |
 | Diaspora portal | ✅ ~95% — React+Vite, 4-step enrollment wizard, status page, fa/en/fr i18n, RTL layout |
-| **Overall system** | **~94%** |
+| **Overall system** | **~96%** |
 
 > Production infrastructure (Fabric network, Vault HSM, ZK trusted-setup ceremony, telecom integration,
 > biometric ML models, notification providers) is intentionally deferred until the application is

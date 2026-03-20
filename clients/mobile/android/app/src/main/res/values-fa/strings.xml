@@ -1,44 +1,66 @@
 <resources>
     <string name="app_name">ایندیس</string>
-    <string name="enrollment_title">ثبت نام</string>
-    <string name="wallet_title">کیف اعتبارنامه</string>
-    <string name="verify_title">راستی آزمایی</string>
+    <string name="enrollment_title">ثبت‌نام</string>
+    <string name="wallet_title">کیف پول اعتبارنامه</string>
+    <string name="verify_title">تأیید هویت</string>
     <string name="settings_title">تنظیمات</string>
-    <string name="onboarding_tagline">سامانه هویت دیجیتال ملی ایران</string>
+    <!-- Onboarding -->
+    <string name="onboarding_tagline">سامانه ملی هویت دیجیتال ایران</string>
     <string name="onboarding_start">شروع ثبت‌نام</string>
-    <string name="onboarding_already_enrolled">قبلاً ثبت‌نام کرده‌ام</string>
+    <string name="onboarding_already_enrolled">از قبل ثبت‌نام کرده‌ام</string>
     <!-- Wallet -->
     <string name="wallet_empty">هنوز اعتبارنامه‌ای ندارید</string>
+    <string name="biometric_title_wallet">باز کردن کیف پول</string>
+    <string name="biometric_subtitle_wallet">برای دسترسی به اعتبارنامه‌ها تأیید هویت کنید</string>
+    <!-- Credential Detail -->
+    <string name="credential_id_label">شناسه اعتبارنامه</string>
+    <string name="issued_at_label">تاریخ صدور</string>
+    <string name="expires_at_label">تاریخ انقضا</string>
+    <string name="show_offline_qr">نمایش کیوآر آفلاین</string>
+    <string name="hide_qr">پنهان کردن کیوآر</string>
     <!-- Verify -->
-    <string name="verify_select_predicate">ادعای مورد اثبات را انتخاب کنید</string>
+    <string name="verify_select_predicate">ادعایی را برای اثبات انتخاب کنید</string>
     <string name="verify_generate_proof">تولید اثبات ZK</string>
-    <string name="verify_qr_hint">این کد QR را به تأییدکننده نشان دهید</string>
+    <string name="verify_qr_hint">این کیوآر را به تأییدکننده نشان دهید</string>
     <string name="verify_generating">در حال تولید اثبات…</string>
-    <string name="verify_error">تولید اثبات ناموفق بود</string>
+    <string name="verify_error">خطا در تولید اثبات</string>
     <!-- Enrollment -->
     <string name="enrollment_next">بعدی</string>
-    <string name="enrollment_submit">ارسال</string>
+    <string name="enrollment_submit">ارسال درخواست</string>
+    <string name="enrollment_submitting">در حال ارسال…</string>
+    <string name="enrollment_success">درخواست ارسال شد. شناسه پیگیری</string>
     <string name="enrollment_doc_title">مرحله ۱: عکس‌برداری از سند هویتی</string>
-    <string name="enrollment_face_title">مرحله ۲: تصویر بیومتریک چهره</string>
-    <string name="enrollment_capture">عکس بگیر</string>
-    <string name="enrollment_retake">دوباره بگیر</string>
+    <string name="enrollment_face_title">مرحله ۲: بیومتریک چهره</string>
+    <string name="enrollment_capture">عکس‌برداری</string>
+    <string name="enrollment_retake">تکرار</string>
+    <string name="enrollment_select_pathway">مسیر ثبت‌نام را انتخاب کنید</string>
+    <string name="enrollment_pathway_standard">استاندارد</string>
+    <string name="enrollment_pathway_enhanced">پیشرفته</string>
+    <string name="enrollment_pathway_social">تصدیق اجتماعی</string>
+    <!-- Notifications -->
     <string name="notif_default_title">ایندیس</string>
     <string name="notif_channel_name">اعلان‌های ایندیس</string>
     <!-- Privacy Center -->
     <string name="privacy_center_title">مرکز کنترل حریم خصوصی</string>
     <string name="privacy_history_tab">تاریخچه</string>
     <string name="privacy_consent_tab">رضایت</string>
-    <string name="privacy_export_tab">خروجی</string>
-    <string name="privacy_export_desc">درخواست دریافت نسخه‌ای از تمام داده‌های شخصی ذخیره‌شده در ایندیس. پس از آماده شدن لینک دانلود برای شما ارسال می‌شود.</string>
+    <string name="privacy_export_tab">خروجی داده</string>
+    <string name="privacy_export_desc">درخواست کپی از تمام داده‌های شخصی شما در ایندیس.</string>
     <string name="privacy_export_btn">درخواست خروجی داده</string>
-    <string name="privacy_export_requested">درخواست خروجی ثبت شد. پس از آماده‌شدن اطلاع‌رسانی می‌شود.</string>
-    <string name="privacy_load_error">بارگذاری داده ناموفق بود. دوباره تلاش کنید.</string>
+    <string name="privacy_export_requested">درخواست ثبت شد. پس از آماده‌شدن اطلاع‌رسانی می‌شود.</string>
+    <string name="privacy_load_error">بارگذاری داده‌ها ناموفق بود. دوباره تلاش کنید.</string>
     <!-- Settings -->
     <string name="settings_language">زبان / Language</string>
-    <string name="settings_logout">خروج</string>
-    <string name="settings_logout_confirm">آیا از خروج مطمئن هستید؟</string>
+    <string name="settings_logout">خروج از حساب</string>
+    <string name="settings_logout_confirm">آیا مطمئن هستید که می‌خواهید خارج شوید؟</string>
     <string name="settings_version">نسخه</string>
     <string name="settings_privacy_center">مرکز حریم خصوصی</string>
     <string name="settings_persian_numerals">اعداد فارسی</string>
-    <string name="settings_gateway_url">آدرس Gateway</string>
+    <string name="settings_gateway_url">آدرس دروازه</string>
+    <!-- General -->
+    <string name="retry">تلاش مجدد</string>
+    <string name="cancel">انصراف</string>
+    <string name="ok">تأیید</string>
+    <string name="error_network">خطای شبکه. دوباره تلاش کنید.</string>
+    <string name="error_auth">احراز هویت لازم است.</string>
 </resources>

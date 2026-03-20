@@ -10,6 +10,14 @@
     <string name="onboarding_already_enrolled">I already have an account</string>
     <!-- Wallet -->
     <string name="wallet_empty">No credentials yet</string>
+    <string name="biometric_title_wallet">Open Credential Wallet</string>
+    <string name="biometric_subtitle_wallet">Authenticate to access your credentials</string>
+    <!-- Credential Detail -->
+    <string name="credential_id_label">Credential ID</string>
+    <string name="issued_at_label">Issued At</string>
+    <string name="expires_at_label">Expires At</string>
+    <string name="show_offline_qr">Show Offline QR</string>
+    <string name="hide_qr">Hide QR</string>
     <!-- Verify -->
     <string name="verify_select_predicate">Select claim to prove</string>
     <string name="verify_generate_proof">Generate ZK Proof</string>
@@ -18,11 +26,17 @@
     <string name="verify_error">Proof generation failed</string>
     <!-- Enrollment -->
     <string name="enrollment_next">Next</string>
-    <string name="enrollment_submit">Submit</string>
+    <string name="enrollment_submit">Submit Application</string>
+    <string name="enrollment_submitting">Submitting…</string>
+    <string name="enrollment_success">Application submitted. Tracking ID</string>
     <string name="enrollment_doc_title">Step 1: Capture Identity Document</string>
     <string name="enrollment_face_title">Step 2: Face Biometric</string>
     <string name="enrollment_capture">Capture</string>
     <string name="enrollment_retake">Retake</string>
+    <string name="enrollment_select_pathway">Select Enrollment Pathway</string>
+    <string name="enrollment_pathway_standard">Standard</string>
+    <string name="enrollment_pathway_enhanced">Enhanced</string>
+    <string name="enrollment_pathway_social">Social Attestation</string>
     <!-- Notifications -->
     <string name="notif_default_title">INDIS</string>
     <string name="notif_channel_name">INDIS Notifications</string>
@@ -43,4 +57,10 @@
     <string name="settings_privacy_center">Privacy Center</string>
     <string name="settings_persian_numerals">Persian Numerals</string>
     <string name="settings_gateway_url">Gateway URL</string>
+    <!-- General -->
+    <string name="retry">Retry</string>
+    <string name="cancel">Cancel</string>
+    <string name="ok">OK</string>
+    <string name="error_network">Network error. Please try again.</string>
+    <string name="error_auth">Authentication required.</string>
 </resources>

@@ -62,6 +62,8 @@ dependencies {
     // QR code scanning
     implementation 'com.google.zxing:core:3.5.3'
     implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
+    // Biometric authentication — wallet gate (PRD FR-006)
+    implementation 'androidx.biometric:biometric:1.2.0-alpha05'
     // WorkManager — background revocation cache sync (PRD FR-006: 72h offline)
     implementation 'androidx.work:work-runtime-ktx:2.9.0'
 }

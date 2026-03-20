@@ -10,17 +10,18 @@ import androidx.recyclerview.widget.RecyclerView
 /**
  * RecyclerView adapter for the credential wallet list.
  *
- * Displays a [CredentialCard] per row — credential type, expiry, and revocation
- * status badge. Uses the stock two-line list item for simplicity; a custom card
- * layout can replace this in the UI-polish phase.
+ * Displays a [CredentialCard] per row with credential type, expiry, and
+ * revocation status. Calls [onItemClick] when a row is tapped so
+ * [WalletActivity] can open [CredentialDetailActivity].
  */
 class CredentialCardAdapter(
     private val items: List<CredentialCard>,
+    private val onItemClick: (CredentialCard) -> Unit = {},
 ) : RecyclerView.Adapter<CredentialCardAdapter.ViewHolder>() {
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val tvTitle: TextView   = view.findViewById(android.R.id.text1)
-        val tvDetail: TextView  = view.findViewById(android.R.id.text2)
+        val tvTitle: TextView  = view.findViewById(android.R.id.text1)
+        val tvDetail: TextView = view.findViewById(android.R.id.text2)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -31,14 +32,15 @@ class CredentialCardAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val card = items[position]
-        holder.tvTitle.text = card.title
-        if (card.revoked) {
+        holder.tvTitle.text = card.title.ifBlank { card.type }
+        if (card.isRevoked) {
             holder.tvDetail.text = "ابطال‌شده"
             holder.tvDetail.setTextColor(Color.parseColor("#C23030"))
         } else {
             holder.tvDetail.text = "انقضا: ${card.expiresAt}"
             holder.tvDetail.setTextColor(Color.parseColor("#555555"))
         }
+        holder.itemView.setOnClickListener { onItemClick(card) }
     }
 
     override fun getItemCount(): Int = items.size

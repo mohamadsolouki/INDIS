@@ -42,6 +42,10 @@ class GatewayCredentialRepository(
         return dao.getAllCredentials().map { it.toCard() }
     }
 
+    /** Returns Room-cached credentials without attempting a network call. */
+    suspend fun listCredentialsCached(): List<CredentialCard> =
+        dao.getAllCredentials().map { it.toCard() }
+
     /**
      * Sync remote credentials into Room.
      * Expects the gateway to return:
@@ -71,9 +75,11 @@ class GatewayCredentialRepository(
     }
 
     private fun CredentialEntity.toCard() = CredentialCard(
-        credentialId = id,
-        title        = credentialType,
-        expiresAt    = expiresAt,
-        revoked      = status == "revoked",
+        id        = id,
+        type      = credentialType,
+        title     = credentialType,
+        issuedAt  = issuedAt,
+        expiresAt = expiresAt,
+        isRevoked = status == "revoked",
     )
 }
