@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 
 const VERIFIER_ID = import.meta.env.VITE_VERIFIER_ID ?? 'dev-verifier'
 const GATEWAY = import.meta.env.VITE_GATEWAY_URL ?? 'http://localhost:8080'
@@ -61,9 +61,13 @@ export default function ScanPage() {
         predicate: string
       }
 
+      const token = localStorage.getItem('verifier_token') ?? ''
       const resp = await fetch(`${GATEWAY}/v1/verifier/verify`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           verifier_id: VERIFIER_ID,
           proof_b64: parsed.proof,
@@ -95,7 +99,23 @@ export default function ScanPage() {
         padding: 24,
       }}
     >
-      <h1 style={{ marginBottom: 8 }}>پایانه تأیید INDIS</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', maxWidth: 340, marginBottom: 8 }}>
+        <h1 style={{ margin: 0 }}>پایانه تأیید INDIS</h1>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Link
+            to="/history"
+            style={{ fontSize: 12, color: '#aaa', padding: '6px 10px', borderRadius: 6, border: '1px solid #333', background: 'transparent' }}
+          >
+            تاریخچه
+          </Link>
+          <button
+            onClick={() => { localStorage.removeItem('verifier_id'); window.location.href = '/login' }}
+            style={{ fontSize: 12, color: '#aaa', padding: '6px 10px', borderRadius: 6, border: '1px solid #333', background: 'transparent', cursor: 'pointer' }}
+          >
+            خروج
+          </button>
+        </div>
+      </div>
       <p style={{ color: '#aaa', marginBottom: 24, fontSize: 14 }}>
         کد QR شهروند را اسکن کنید
       </p>

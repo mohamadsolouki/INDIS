@@ -13,12 +13,30 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
-            // Also cache local dev gateway responses for offline use
+            // Cache credentials for offline presentation (PRD FR-006: 72h)
             urlPattern: /\/v1\/credential\/.*/i,
             handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'credential-cache',
               expiration: { maxEntries: 200, maxAgeSeconds: 72 * 60 * 60 },
+            },
+          },
+          {
+            // Cache revocation list for offline ZK proof validation (PRD FR-006: 72h)
+            urlPattern: /\/v1\/credential\/revocations/i,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'revocation-cache',
+              expiration: { maxEntries: 1, maxAgeSeconds: 72 * 60 * 60 },
+            },
+          },
+          {
+            // Cache privacy history for offline viewing
+            urlPattern: /\/v1\/privacy\/.*/i,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'privacy-cache',
+              expiration: { maxEntries: 50, maxAgeSeconds: 24 * 60 * 60 },
             },
           },
           {

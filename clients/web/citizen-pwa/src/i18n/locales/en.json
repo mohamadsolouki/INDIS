@@ -14,7 +14,8 @@
     "pathway_social": "Social Attestation", "pathway_social_desc": "3+ Community Co-attestors + Biometrics",
     "document_capture": "Document Capture", "biometric_capture": "Biometric Capture",
     "review": "Review & Confirm", "success": "Enrollment Complete",
-    "next": "Next", "back": "Back", "submit": "Submit", "cancel": "Cancel"
+    "next": "Next", "back": "Back", "back_home": "Back to Home", "submit": "Submit", "cancel": "Cancel",
+    "progress": "Enrollment Progress", "select_pathway_desc": "Choose the pathway that fits your situation"
   },
   "wallet": {
     "title": "Credential Wallet", "empty": "No credentials found", "offline_badge": "Offline",

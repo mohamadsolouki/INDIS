@@ -26,4 +26,21 @@
     <!-- Notifications -->
     <string name="notif_default_title">INDIS</string>
     <string name="notif_channel_name">INDIS Notifications</string>
+    <!-- Privacy Center -->
+    <string name="privacy_center_title">Privacy Control Center</string>
+    <string name="privacy_history_tab">History</string>
+    <string name="privacy_consent_tab">Consent</string>
+    <string name="privacy_export_tab">Export</string>
+    <string name="privacy_export_desc">Request a copy of all your personal data stored in INDIS. You will receive a download link when the export is ready.</string>
+    <string name="privacy_export_btn">Request Data Export</string>
+    <string name="privacy_export_requested">Export request submitted. You will be notified when ready.</string>
+    <string name="privacy_load_error">Failed to load data. Please try again.</string>
+    <!-- Settings -->
+    <string name="settings_language">Language / زبان</string>
+    <string name="settings_logout">Log out</string>
+    <string name="settings_logout_confirm">Are you sure you want to log out?</string>
+    <string name="settings_version">Version</string>
+    <string name="settings_privacy_center">Privacy Center</string>
+    <string name="settings_persian_numerals">Persian Numerals</string>
+    <string name="settings_gateway_url">Gateway URL</string>
 </resources>

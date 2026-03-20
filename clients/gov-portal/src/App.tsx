@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useGovAuth } from './hooks/useGovAuth'
+import './App.css'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import BulkOperationsPage from './pages/BulkOperationsPage'
@@ -9,15 +10,10 @@ import ElectoralAuthorityPage from './pages/ElectoralAuthorityPage'
 import TransitionalJusticePage from './pages/TransitionalJusticePage'
 import Sidebar from './components/Sidebar'
 
-function useGovAuth() {
-  const token = localStorage.getItem('gov_token')
-  return { isAuthenticated: !!token }
-}
-
 export default function App() {
-  const { isAuthenticated } = useGovAuth()
+  const auth = useGovAuth()
 
-  if (!isAuthenticated) {
+  if (!auth.isAuthenticated) {
     return (
       <Routes>
         <Route path="/login" element={<LoginPage />} />
@@ -27,14 +23,14 @@ export default function App() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100dvh' }}>
-      <Sidebar />
-      <main style={{ flex: 1, padding: 24 }}>
+    <div className="app-shell">
+      <Sidebar role={auth.role} ministry={auth.ministry} />
+      <main className="app-main">
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/electoral" element={<ElectoralAuthorityPage />} />
-          <Route path="/bulk-operations" element={<BulkOperationsPage />} />
-          <Route path="/users" element={<UsersPage />} />
+          <Route path="/bulk-operations" element={<BulkOperationsPage role={auth.role} token={auth.token} />} />
+          <Route path="/users" element={<UsersPage role={auth.role} token={auth.token} />} />
           <Route path="/justice" element={<TransitionalJusticePage />} />
           <Route path="/audit" element={<AuditPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -24,4 +24,21 @@
     <string name="enrollment_retake">دوباره بگیر</string>
     <string name="notif_default_title">ایندیس</string>
     <string name="notif_channel_name">اعلان‌های ایندیس</string>
+    <!-- Privacy Center -->
+    <string name="privacy_center_title">مرکز کنترل حریم خصوصی</string>
+    <string name="privacy_history_tab">تاریخچه</string>
+    <string name="privacy_consent_tab">رضایت</string>
+    <string name="privacy_export_tab">خروجی</string>
+    <string name="privacy_export_desc">درخواست دریافت نسخه‌ای از تمام داده‌های شخصی ذخیره‌شده در ایندیس. پس از آماده شدن لینک دانلود برای شما ارسال می‌شود.</string>
+    <string name="privacy_export_btn">درخواست خروجی داده</string>
+    <string name="privacy_export_requested">درخواست خروجی ثبت شد. پس از آماده‌شدن اطلاع‌رسانی می‌شود.</string>
+    <string name="privacy_load_error">بارگذاری داده ناموفق بود. دوباره تلاش کنید.</string>
+    <!-- Settings -->
+    <string name="settings_language">زبان / Language</string>
+    <string name="settings_logout">خروج</string>
+    <string name="settings_logout_confirm">آیا از خروج مطمئن هستید؟</string>
+    <string name="settings_version">نسخه</string>
+    <string name="settings_privacy_center">مرکز حریم خصوصی</string>
+    <string name="settings_persian_numerals">اعداد فارسی</string>
+    <string name="settings_gateway_url">آدرس Gateway</string>
 </resources>

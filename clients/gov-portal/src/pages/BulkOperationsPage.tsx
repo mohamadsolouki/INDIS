@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react'
+import { hasRole } from '../hooks/useGovAuth'
+import type { GovRole } from '../hooks/useGovAuth'
+import './Page.css'
 
 interface BulkOp {
   id: string
@@ -7,17 +10,35 @@ interface BulkOp {
   status: string
   requested_by: string
   created_at: string
+  result_summary?: string
 }
 
-export default function BulkOperationsPage() {
-  const [ops, setOps] = useState<BulkOp[]>([])
+interface Props {
+  role: GovRole
+  token: string
+}
+
+/** Maps API status values to CSS modifier classes defined in Page.css. */
+function statusClass(status: string): string {
+  const map: Record<string, string> = {
+    pending:    'status-badge--warning',
+    executing:  'status-badge--info',
+    processing: 'status-badge--info',
+    completed:  'status-badge--success',
+    approved:   'status-badge--success',
+    failed:     'status-badge--error',
+    rejected:   'status-badge--error',
+  }
+  return map[status] ?? 'status-badge--default'
+}
+
+export default function BulkOperationsPage({ role, token }: Props) {
+  const [ops, setOps]       = useState<BulkOp[]>([])
   const [loading, setLoading] = useState(true)
-  const token = localStorage.getItem('gov_token')
+  const canApprove            = hasRole(role, 'operator')
 
   useEffect(() => {
-    fetch('/v1/portal/bulk-ops', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    fetch('/v1/portal/bulk-ops', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(data => setOps((data as { bulk_operations: BulkOp[] }).bulk_operations ?? []))
       .finally(() => setLoading(false))
@@ -29,70 +50,56 @@ export default function BulkOperationsPage() {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (!resp.ok) return
-    const updated = (await resp.json()) as BulkOp
-    setOps(prev => prev.map(o => (o.id === id ? updated : o)))
-  }
-
-  const statusColor: Record<string, string> = {
-    pending: '#b45309',
-    executing: '#1a56db',
-    completed: '#0f9960',
-    failed: '#c23030',
-    approved: '#0f9960', // backward compat (older UI states)
-    rejected: '#c23030', // backward compat (older UI states)
-    processing: '#1a56db', // backward compat (older UI states)
+    setOps(prev => prev.map(o => o.id === id ? { ...o, status: 'approved' } : o))
   }
 
   return (
-    <div>
-      <h1 style={{ fontSize: 24, marginBottom: 24 }}>عملیات گروهی</h1>
+    <div className="page">
+      <h1 className="page-title">عملیات گروهی</h1>
 
       {loading ? (
-        <p style={{ color: '#666' }}>در حال بارگذاری…</p>
+        <p className="page-loading">در حال بارگذاری…</p>
       ) : ops.length === 0 ? (
-        <p style={{ color: '#666' }}>هیچ عملیاتی یافت نشد.</p>
+        <p className="page-empty">هیچ عملیاتی یافت نشد.</p>
       ) : (
-        <div style={{ background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+        <div className="table-wrap">
+          <table className="data-table">
             <thead>
-              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                {['نوع عملیات', 'وزارتخانه', 'درخواست‌کننده', 'وضعیت', 'تاریخ', 'اقدام'].map(h => (
-                  <th key={h} style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 600, color: '#555' }}>
-                    {h}
-                  </th>
+              <tr>
+                {['نوع عملیات', 'وزارتخانه', 'درخواست‌کننده', 'وضعیت', 'نتیجه', 'تاریخ', 'اقدام'].map(h => (
+                  <th key={h}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {ops.map(op => (
-                <tr key={op.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                  <td style={{ padding: '12px 16px' }}>{op.operation_type}</td>
-                  <td style={{ padding: '12px 16px' }}>{op.ministry}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 12, color: '#666' }}>{op.requested_by}</td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <span
-                      style={{
-                        padding: '2px 10px',
-                        borderRadius: 20,
-                        fontSize: 12,
-                        background: (statusColor[op.status] ?? '#666') + '20',
-                        color: statusColor[op.status] ?? '#666',
-                      }}
-                    >
+                <tr key={op.id}>
+                  <td>{op.operation_type}</td>
+                  <td>{op.ministry}</td>
+                  <td className="text-muted">{op.requested_by}</td>
+                  <td>
+                    <span className={`status-badge ${statusClass(op.status)}`}>
                       {op.status}
                     </span>
                   </td>
-                  <td style={{ padding: '12px 16px', fontSize: 12, color: '#666' }}>
+                  <td className="text-muted">
+                    {op.result_summary ?? '—'}
+                  </td>
+                  <td className="text-muted">
                     {new Date(op.created_at).toLocaleDateString('fa-IR')}
                   </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    {op.status === 'pending' && (
+                  <td>
+                    {op.status === 'pending' && canApprove && (
                       <button
+                        type="button"
+                        className="btn btn-success btn-sm"
                         onClick={() => approve(op.id)}
-                        style={{ background: '#0f9960', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: 12, cursor: 'pointer' }}
                       >
                         تأیید
                       </button>
+                    )}
+                    {op.status === 'pending' && !canApprove && (
+                      <span className="text-muted" title="نیاز به نقش اپراتور">—</span>
                     )}
                   </td>
                 </tr>

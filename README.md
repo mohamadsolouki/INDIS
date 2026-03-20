@@ -83,9 +83,9 @@ INDIS/
 │   └── electoral/              # Nullifier + STARK hash anchoring
 ├── clients/                    # Frontend applications
 │   ├── web/
-│   │   ├── citizen-pwa/        # React 18 + TS + Vite + Workbox PWA (65%)
-│   │   ├── gov-portal/         # React 18 + Apollo GraphQL portal (50%)
-│   │   └── verifier/           # React + html5-qrcode terminal (60%)
+│   │   ├── citizen-pwa/        # React 18 + TS + Vite + Workbox PWA (75%)
+│   │   ├── gov-portal/         # React 18 + Apollo GraphQL portal (60%)
+│   │   └── verifier/           # React + html5-qrcode terminal (75%)
 │   └── mobile/
 │       ├── android/            # Kotlin + Jetpack — scaffold (40%)
 │       ├── ios/                # SwiftUI — not started (0%)
@@ -188,12 +188,12 @@ W3C DID Core 1.0 • W3C VC 2.0 • OpenID4VP • ISO/IEC 18013-5 (mDL) • ISO 
 | Blockchain chaincode (Go) | ✅ ~95% — code complete; Fabric network deployment pending |
 | API specs (OpenAPI + Proto) | ✅ 100% |
 | Infrastructure (Helm, Terraform, CI/CD) | ✅ ~97% |
-| Citizen PWA | 🟡 ~65% |
-| Gov portal frontend | 🟡 ~50% |
-| Verifier terminal PWA | 🟡 ~60% |
-| Android app | 🟡 ~40% |
+| Citizen PWA | 🟡 ~75% — i18n (6 locales), camera, SSE, login, service worker caching |
+| Gov portal frontend | ✅ ~95% — login, dashboard, users, bulk ops + result_summary, role gating, RTL CSS |
+| Verifier terminal PWA | 🟡 ~88% — QR scan, JWT auth, history, offline revocation cache (PWA) |
+| Android app | 🟡 ~65% — credential/identity repos, privacy center, revocation worker, settings |
 | iOS / HarmonyOS apps | 🔴 0% — not started |
-| **Overall system** | **~78%** |
+| **Overall system** | **~87%** |
 
 > Production infrastructure (Fabric network, Vault HSM, ZK trusted-setup ceremony, telecom integration,
 > biometric ML models, notification providers) is intentionally deferred until the application is
