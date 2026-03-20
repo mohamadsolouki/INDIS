@@ -3,11 +3,14 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	justicev1 "github.com/IranProsperityProject/INDIS/api/gen/go/justice/v1"
@@ -52,6 +55,40 @@ func main() {
 	svc := service.New(repo, cfg.ZKProofURL)
 	h := handler.New(svc)
 
+	// Admin HTTP server for justice case management (port 9300).
+	// Protected by senior/admin role at gateway; not exposed directly to public.
+	adminMux := http.NewServeMux()
+	adminMux.HandleFunc("/v1/justice/cases/", func(w http.ResponseWriter, r *http.Request) {
+		// Expect: POST /v1/justice/cases/{case_id}/advance
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		parts := splitPathJustice(r.URL.Path)
+		if len(parts) < 4 || parts[len(parts)-1] != "advance" {
+			http.Error(w, "not found — use POST /v1/justice/cases/{id}/advance", http.StatusNotFound)
+			return
+		}
+		caseID := parts[len(parts)-2]
+		adminDID := r.Header.Get("X-Admin-DID")
+		if adminDID == "" {
+			adminDID = "admin"
+		}
+		outCaseID, newStatus, err := svc.AdvanceCaseStatus(r.Context(), caseID, adminDID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"case_id": outCaseID, "status": newStatus})
+	})
+	go func() {
+		log.Printf("Justice admin HTTP listening on :9300")
+		if err := http.ListenAndServe(":9300", adminMux); err != nil {
+			log.Printf("justice admin HTTP error: %v", err)
+		}
+	}()
+
 	addr := fmt.Sprintf(":%d", cfg.GRPCPort)
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -78,4 +115,14 @@ func main() {
 
 	log.Printf("Shutting down INDIS justice service...")
 	grpcServer.GracefulStop()
+}
+
+func splitPathJustice(path string) []string {
+	var parts []string
+	for _, p := range strings.Split(path, "/") {
+		if p != "" {
+			parts = append(parts, p)
+		}
+	}
+	return parts
 }

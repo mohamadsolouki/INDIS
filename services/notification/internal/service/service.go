@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"log"
 	"time"
 
 	notificationv1 "github.com/IranProsperityProject/INDIS/api/gen/go/notification/v1"
@@ -101,4 +102,69 @@ func (s *NotificationService) CancelAlert(ctx context.Context, alertID string) (
 		return false, fmt.Errorf("service: cancel alert: %w", err)
 	}
 	return true, nil
+}
+
+// Dispatcher is the interface subset the dispatcher needs from the repository.
+type Dispatcher interface {
+	GetDueForDispatch(ctx context.Context, limit int) ([]repository.NotificationRecord, error)
+	MarkDelivered(ctx context.Context, id string) error
+	MarkFailed(ctx context.Context, id, reason string) error
+}
+
+// RunDispatcher starts a background loop that delivers queued notifications.
+// It polls at the given interval and dispatches up to 100 notifications per tick.
+// In production, replace the delivery stubs with real SMS/push/email API calls.
+// Ref: PRD §FR-002.R4 — 3-tier expiry alerts must actually reach citizens.
+func (s *NotificationService) RunDispatcher(ctx context.Context, interval time.Duration) {
+	if interval <= 0 {
+		interval = 30 * time.Second
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	log.Printf("notification dispatcher started (interval=%s)", interval)
+	for {
+		select {
+		case <-ctx.Done():
+			log.Printf("notification dispatcher stopped")
+			return
+		case <-ticker.C:
+			s.dispatchBatch(ctx)
+		}
+	}
+}
+
+func (s *NotificationService) dispatchBatch(ctx context.Context) {
+	recs, err := s.repo.GetDueForDispatch(ctx, 100)
+	if err != nil {
+		log.Printf("notification dispatcher: fetch error: %v", err)
+		return
+	}
+	for _, rec := range recs {
+		if err := s.deliver(ctx, rec); err != nil {
+			log.Printf("notification dispatcher: delivery failed id=%s: %v", rec.ID, err)
+			_ = s.repo.MarkFailed(ctx, rec.ID, err.Error())
+		} else {
+			_ = s.repo.MarkDelivered(ctx, rec.ID)
+		}
+	}
+}
+
+// deliver dispatches a single notification via the appropriate channel.
+// Production: replace each case with a real provider API call (Infobip, Firebase, SMTP).
+func (s *NotificationService) deliver(ctx context.Context, rec repository.NotificationRecord) error {
+	_ = ctx
+	switch rec.Channel {
+	case 1: // SMS
+		// TODO(production): call national telecom SMS API (Infobip, MCI, MTN).
+		log.Printf("notification[SMS] to=%s subject=%q id=%s", rec.RecipientDID, rec.Subject, rec.ID)
+	case 2: // Push
+		// TODO(production): call Firebase FCM or self-hosted push service.
+		log.Printf("notification[PUSH] to=%s subject=%q id=%s", rec.RecipientDID, rec.Subject, rec.ID)
+	case 3: // Email
+		// TODO(production): call SMTP relay or transactional email service.
+		log.Printf("notification[EMAIL] to=%s subject=%q id=%s", rec.RecipientDID, rec.Subject, rec.ID)
+	default:
+		log.Printf("notification[UNKNOWN channel=%d] to=%s id=%s", rec.Channel, rec.RecipientDID, rec.ID)
+	}
+	return nil
 }

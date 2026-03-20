@@ -35,6 +35,7 @@ type ElectoralRepository interface {
 	NullifierExists(ctx context.Context, electionID, nullifierHash string) (bool, error)
 	TransportNonceExistsSince(ctx context.Context, electionID, nonceHash string, since time.Time) (bool, error)
 	CastBallot(ctx context.Context, rec repository.BallotRecord) error
+	UpdateElectionStatus(ctx context.Context, id, newStatus string) error
 }
 
 // ZKVerifier defines verification behavior for voter eligibility proofs.
@@ -65,6 +66,23 @@ func generateID(prefix string) (string, error) {
 	return prefix + base64.RawURLEncoding.EncodeToString(b), nil
 }
 
+// computeElectionStatus derives the effective election status from stored status and timestamps.
+// Returns: scheduled | open | closed | tallied
+func computeElectionStatus(stored string, opensAt, closesAt time.Time) string {
+	now := time.Now().UTC()
+	// "tallied" is an explicit admin action; always honour it.
+	if stored == "tallied" {
+		return "tallied"
+	}
+	if now.After(closesAt) {
+		return "closed"
+	}
+	if now.After(opensAt) {
+		return "open"
+	}
+	return "scheduled"
+}
+
 // RegisterElection creates a new election event.
 func (s *ElectoralService) RegisterElection(ctx context.Context, req *electoralv1.RegisterElectionRequest) (string, error) {
 	opensAt, err := time.Parse(time.RFC3339, req.GetOpensAt())
@@ -92,8 +110,16 @@ func (s *ElectoralService) RegisterElection(ctx context.Context, req *electoralv
 
 // VerifyEligibility verifies a ZK proof of voter eligibility.
 func (s *ElectoralService) VerifyEligibility(ctx context.Context, electionID string, zkProof []byte, publicInputs []byte) (bool, string, string, error) {
-	if _, err := s.repo.GetElection(ctx, electionID); errors.Is(err, repository.ErrNotFound) {
+	rec, err := s.repo.GetElection(ctx, electionID)
+	if errors.Is(err, repository.ErrNotFound) {
 		return false, "", "election not found", nil
+	}
+	if err != nil {
+		return false, "", "", fmt.Errorf("service: get election: %w", err)
+	}
+	effectiveStatus := computeElectionStatus(rec.Status, rec.OpensAt, rec.ClosesAt)
+	if effectiveStatus != "open" {
+		return false, "", fmt.Sprintf("election is not open for voting (status: %s)", effectiveStatus), nil
 	}
 
 	valid, reason, err := s.zkVerifier.VerifyEligibility(ctx, electionID, zkProof, publicInputs)
@@ -104,7 +130,6 @@ func (s *ElectoralService) VerifyEligibility(ctx context.Context, electionID str
 		return false, "", reason, nil
 	}
 
-	// Derive a deterministic nullifier candidate from public inputs.
 	h := sha256.Sum256(publicInputs)
 	nullifierHash := hex.EncodeToString(h[:])
 	used, err := s.repo.NullifierExists(ctx, electionID, nullifierHash)
@@ -121,6 +146,17 @@ func (s *ElectoralService) VerifyEligibility(ctx context.Context, electionID str
 func (s *ElectoralService) CastBallot(ctx context.Context, req *electoralv1.CastBallotRequest) (string, string, error) {
 	if len(req.GetZkProof()) == 0 {
 		return "", "", fmt.Errorf("service: zk_proof is required")
+	}
+
+	rec, err := s.repo.GetElection(ctx, req.GetElectionId())
+	if errors.Is(err, repository.ErrNotFound) {
+		return "", "", fmt.Errorf("service: election not found: %s", req.GetElectionId())
+	}
+	if err != nil {
+		return "", "", fmt.Errorf("service: get election: %w", err)
+	}
+	if effectiveStatus := computeElectionStatus(rec.Status, rec.OpensAt, rec.ClosesAt); effectiveStatus != "open" {
+		return "", "", fmt.Errorf("service: election is not open for voting (status: %s)", effectiveStatus)
 	}
 
 	valid, reason, err := s.zkVerifier.VerifyEligibility(ctx, req.GetElectionId(), req.GetZkProof(), []byte(req.GetNullifierHash()))
@@ -140,7 +176,7 @@ func (s *ElectoralService) CastBallot(ctx context.Context, req *electoralv1.Cast
 	}
 	h := sha256.Sum256(req.GetEncryptedVote())
 	receiptHash := hex.EncodeToString(h[:])
-	rec := repository.BallotRecord{
+	ballotRec := repository.BallotRecord{
 		ReceiptHash:   receiptHash,
 		ElectionID:    req.GetElectionId(),
 		NullifierHash: req.GetNullifierHash(),
@@ -149,7 +185,7 @@ func (s *ElectoralService) CastBallot(ctx context.Context, req *electoralv1.Cast
 		BlockHeight:   "pending",
 		CastAt:        time.Now().UTC(),
 	}
-	if err = s.repo.CastBallot(ctx, rec); err != nil {
+	if err = s.repo.CastBallot(ctx, ballotRec); err != nil {
 		return "", "", fmt.Errorf("service: cast ballot: %w", err)
 	}
 	return receiptHash, "pending", nil
@@ -162,6 +198,17 @@ func (s *ElectoralService) SubmitRemoteBallot(ctx context.Context, req *electora
 	}
 	if len(req.GetEncryptedVote()) == 0 {
 		return "", "", "", fmt.Errorf("service: encrypted_vote is required")
+	}
+
+	elecRec, err := s.repo.GetElection(ctx, req.GetElectionId())
+	if errors.Is(err, repository.ErrNotFound) {
+		return "", "", "", fmt.Errorf("service: election not found: %s", req.GetElectionId())
+	}
+	if err != nil {
+		return "", "", "", fmt.Errorf("service: get election: %w", err)
+	}
+	if effectiveStatus := computeElectionStatus(elecRec.Status, elecRec.OpensAt, elecRec.ClosesAt); effectiveStatus != "open" {
+		return "", "", "", fmt.Errorf("service: election is not open for remote voting (status: %s)", effectiveStatus)
 	}
 
 	clientSubmittedAt, err := time.Parse(time.RFC3339, req.GetSubmittedAt())
@@ -255,7 +302,32 @@ func (s *ElectoralService) GetElectionStatus(ctx context.Context, electionID str
 	if errors.Is(err, repository.ErrNotFound) {
 		return nil, fmt.Errorf("service: election not found: %s", electionID)
 	}
-	return rec, err
+	if err != nil {
+		return nil, err
+	}
+	// Compute effective status from timestamps; only "tallied" uses stored status.
+	rec.Status = computeElectionStatus(rec.Status, rec.OpensAt, rec.ClosesAt)
+	return rec, nil
+}
+
+// FinalizeElection transitions a closed election to tallied state.
+// Only callable once voting has closed. Ref: PRD §FR-010.
+func (s *ElectoralService) FinalizeElection(ctx context.Context, electionID, adminDID string) error {
+	rec, err := s.repo.GetElection(ctx, electionID)
+	if errors.Is(err, repository.ErrNotFound) {
+		return fmt.Errorf("service: election not found: %s", electionID)
+	}
+	if err != nil {
+		return fmt.Errorf("service: get election: %w", err)
+	}
+	effective := computeElectionStatus(rec.Status, rec.OpensAt, rec.ClosesAt)
+	if effective != "closed" {
+		return fmt.Errorf("service: can only finalize a closed election (current status: %s)", effective)
+	}
+	if err := s.repo.UpdateElectionStatus(ctx, electionID, "tallied"); err != nil {
+		return fmt.Errorf("service: update election status to tallied: %w", err)
+	}
+	return nil
 }
 
 type zkVerifyRequest struct {

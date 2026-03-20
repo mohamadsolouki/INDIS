@@ -97,3 +97,49 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*NotificationRecor
 	}
 	return &rec, nil
 }
+
+// GetDueForDispatch returns up to `limit` queued notifications that are ready to be dispatched.
+// "Ready" means status='queued' AND (scheduled_at IS NULL OR scheduled_at <= NOW()).
+func (r *Repository) GetDueForDispatch(ctx context.Context, limit int) ([]NotificationRecord, error) {
+	q := `
+		SELECT id, recipient_did, channel, type, locale, subject, body, status, scheduled_at, created_at
+		FROM notifications
+		WHERE status = 'queued'
+		  AND (scheduled_at IS NULL OR scheduled_at <= NOW())
+		ORDER BY created_at
+		LIMIT $1
+	`
+	rows, err := r.pool.Query(ctx, q, limit)
+	if err != nil {
+		return nil, fmt.Errorf("repository: get due notifications: %w", err)
+	}
+	defer rows.Close()
+	var recs []NotificationRecord
+	for rows.Next() {
+		var rec NotificationRecord
+		if err := rows.Scan(&rec.ID, &rec.RecipientDID, &rec.Channel, &rec.Type, &rec.Locale,
+			&rec.Subject, &rec.Body, &rec.Status, &rec.ScheduledAt, &rec.CreatedAt); err != nil {
+			return nil, fmt.Errorf("repository: scan notification: %w", err)
+		}
+		recs = append(recs, rec)
+	}
+	return recs, rows.Err()
+}
+
+// MarkDelivered marks a notification as successfully delivered.
+func (r *Repository) MarkDelivered(ctx context.Context, id string) error {
+	_, err := r.pool.Exec(ctx, `UPDATE notifications SET status = 'delivered' WHERE id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("repository: mark delivered: %w", err)
+	}
+	return nil
+}
+
+// MarkFailed marks a notification as failed with a reason.
+func (r *Repository) MarkFailed(ctx context.Context, id, reason string) error {
+	_, err := r.pool.Exec(ctx, `UPDATE notifications SET status = 'failed', body = $2 WHERE id = $1`, id, reason)
+	if err != nil {
+		return fmt.Errorf("repository: mark failed: %w", err)
+	}
+	return nil
+}

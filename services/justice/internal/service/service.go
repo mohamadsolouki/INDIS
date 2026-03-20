@@ -31,6 +31,7 @@ type JusticeRepository interface {
 	GetTestimonyByReceipt(ctx context.Context, receiptToken string) (*repository.TestimonyRecord, error)
 	GetCaseStatus(ctx context.Context, caseID string) (string, time.Time, error)
 	CreateAmnestyCase(ctx context.Context, rec repository.AmnestyRecord) error
+	UpdateCaseStatus(ctx context.Context, caseID, newStatus string) error
 }
 
 // ZKProofService defines ZK operations used by anonymous testimony submission.
@@ -175,6 +176,33 @@ func (s *JusticeService) GetCaseStatus(ctx context.Context, caseID, receiptToken
 		return "", "", "", fmt.Errorf("service: get status: %w", err)
 	}
 	return lookupID, st, updatedAt.UTC().Format(time.RFC3339), nil
+}
+
+// validStatusTransitions defines the allowed case status progression.
+var validStatusTransitions = map[string]string{
+	"received":     "under_review",
+	"under_review": "referred",
+	"referred":     "closed",
+}
+
+// AdvanceCaseStatus transitions a case to its next status.
+// Only sequential forward transitions are allowed. Ref: PRD §FR-011.
+func (s *JusticeService) AdvanceCaseStatus(ctx context.Context, caseID, adminDID string) (string, string, error) {
+	current, _, err := s.repo.GetCaseStatus(ctx, caseID)
+	if errors.Is(err, repository.ErrNotFound) {
+		return "", "", fmt.Errorf("service: case not found: %s", caseID)
+	}
+	if err != nil {
+		return "", "", fmt.Errorf("service: get case status: %w", err)
+	}
+	next, ok := validStatusTransitions[current]
+	if !ok {
+		return "", "", fmt.Errorf("service: case %s is already in terminal status: %s", caseID, current)
+	}
+	if err := s.repo.UpdateCaseStatus(ctx, caseID, next); err != nil {
+		return "", "", fmt.Errorf("service: update case status: %w", err)
+	}
+	return caseID, next, nil
 }
 
 type zkProveRequest struct {

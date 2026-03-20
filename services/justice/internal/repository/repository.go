@@ -111,3 +111,26 @@ func (r *Repository) CreateAmnestyCase(ctx context.Context, rec AmnestyRecord) e
 	}
 	return nil
 }
+
+// UpdateCaseStatus transitions a case to the next status.
+// Checks both testimonies and amnesty_cases tables.
+// Valid statuses: received → under_review → referred → closed
+func (r *Repository) UpdateCaseStatus(ctx context.Context, caseID, newStatus string) error {
+	// Try testimonies first.
+	tag, err := r.pool.Exec(ctx, `UPDATE testimonies SET status = $1 WHERE case_id = $2`, newStatus, caseID)
+	if err != nil {
+		return fmt.Errorf("repository: update testimony status: %w", err)
+	}
+	if tag.RowsAffected() > 0 {
+		return nil
+	}
+	// Try amnesty_cases.
+	tag, err = r.pool.Exec(ctx, `UPDATE amnesty_cases SET status = $1 WHERE case_id = $2`, newStatus, caseID)
+	if err != nil {
+		return fmt.Errorf("repository: update amnesty status: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}

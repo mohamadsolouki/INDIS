@@ -132,3 +132,16 @@ func (r *Repository) CastBallot(ctx context.Context, rec BallotRecord) error {
 	_, _ = r.pool.Exec(ctx, `UPDATE elections SET ballot_count = ballot_count + 1 WHERE id = $1`, rec.ElectionID)
 	return nil
 }
+
+// UpdateElectionStatus updates the lifecycle status of an election.
+// Valid transitions: scheduled→open, open→closed, closed→tallied.
+func (r *Repository) UpdateElectionStatus(ctx context.Context, id, newStatus string) error {
+	tag, err := r.pool.Exec(ctx, `UPDATE elections SET status = $1 WHERE id = $2`, newStatus, id)
+	if err != nil {
+		return fmt.Errorf("repository: update election status: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
