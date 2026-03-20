@@ -15,27 +15,32 @@ export default function BulkOperationsPage() {
   const token = localStorage.getItem('gov_token')
 
   useEffect(() => {
-    fetch('/v1/govportal/bulk-operations', {
+    fetch('/v1/portal/bulk-ops', {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.json())
-      .then(data => setOps((data as { operations: BulkOp[] }).operations ?? []))
+      .then(data => setOps((data as { bulk_operations: BulkOp[] }).bulk_operations ?? []))
       .finally(() => setLoading(false))
   }, [token])
 
   async function approve(id: string) {
-    await fetch(`/v1/govportal/bulk-operations/${id}/approve`, {
+    const resp = await fetch(`/v1/portal/bulk-ops/${id}/approve`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     })
-    setOps(prev => prev.map(o => o.id === id ? { ...o, status: 'approved' } : o))
+    if (!resp.ok) return
+    const updated = (await resp.json()) as BulkOp
+    setOps(prev => prev.map(o => (o.id === id ? updated : o)))
   }
 
   const statusColor: Record<string, string> = {
     pending: '#b45309',
-    approved: '#0f9960',
-    rejected: '#c23030',
-    processing: '#1a56db',
+    executing: '#1a56db',
+    completed: '#0f9960',
+    failed: '#c23030',
+    approved: '#0f9960', // backward compat (older UI states)
+    rejected: '#c23030', // backward compat (older UI states)
+    processing: '#1a56db', // backward compat (older UI states)
   }
 
   return (

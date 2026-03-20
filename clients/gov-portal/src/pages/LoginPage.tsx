@@ -11,7 +11,7 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      const resp = await fetch('/v1/govportal/auth/login', {
+        const resp = await fetch('/v1/portal/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),

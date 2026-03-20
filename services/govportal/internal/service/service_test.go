@@ -79,6 +79,17 @@ func (f *fakeRepo) ApproveBulkOperation(_ context.Context, id, approvedBy, newSt
 	return nil
 }
 
+func (f *fakeRepo) SetBulkOperationResult(_ context.Context, id, approvedBy, newStatus string, resultSummary json.RawMessage) error {
+	op, ok := f.operations[id]
+	if !ok {
+		return repository.ErrNotFound
+	}
+	op.ApprovedBy = approvedBy
+	op.Status = newStatus
+	op.ResultSummary = resultSummary
+	return nil
+}
+
 func (f *fakeRepo) GetBulkOperationByID(_ context.Context, id string) (*repository.BulkOperationRecord, error) {
 	op, ok := f.operations[id]
 	if !ok {

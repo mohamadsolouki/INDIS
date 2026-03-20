@@ -16,14 +16,14 @@ export default function UsersPage() {
   const token = localStorage.getItem('gov_token')
 
   useEffect(() => {
-    fetch('/v1/govportal/users', { headers: { Authorization: `Bearer ${token}` } })
+    fetch('/v1/portal/users', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(data => setUsers((data as { users: PortalUser[] }).users ?? []))
       .finally(() => setLoading(false))
   }, [token])
 
   async function changeRole(id: string, newRole: string) {
-    await fetch(`/v1/govportal/users/${id}/role`, {
+    await fetch(`/v1/portal/users/${id}/role`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ role: newRole }),

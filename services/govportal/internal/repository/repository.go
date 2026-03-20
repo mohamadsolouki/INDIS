@@ -260,6 +260,29 @@ func (r *Repository) ApproveBulkOperation(ctx context.Context, id, approvedBy, n
 	return nil
 }
 
+// SetBulkOperationResult updates a bulk operation final state and persists the JSON outcome.
+func (r *Repository) SetBulkOperationResult(ctx context.Context, id, approvedBy, newStatus string, resultSummary json.RawMessage) error {
+	if resultSummary == nil {
+		resultSummary = json.RawMessage("{}")
+	}
+	q := `
+		UPDATE bulk_operations
+		SET approved_by = $2,
+		    status = $3,
+		    result_summary = $4,
+		    updated_at = $5
+		WHERE id = $1
+	`
+	tag, err := r.pool.Exec(ctx, q, id, approvedBy, newStatus, resultSummary, time.Now().UTC())
+	if err != nil {
+		return fmt.Errorf("repository: set bulk operation result: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 // CountVerifiers returns the count of all rows in a given table — used for aggregate stats.
 // tableName is trusted (internal use only, never from HTTP input).
 func (r *Repository) CountRows(ctx context.Context, tableName string) (int64, error) {

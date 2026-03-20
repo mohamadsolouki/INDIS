@@ -118,7 +118,7 @@
 | Client | Status | Completion | Notes |
 |--------|--------|-----------|-------|
 | **Citizen PWA** | 🟡 In progress | 65% | Full app scaffold: Login, Home, Wallet, Enrollment (camera), Verify (ZK), Settings; offline IndexedDB wallet; service worker; qrcode.react + WASM ZK bridge pending |
-| **Gov portal frontend** | 🟡 In progress | 50% | Scaffold complete: Login, Dashboard (stats), Bulk Operations (approve), Users (role management), Audit log; Apollo GraphQL client wired |
+| **Gov portal frontend** | 🟡 In progress | 50% | Scaffold complete (login/dashboard/bulk/users/audit), but REST endpoint paths and response shapes still need alignment to `/v1/portal/*` (via gateway); GraphQL is currently not fully wired in the UI |
 | **Verifier terminal PWA** | 🟡 In progress | 60% | Full binary result display; html5-qrcode scanner; gateway integration |
 | **Android app** | 🟡 In progress | 40% | OnboardingActivity (launcher), MainActivity (bottom nav), NotificationService (FCM), GatewayApiClient (OkHttp), QR scan deps added |
 | **iOS app** | 🔴 Not started | 0% | — |
@@ -293,11 +293,17 @@ All T2 items are complete.
 
 ## Tier 3 — Months 4–12: National Rollout
 
-### T3.1 — Government Portal Backend ✅ COMPLETE
+### T3.1 — Government Portal Backend 🟡 In progress (FR-009/010/011)
 
-`services/govportal` (HTTP :8200) — all endpoints implemented, GraphQL resolvers working, HMAC-JWT auth, role hierarchy.
+`services/govportal` (HTTP :8200) — ministry operator endpoints for portal user management and bulk operations exist, GraphQL endpoint is present but minimal/stubbed, and HMAC-JWT authorization/role hierarchy exist at the service layer.
 
-**Remaining:** Frontend React + Apollo GraphQL client (`clients/web/gov-portal/`).
+**Remaining:**
+- `POST /v1/portal/auth/login` (certificate-based auth not implemented yet)
+- `PUT /v1/portal/users/{id}/role` (role assignment handler not wired in HTTP mux yet)
+- Bulk operation execution wiring (approval currently updates state but does not execute via `CredentialService`/`EnrollmentService` and does not produce per-target `result_summary`)
+- Audit logging integration (gov portal actions should append to `services/audit`)
+- Gateway proxying + public route alignment for gov-portal (`/v1/portal/*`, `/graphql`)
+- FR-010 / FR-011 module UI pages and dev-friendly payload inputs
 
 ---
 
@@ -596,13 +602,15 @@ All backend APIs are available and contract-defined in `api/openapi/openapi.yaml
 ### Gov Portal Frontend Checklist
 
 ```
-[ ] React 18 + Apollo Client + Vite project scaffold
-[ ] GraphQL codegen from services/govportal schema
-[ ] Stats dashboard (enrollment/credential/verification charts)
-[ ] Ministry user management (invite, role assignment)
-[ ] Bulk operations workflow (create, approve, track)
-[ ] Role-based UI gating (viewer/operator/senior/admin)
-[ ] RTL support (Farsi is primary language for ministry users)
+[x] React 18 + Apollo Client + Vite project scaffold
+[ ] Align frontend API paths to gateway routes (`/v1/portal/*`) and backend response shapes
+[ ] Implement gov portal login flow (gateway public route + `POST /v1/portal/auth/login`)
+[ ] Ministry user management: role assignment UI + backend `PUT /v1/portal/users/{id}/role`
+[ ] Bulk operations workflow (create/approve/execute/track) and persist `result_summary`
+[ ] Audit log viewer wired to `GET /v1/audit/events` (aggregate/no citizen PII)
+[ ] Add FR-010 Electoral Authority module UI (elections + authenticated ballot submission)
+[ ] Add FR-011 Transitional Justice module UI (testimony + linking + amnesty)
+[ ] Role-based UI gating (viewer/operator/senior/admin) and RTL-first UI polish
 ```
 
 ### Verifier Terminal PWA Checklist

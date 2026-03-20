@@ -95,7 +95,7 @@ func main() {
 	}
 
 	limiter := ratelimit.New(cfg.RateLimitRPS)
-	gw := handler.New(clients, limiter, repo, cfg.VerifierHTTPURL, cfg.CardHTTPURL)
+	gw := handler.New(clients, limiter, repo, cfg.VerifierHTTPURL, cfg.CardHTTPURL, cfg.GovPortalHTTPURL)
 
 	// Nonce cache for JWT jti replay protection.
 	nonceCache := auth.NewNonceCache()

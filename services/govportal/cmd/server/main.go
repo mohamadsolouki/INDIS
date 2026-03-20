@@ -12,8 +12,14 @@ import (
 	"syscall"
 	"time"
 
+	credentialv1 "github.com/IranProsperityProject/INDIS/api/gen/go/credential/v1"
+	auditv1 "github.com/IranProsperityProject/INDIS/api/gen/go/audit/v1"
+	enrollmentv1 "github.com/IranProsperityProject/INDIS/api/gen/go/enrollment/v1"
+	identityv1 "github.com/IranProsperityProject/INDIS/api/gen/go/identity/v1"
 	indismetrics "github.com/IranProsperityProject/INDIS/pkg/metrics"
 	indismigrate "github.com/IranProsperityProject/INDIS/pkg/migrate"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"github.com/IranProsperityProject/INDIS/services/govportal/internal/config"
 	"github.com/IranProsperityProject/INDIS/services/govportal/internal/handler"
 	"github.com/IranProsperityProject/INDIS/services/govportal/internal/repository"
@@ -49,6 +55,49 @@ func main() {
 
 	repo := repository.New(pool)
 	svc := service.New(repo)
+
+	// Best-effort wiring to backend gRPC services used for bulk execution.
+	// If dialing fails, the gov portal execution endpoints will return errors.
+	if cfg.CredentialGRPCAddr != "" {
+		conn, dialErr := grpc.NewClient(cfg.CredentialGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if dialErr != nil {
+			log.Printf("WARNING: credential gRPC dial failed (%s): %v", cfg.CredentialGRPCAddr, dialErr)
+		} else {
+			defer conn.Close()
+			svc.SetCredentialClient(credentialv1.NewCredentialServiceClient(conn))
+		}
+	}
+
+	if cfg.EnrollmentGRPCAddr != "" {
+		conn, dialErr := grpc.NewClient(cfg.EnrollmentGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if dialErr != nil {
+			log.Printf("WARNING: enrollment gRPC dial failed (%s): %v", cfg.EnrollmentGRPCAddr, dialErr)
+		} else {
+			defer conn.Close()
+			svc.SetEnrollmentClient(enrollmentv1.NewEnrollmentServiceClient(conn))
+		}
+	}
+
+	if cfg.IdentityGRPCAddr != "" {
+		conn, dialErr := grpc.NewClient(cfg.IdentityGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if dialErr != nil {
+			log.Printf("WARNING: identity gRPC dial failed (%s): %v", cfg.IdentityGRPCAddr, dialErr)
+		} else {
+			defer conn.Close()
+			svc.SetIdentityClient(identityv1.NewIdentityServiceClient(conn))
+		}
+	}
+
+	if cfg.AuditGRPCAddr != "" {
+		conn, dialErr := grpc.NewClient(cfg.AuditGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if dialErr != nil {
+			log.Printf("WARNING: audit gRPC dial failed (%s): %v", cfg.AuditGRPCAddr, dialErr)
+		} else {
+			defer conn.Close()
+			svc.SetAuditClient(auditv1.NewAuditServiceClient(conn))
+		}
+	}
+
 	h := handler.New(svc, cfg.JWTSecret)
 
 	addr := fmt.Sprintf(":%d", cfg.HTTPPort)

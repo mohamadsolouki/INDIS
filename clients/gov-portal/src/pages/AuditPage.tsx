@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 
 interface AuditEvent {
-  id: string
-  event_type: string
+  event_id: string
+  category: number
+  action: string
   actor_did: string
-  target_did: string
-  description: string
-  occurred_at: string
+  subject_did: string
+  resource_id: string
+  service_id: string
+  timestamp: string
 }
 
 export default function AuditPage() {
@@ -38,11 +40,11 @@ export default function AuditPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {events.map(ev => (
             <div
-              key={ev.id}
+              key={ev.event_id}
               style={{ background: '#fff', borderRadius: 8, padding: '12px 16px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', display: 'flex', gap: 16, alignItems: 'flex-start' }}
             >
               <div style={{ fontSize: 11, color: '#999', whiteSpace: 'nowrap', marginTop: 2 }}>
-                {new Date(ev.occurred_at).toLocaleString('fa-IR')}
+                {new Date(ev.timestamp).toLocaleString('fa-IR')}
               </div>
               <div style={{ flex: 1 }}>
                 <span
@@ -55,9 +57,11 @@ export default function AuditPage() {
                     marginLeft: 8,
                   }}
                 >
-                  {ev.event_type}
+                  {ev.action}
                 </span>
-                <span style={{ fontSize: 13 }}>{ev.description}</span>
+                <span style={{ fontSize: 13, display: 'block', color: '#555', marginTop: 6 }}>
+                  {ev.service_id}{ev.resource_id ? ` • ${ev.resource_id}` : ''}
+                </span>
               </div>
               <div style={{ fontSize: 11, color: '#999', fontFamily: 'monospace', direction: 'ltr' }}>
                 {ev.actor_did?.slice(-12)}

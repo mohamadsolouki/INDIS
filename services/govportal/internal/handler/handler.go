@@ -10,6 +10,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	auditv1 "github.com/IranProsperityProject/INDIS/api/gen/go/audit/v1"
 	"github.com/IranProsperityProject/INDIS/services/govportal/internal/repository"
 	"github.com/IranProsperityProject/INDIS/services/govportal/internal/service"
 )
@@ -65,8 +67,11 @@ func (h *Handler) registerRoutes() {
 	h.mux.HandleFunc("GET /health", h.handleHealth)
 	h.mux.HandleFunc("POST /graphql", h.handleGraphQL)
 
+	h.mux.HandleFunc("POST /v1/portal/auth/login", h.handleLogin)
+
 	h.mux.HandleFunc("POST /v1/portal/users", h.requireRole("admin", h.handleCreateUser))
 	h.mux.HandleFunc("GET /v1/portal/users", h.requireRole("admin", h.handleListUsers))
+	h.mux.HandleFunc("PUT /v1/portal/users/{id}/role", h.requireRole("admin", h.handleAssignRole))
 
 	h.mux.HandleFunc("POST /v1/portal/bulk-ops", h.requireRole("operator", h.handleCreateBulkOp))
 	h.mux.HandleFunc("GET /v1/portal/bulk-ops", h.requireRole("viewer", h.handleListBulkOps))
@@ -200,6 +205,82 @@ func (h *Handler) resolveBulkOperations(ctx context.Context, w http.ResponseWrit
 	})
 }
 
+// ---- Portal Login ----------------------------------------------------------
+
+type loginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type loginResponse struct {
+	Token string `json:"token"`
+}
+
+func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
+	var req loginRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if req.Username == "" || req.Password == "" {
+		writeError(w, http.StatusBadRequest, "username and password are required")
+		return
+	}
+
+	// Dev-only authentication: compare password's sha256 hex with stored api_key_hash.
+	users, err := h.svc.ListPortalUsers(r.Context(), "")
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	var u *repository.PortalUserRecord
+	for _, candidate := range users {
+		if candidate.Username == req.Username {
+			u = candidate
+			break
+		}
+	}
+	if u == nil || u.APIKeyHash == "" {
+		writeError(w, http.StatusUnauthorized, "invalid credentials")
+		return
+	}
+
+	sum := sha256.Sum256([]byte(req.Password))
+	passwordHash := hex.EncodeToString(sum[:])
+	if !hmac.Equal([]byte(passwordHash), []byte(u.APIKeyHash)) {
+		writeError(w, http.StatusUnauthorized, "invalid credentials")
+		return
+	}
+
+	exp := time.Now().Add(24 * time.Hour).Unix()
+	claims := jwtClaims{
+		Sub:      u.ID,
+		Ministry: u.Ministry,
+		Role:     u.Role,
+		Exp:      exp,
+	}
+	token, err := h.mintJWT(claims)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if err := h.svc.AppendAuditEvent(
+		r.Context(),
+		auditv1.EventCategory_EVENT_CATEGORY_ADMIN,
+		"govportal.auth.login",
+		u.ID,
+		"",
+		"",
+		map[string]any{"ministry": u.Ministry, "role": u.Role},
+	); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, loginResponse{Token: token})
+}
+
 // ---- Portal Users ----------------------------------------------------------
 
 // createUserRequest is the JSON body for POST /v1/portal/users.
@@ -222,6 +303,25 @@ func (h *Handler) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+
+	claims, _ := r.Context().Value(ctxKeyClaims).(*jwtClaims)
+	actorDid := ""
+	if claims != nil {
+		actorDid = claims.Sub
+	}
+	if err := h.svc.AppendAuditEvent(
+		r.Context(),
+		auditv1.EventCategory_EVENT_CATEGORY_ADMIN,
+		"govportal.user.create",
+		actorDid,
+		"",
+		user.ID,
+		map[string]any{"ministry": req.Ministry, "role": req.Role},
+	); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	writeJSON(w, http.StatusCreated, portalUserToJSON(user))
 }
 
@@ -233,11 +333,79 @@ func (h *Handler) handleListUsers(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+
+	claims, _ := r.Context().Value(ctxKeyClaims).(*jwtClaims)
+	actorDid := ""
+	if claims != nil {
+		actorDid = claims.Sub
+	}
+	if err := h.svc.AppendAuditEvent(
+		r.Context(),
+		auditv1.EventCategory_EVENT_CATEGORY_ADMIN,
+		"govportal.user.list",
+		actorDid,
+		"",
+		"",
+		map[string]any{"ministry": ministry, "count": len(users)},
+	); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	result := make([]map[string]any, 0, len(users))
 	for _, u := range users {
 		result = append(result, portalUserToJSON(u))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"users": result})
+}
+
+// ---- Assign Role ------------------------------------------------------------
+
+type assignRoleRequest struct {
+	Role string `json:"role"`
+}
+
+func (h *Handler) handleAssignRole(w http.ResponseWriter, r *http.Request) {
+	userID := r.PathValue("id")
+	if userID == "" {
+		writeError(w, http.StatusBadRequest, "user id is required in path")
+		return
+	}
+
+	var req assignRoleRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if req.Role == "" {
+		writeError(w, http.StatusBadRequest, "role is required")
+		return
+	}
+
+	if err := h.svc.AssignRole(r.Context(), userID, req.Role); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	claims, _ := r.Context().Value(ctxKeyClaims).(*jwtClaims)
+	actorDid := ""
+	if claims != nil {
+		actorDid = claims.Sub
+	}
+	if err := h.svc.AppendAuditEvent(
+		r.Context(),
+		auditv1.EventCategory_EVENT_CATEGORY_ADMIN,
+		"govportal.user.role.assign",
+		actorDid,
+		"",
+		userID,
+		map[string]any{"new_role": req.Role},
+	); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"id": userID, "role": req.Role})
 }
 
 // ---- Bulk Operations -------------------------------------------------------
@@ -272,6 +440,20 @@ func (h *Handler) handleCreateBulkOp(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+
+	if err := h.svc.AppendAuditEvent(
+		r.Context(),
+		auditv1.EventCategory_EVENT_CATEGORY_ADMIN,
+		"govportal.bulkop.create",
+		requestedBy,
+		"",
+		op.ID,
+		map[string]any{"operation_type": req.OperationType, "ministry": req.Ministry, "target_count": len(req.TargetDIDs)},
+	); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	writeJSON(w, http.StatusCreated, bulkOpToJSON(op))
 }
 
@@ -284,6 +466,25 @@ func (h *Handler) handleListBulkOps(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+
+	claims, _ := r.Context().Value(ctxKeyClaims).(*jwtClaims)
+	actorDid := ""
+	if claims != nil {
+		actorDid = claims.Sub
+	}
+	if err := h.svc.AppendAuditEvent(
+		r.Context(),
+		auditv1.EventCategory_EVENT_CATEGORY_ADMIN,
+		"govportal.bulkop.list",
+		actorDid,
+		"",
+		"",
+		map[string]any{"status": statusFilter, "ministry": ministryFilter, "count": len(ops)},
+	); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	result := make([]map[string]any, 0, len(ops))
 	for _, op := range ops {
 		result = append(result, bulkOpToJSON(op))
@@ -312,7 +513,7 @@ func (h *Handler) handleApproveBulkOp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	op, err := h.svc.ApproveBulkOperation(r.Context(), id, approverID)
+	op, err := h.svc.ApproveAndExecuteBulkOperation(r.Context(), id, approverID)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "bulk operation not found")
@@ -321,6 +522,20 @@ func (h *Handler) handleApproveBulkOp(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+
+	if err := h.svc.AppendAuditEvent(
+		r.Context(),
+		auditv1.EventCategory_EVENT_CATEGORY_ADMIN,
+		"govportal.bulkop.approve",
+		approverID,
+		"",
+		op.ID,
+		map[string]any{"operation_type": op.OperationType, "final_status": op.Status, "target_count": len(op.TargetDIDs)},
+	); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	writeJSON(w, http.StatusOK, bulkOpToJSON(op))
 }
 
@@ -433,6 +648,27 @@ func (h *Handler) extractJWT(r *http.Request) (*jwtClaims, error) {
 	}
 
 	return &claims, nil
+}
+
+// mintJWT creates an HS256 JWT signed with the handler's configured secret.
+func (h *Handler) mintJWT(claims jwtClaims) (string, error) {
+	// JWT header for HS256
+	headerJSON := []byte(`{"alg":"HS256","typ":"JWT"}`)
+	headerB64 := base64.RawURLEncoding.EncodeToString(headerJSON)
+
+	payloadJSON, err := json.Marshal(claims)
+	if err != nil {
+		return "", fmt.Errorf("mint jwt: payload json: %w", err)
+	}
+	payloadB64 := base64.RawURLEncoding.EncodeToString(payloadJSON)
+
+	signingInput := headerB64 + "." + payloadB64
+
+	mac := hmac.New(sha256.New, h.jwtSecret)
+	mac.Write([]byte(signingInput))
+	sigB64 := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+
+	return signingInput + "." + sigB64, nil
 }
 
 // ---- Serialisation helpers -------------------------------------------------

@@ -12,7 +12,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const token = localStorage.getItem('gov_token')
-    fetch('/v1/govportal/stats', {
+    fetch('/v1/portal/stats', {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.json())

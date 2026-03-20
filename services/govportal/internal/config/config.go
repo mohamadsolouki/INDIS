@@ -19,6 +19,8 @@ type Config struct {
 	IdentityGRPCAddr string
 	// CredentialGRPCAddr is the host:port of the credential gRPC service.
 	CredentialGRPCAddr string
+	// EnrollmentGRPCAddr is the host:port of the enrollment gRPC service.
+	EnrollmentGRPCAddr string
 	// AuditGRPCAddr is the host:port of the audit gRPC service.
 	AuditGRPCAddr string
 	// JWTSecret is the HMAC-SHA256 key used to validate ministry user tokens.
@@ -34,6 +36,7 @@ func Load() (*Config, error) {
 		DatabaseURL:        "postgres://indis:indis_dev_password@localhost:5432/indis_govportal?sslmode=disable",
 		IdentityGRPCAddr:   "localhost:50051",
 		CredentialGRPCAddr: "localhost:50052",
+		EnrollmentGRPCAddr: "localhost:50053",
 		AuditGRPCAddr:      "localhost:50056",
 		JWTSecret:          "indis-govportal-dev-secret",
 	}
@@ -59,11 +62,23 @@ func Load() (*Config, error) {
 	}
 	if v := os.Getenv("IDENTITY_GRPC_ADDR"); v != "" {
 		cfg.IdentityGRPCAddr = v
+	} else if v := os.Getenv("IDENTITY_ADDR"); v != "" {
+		// docker-compose uses *_ADDR naming for backend addresses.
+		cfg.IdentityGRPCAddr = v
 	}
 	if v := os.Getenv("CREDENTIAL_GRPC_ADDR"); v != "" {
 		cfg.CredentialGRPCAddr = v
+	} else if v := os.Getenv("CREDENTIAL_ADDR"); v != "" {
+		cfg.CredentialGRPCAddr = v
+	}
+	if v := os.Getenv("ENROLLMENT_GRPC_ADDR"); v != "" {
+		cfg.EnrollmentGRPCAddr = v
+	} else if v := os.Getenv("ENROLLMENT_ADDR"); v != "" {
+		cfg.EnrollmentGRPCAddr = v
 	}
 	if v := os.Getenv("AUDIT_GRPC_ADDR"); v != "" {
+		cfg.AuditGRPCAddr = v
+	} else if v := os.Getenv("AUDIT_ADDR"); v != "" {
 		cfg.AuditGRPCAddr = v
 	}
 	if v := os.Getenv("JWT_SECRET"); v != "" {

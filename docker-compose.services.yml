@@ -236,13 +236,15 @@ services:
       IDENTITY_ADDR: identity:9100
       CREDENTIAL_ADDR: credential:9102
       ENROLLMENT_ADDR: enrollment:9103
+      AUDIT_ADDR: audit:9105
       ELECTORAL_ADDR: electoral:9107
       JUSTICE_ADDR: justice:9108
+      JWT_SECRET: indis-dev-secret-change-in-prod
     ports:
       - "8200:8200"
       - "8201:8201"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8200/healthz > /dev/null 2>&1 || exit 0"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8200/health > /dev/null 2>&1 || exit 0"]
       interval: 10s
       timeout: 5s
       retries: 5

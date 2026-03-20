@@ -45,6 +45,7 @@ var publicRoutes = []publicRoute{
 	{prefix: "/v1/identity/", method: http.MethodGet},
 	{prefix: "/v1/credential/", method: http.MethodGet},
 	{prefix: "/v1/electoral/verify", method: ""},
+	{prefix: "/v1/portal/auth/login", method: http.MethodPost},
 	{prefix: "/v1/ussd", method: ""},
 }
 

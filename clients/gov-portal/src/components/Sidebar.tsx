@@ -2,8 +2,10 @@ import { NavLink } from 'react-router-dom'
 
 const items = [
   { to: '/', label: 'داشبورد', icon: '📊', end: true },
+  { to: '/electoral', label: 'ماژول انتخابات', icon: 'E', end: false },
   { to: '/bulk-operations', label: 'عملیات گروهی', icon: '📦', end: false },
   { to: '/users', label: 'کاربران پرتال', icon: '👤', end: false },
+  { to: '/justice', label: 'عدالت انتقالی', icon: 'J', end: false },
   { to: '/audit', label: 'گزارش حسابرسی', icon: '📋', end: false },
 ]
 

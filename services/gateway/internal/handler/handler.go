@@ -77,18 +77,20 @@ type Gateway struct {
 	repo           *repository.Repository
 	verifierHTTPURL string
 	cardHTTPURL     string
+	govPortalHTTPURL string
 	mux            *http.ServeMux
 }
 
 // New creates a new Gateway with all routes registered.
 // repo may be nil when the gateway is run without a local database (disables privacy APIs).
-func New(clients *proxy.Clients, limiter *ratelimit.Limiter, repo *repository.Repository, verifierHTTPURL, cardHTTPURL string) *Gateway {
+func New(clients *proxy.Clients, limiter *ratelimit.Limiter, repo *repository.Repository, verifierHTTPURL, cardHTTPURL, govPortalHTTPURL string) *Gateway {
 	g := &Gateway{
 		clients:        clients,
 		limiter:        limiter,
 		repo:           repo,
 		verifierHTTPURL: verifierHTTPURL,
 		cardHTTPURL:     cardHTTPURL,
+		govPortalHTTPURL: govPortalHTTPURL,
 		mux:            http.NewServeMux(),
 	}
 	g.routes()
@@ -152,6 +154,10 @@ func (g *Gateway) routes() {
 
 	// Privacy Control Center (PRD §FR-008)
 	g.mux.HandleFunc("/v1/privacy/", g.handlePrivacy)
+
+	// Gov portal (REST + minimal GraphQL)
+	g.mux.HandleFunc("/graphql", g.handleGovPortalGraphQL)
+	g.mux.HandleFunc("/v1/portal/", g.handleGovPortal)
 }
 
 // ── Health ────────────────────────────────────────────────────────────────────
@@ -707,6 +713,21 @@ func (g *Gateway) handleVerifier(w http.ResponseWriter, r *http.Request) {
 func (g *Gateway) handleCard(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/v1/card")
 	g.proxyHTTP(w, r, g.cardHTTPURL+"/v1/card"+path)
+}
+
+// ── Gov Portal (HTTP proxy) ───────────────────────────────────────────────────
+
+func (g *Gateway) handleGovPortal(w http.ResponseWriter, r *http.Request) {
+	// /v1/portal/{...} → govportal:8200/v1/portal/{...}
+	path := strings.TrimPrefix(r.URL.Path, "/v1/portal")
+	target := strings.TrimRight(g.govPortalHTTPURL, "/") + "/v1/portal" + path
+	g.proxyHTTP(w, r, target)
+}
+
+func (g *Gateway) handleGovPortalGraphQL(w http.ResponseWriter, r *http.Request) {
+	// /graphql → govportal:8200/graphql
+	target := strings.TrimRight(g.govPortalHTTPURL, "/") + r.URL.Path
+	g.proxyHTTP(w, r, target)
 }
 
 // proxyHTTP forwards the incoming request to targetURL and streams the response back.
