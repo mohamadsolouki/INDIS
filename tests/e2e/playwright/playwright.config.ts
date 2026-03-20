@@ -6,11 +6,13 @@ import { defineConfig, devices } from "@playwright/test";
  * Covers:
  *   - Citizen PWA (http://localhost:5173)
  *   - Verifier Terminal (http://localhost:5174)
+ *   - Diaspora Portal (http://localhost:5175)
  *
  * Run with:
  *   npx playwright test                      # all tests
  *   npx playwright test --project=citizen    # PWA only
  *   npx playwright test --project=verifier   # Verifier Terminal only
+ *   npx playwright test --project=diaspora   # Diaspora Portal only
  *
  * The BASE_URL env vars let CI point at deployed staging instances.
  */
@@ -48,6 +50,14 @@ export default defineConfig({
         baseURL: process.env.VERIFIER_URL ?? "http://localhost:5174",
       },
       testMatch: "**/verifier/**/*.spec.ts",
+    },
+    {
+      name: "diaspora",
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: process.env.DIASPORA_BASE_URL ?? "http://localhost:5175",
+      },
+      testMatch: "**/diaspora/**/*.spec.ts",
     },
     // Mobile viewport for citizen PWA (RTL / Persian UI)
     {

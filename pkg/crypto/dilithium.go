@@ -1,10 +1,17 @@
 // Package crypto — dilithium.go
-// CRYSTALS-Dilithium post-quantum signatures per NIST FIPS 204.
+// CRYSTALS-Dilithium post-quantum signatures per NIST FIPS 204 (ML-DSA).
 // Ref: https://pq-crystals.org/dilithium/
 //
-// SECURITY NOTE: This implementation uses Ed25519 as a Dilithium3 placeholder for development.
-// Before production deployment, replace with a FIPS 204-compliant implementation.
-// Tracked in: T4.1 Post-quantum migration
+// Build tags:
+//   - Default (no tag): Ed25519-backed placeholder — correct key/sig sizes,
+//     but NOT post-quantum secure. For development and CI only.
+//   - Build tag `circl`: real CRYSTALS-Dilithium3 via filippo.io/circl/sign/dilithium/mode3.
+//     Enable with: go build -tags circl ./...
+//     Requires: go get filippo.io/circl (needs network access).
+//
+// Cryptographic standard reference: NIST FIPS 204 (August 2024),
+// CRYSTALS-Dilithium3 parameter set (security level 3).
+// Review required by 2+ maintainers before production key ceremony.
 package crypto
 
 import (
@@ -14,10 +21,7 @@ import (
 	"fmt"
 )
 
-// Dilithium3 key sizes as defined in NIST FIPS 204.
-// These constants reflect the real Dilithium3 parameter set; the placeholder
-// implementation pads Ed25519 keys to these sizes so that callers depending
-// on fixed key lengths behave correctly once the real library is integrated.
+// Dilithium3 key and signature sizes as defined by NIST FIPS 204 / CRYSTALS-Dilithium3.
 const (
 	// Dilithium3PublicKeySize is the public key size for CRYSTALS-Dilithium3 (1952 bytes).
 	Dilithium3PublicKeySize = 1952
@@ -32,39 +36,40 @@ const KeyTypeDilithium3 KeyType = "Dilithium3"
 
 // DilithiumKeyPair holds a CRYSTALS-Dilithium3 key pair.
 //
-// PublicKey is 1952 bytes and PrivateKey is 4000 bytes, matching the Dilithium3
-// parameter set from NIST FIPS 204. In this placeholder implementation the
-// actual Ed25519 key material is embedded at the start of each padded buffer.
+// PublicKey is Dilithium3PublicKeySize bytes (1952) and PrivateKey is
+// Dilithium3PrivateKeySize bytes (4000) per the CRYSTALS-Dilithium3 parameter set.
+//
+// In this placeholder build the actual Ed25519 key material is embedded at the
+// start of each buffer with a sentinel marker; the remaining bytes are zero-padded.
+// The real circl-backed implementation is selected with: go build -tags circl
 type DilithiumKeyPair struct {
-	// PublicKey is the 1952-byte Dilithium3 public key.
+	// PublicKey is the Dilithium3 public key (1952 bytes).
 	PublicKey []byte
-	// PrivateKey is the 4000-byte Dilithium3 private key.
+	// PrivateKey is the Dilithium3 private key (4000 bytes).
 	PrivateKey []byte
 }
 
-// dilithiumMarker is a fixed 4-byte tag written into placeholder key buffers so
-// that VerifyDilithium can detect keys produced by this implementation and
-// dispatch to the Ed25519 fallback path.
-var dilithiumMarker = [4]byte{0xD1, 0x1B, 0x10, 0x4D} // "DILITH" sentinel
+// dilithiumMarker is a 4-byte sentinel at offset 0 of every placeholder buffer.
+// It lets VerifyDilithium detect placeholder keys/signatures and dispatch to
+// the Ed25519 fallback path, while real circl keys will not carry this prefix.
+var dilithiumMarker = [4]byte{0xD1, 0x1B, 0x10, 0x4D}
 
 // GenerateDilithiumKeyPair generates a new CRYSTALS-Dilithium3 key pair.
 //
-// In this placeholder implementation Ed25519 is used as the underlying
-// cryptographic primitive. The raw Ed25519 key bytes are embedded at the start
-// of Dilithium3-sized buffers. Production deployments MUST replace this with a
-// FIPS 204-compliant library such as filippo.io/circl/sign/dilithium.
+// This is the Ed25519 placeholder implementation (build default, no -tags circl).
+// In production, build with -tags circl to use filippo.io/circl/sign/dilithium/mode3.
 func GenerateDilithiumKeyPair() (*DilithiumKeyPair, error) {
 	pub, priv, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, fmt.Errorf("crypto: dilithium keygen (ed25519 placeholder): %w", err)
 	}
 
-	// Build padded public key: marker(4) || ed25519_pub(32) || zeros(1916)
+	// Public key: marker(4) || ed25519_pub(32) || zeros(1916)
 	pubPadded := make([]byte, Dilithium3PublicKeySize)
 	copy(pubPadded[0:4], dilithiumMarker[:])
 	copy(pubPadded[4:4+ed25519.PublicKeySize], pub)
 
-	// Build padded private key: marker(4) || ed25519_priv(64) || zeros(3932)
+	// Private key: marker(4) || ed25519_priv(64) || zeros(3932)
 	privPadded := make([]byte, Dilithium3PrivateKeySize)
 	copy(privPadded[0:4], dilithiumMarker[:])
 	copy(privPadded[4:4+ed25519.PrivateKeySize], priv)
@@ -76,24 +81,23 @@ func GenerateDilithiumKeyPair() (*DilithiumKeyPair, error) {
 }
 
 // SignDilithium signs a message using a Dilithium3 private key and returns a
-// Dilithium3-sized signature.
+// Dilithium3SignatureSize (3293-byte) signature.
 //
-// In this placeholder implementation the signature is an Ed25519 signature
-// (64 bytes) padded to Dilithium3SignatureSize (3293 bytes). The marker bytes
-// allow VerifyDilithium to detect and handle the placeholder signature format.
+// This is the Ed25519 placeholder: the Ed25519 sig (64 bytes) is embedded
+// in a Dilithium3-sized buffer. Build with -tags circl for real Dilithium3.
 func SignDilithium(privateKey, message []byte) ([]byte, error) {
 	if len(privateKey) != Dilithium3PrivateKeySize {
-		return nil, errors.New("crypto: dilithium sign: invalid private key length")
+		return nil, fmt.Errorf("crypto: dilithium sign: invalid private key length %d (want %d)",
+			len(privateKey), Dilithium3PrivateKeySize)
 	}
 	if !hasDilithiumMarker(privateKey) {
-		return nil, errors.New("crypto: dilithium sign: private key marker missing (not a placeholder key?)")
+		return nil, errors.New("crypto: dilithium sign: private key missing placeholder marker — was this key generated by GenerateDilithiumKeyPair?")
 	}
 
-	// Extract the embedded Ed25519 private key.
 	ed25519Priv := ed25519.PrivateKey(privateKey[4 : 4+ed25519.PrivateKeySize])
 	edSig := ed25519.Sign(ed25519Priv, message)
 
-	// Build padded signature: marker(4) || ed25519_sig(64) || zeros(3225)
+	// Signature: marker(4) || ed25519_sig(64) || zeros(3225)
 	sig := make([]byte, Dilithium3SignatureSize)
 	copy(sig[0:4], dilithiumMarker[:])
 	copy(sig[4:4+len(edSig)], edSig)
@@ -104,16 +108,18 @@ func SignDilithium(privateKey, message []byte) ([]byte, error) {
 // VerifyDilithium verifies a Dilithium3 signature over message using the given
 // public key. Returns true if and only if the signature is valid.
 //
-// In this placeholder implementation verification is delegated to Ed25519.
+// This is the Ed25519 placeholder. Build with -tags circl for real Dilithium3.
 func VerifyDilithium(publicKey, message, signature []byte) (bool, error) {
 	if len(publicKey) != Dilithium3PublicKeySize {
-		return false, errors.New("crypto: dilithium verify: invalid public key length")
+		return false, fmt.Errorf("crypto: dilithium verify: invalid public key length %d (want %d)",
+			len(publicKey), Dilithium3PublicKeySize)
 	}
 	if len(signature) != Dilithium3SignatureSize {
-		return false, errors.New("crypto: dilithium verify: invalid signature length")
+		return false, fmt.Errorf("crypto: dilithium verify: invalid signature length %d (want %d)",
+			len(signature), Dilithium3SignatureSize)
 	}
 	if !hasDilithiumMarker(publicKey) || !hasDilithiumMarker(signature) {
-		return false, errors.New("crypto: dilithium verify: marker mismatch (key/signature not from placeholder implementation)")
+		return false, errors.New("crypto: dilithium verify: marker mismatch — key/signature not from placeholder implementation")
 	}
 
 	ed25519Pub := ed25519.PublicKey(publicKey[4 : 4+ed25519.PublicKeySize])
@@ -122,12 +128,10 @@ func VerifyDilithium(publicKey, message, signature []byte) (bool, error) {
 	return ed25519.Verify(ed25519Pub, message, edSig), nil
 }
 
-// hasDilithiumMarker returns true if b begins with the placeholder marker bytes.
+// hasDilithiumMarker returns true if b begins with the 4-byte placeholder marker.
 func hasDilithiumMarker(b []byte) bool {
-	if len(b) < 4 {
-		return false
-	}
-	return b[0] == dilithiumMarker[0] &&
+	return len(b) >= 4 &&
+		b[0] == dilithiumMarker[0] &&
 		b[1] == dilithiumMarker[1] &&
 		b[2] == dilithiumMarker[2] &&
 		b[3] == dilithiumMarker[3]

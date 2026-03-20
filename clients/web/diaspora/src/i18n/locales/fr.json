@@ -1,0 +1,56 @@
+{
+  "app_name": "Portail Diaspora INDIS",
+  "tagline": "Système national d'identité numérique iranien",
+  "login": {
+    "title": "Connexion au portail",
+    "email": "Adresse e-mail",
+    "password": "Mot de passe",
+    "btn_login": "Se connecter",
+    "no_account": "Pas de compte ?",
+    "register_link": "S'inscrire"
+  },
+  "enrollment": {
+    "title": "Inscription des Iraniens de l'étranger",
+    "intro": "Téléchargez les documents suivants pour recevoir votre carte d'identité numérique.",
+    "step_personal": "Informations personnelles",
+    "step_documents": "Documents",
+    "step_appointment": "Rendez-vous à l'ambassade",
+    "step_review": "Vérification",
+    "national_id": "Numéro d'identité nationale",
+    "full_name": "Nom complet",
+    "birth_date": "Date de naissance",
+    "country": "Pays de résidence",
+    "city": "Ville",
+    "passport_number": "Numéro de passeport",
+    "embassy": "Ambassade / Consulat",
+    "upload_passport": "Télécharger le passeport",
+    "upload_photo": "Télécharger la photo d'identité",
+    "upload_proof": "Télécharger la preuve de résidence",
+    "btn_next": "Suivant",
+    "btn_back": "Retour",
+    "btn_submit": "Soumettre la demande",
+    "submitting": "Envoi en cours…",
+    "success_title": "Demande soumise",
+    "success_body": "Votre demande a été soumise avec succès. Code de suivi :"
+  },
+  "status": {
+    "title": "Statut de la demande",
+    "enrollment_id": "Identifiant de demande",
+    "status_pending": "En attente de vérification",
+    "status_approved": "Approuvée",
+    "status_rejected": "Rejetée",
+    "check_btn": "Vérifier le statut",
+    "checking": "Vérification…"
+  },
+  "nav": {
+    "home": "Accueil",
+    "enroll": "Inscription",
+    "status": "Statut",
+    "logout": "Déconnexion"
+  },
+  "errors": {
+    "required": "Ce champ est obligatoire",
+    "invalid_national_id": "Le numéro d'identité doit comporter 10 chiffres",
+    "network": "Erreur réseau — veuillez réessayer"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "string": [
+    { "name": "app_name",                   "value": "هویت ملی" },
+    { "name": "module_desc",                "value": "INDIS Citizen App" },
+    { "name": "EntryAbility_desc",          "value": "INDIS entry ability" },
+    { "name": "camera_permission_reason",   "value": "برای اسکن کد QR هویت و ثبت بیومتریک" },
+    { "name": "internet_permission_reason", "value": "برای ارتباط با سرور هویت ملی" },
+    { "name": "biometric_permission_reason","value": "برای احراز هویت امن" },
+    { "name": "revocation_worker_desc",     "value": "بروزرسانی لیست ابطال مدارک" },
+
+    { "name": "nav_home",       "value": "خانه" },
+    { "name": "nav_wallet",     "value": "کیف پول" },
+    { "name": "nav_verify",     "value": "تأیید" },
+    { "name": "nav_settings",   "value": "تنظیمات" },
+
+    { "name": "onboarding_title_1", "value": "هویت دیجیتال ایرانی" },
+    { "name": "onboarding_body_1",  "value": "کارت هویت ملی دیجیتال امن با رمزنگاری پیشرفته" },
+    { "name": "onboarding_title_2", "value": "کلید در دست شما" },
+    { "name": "onboarding_body_2",  "value": "کلید خصوصی روی دستگاه شما می‌ماند — هیچ‌وقت منتقل نمی‌شود" },
+    { "name": "onboarding_title_3", "value": "اثبات بدون افشا" },
+    { "name": "onboarding_body_3",  "value": "اثبات هویت با ZK-Proof — بدون نمایش اطلاعات خصوصی" },
+    { "name": "btn_next",           "value": "ادامه" },
+    { "name": "btn_start",          "value": "شروع ثبت‌نام" },
+    { "name": "btn_register",       "value": "ثبت‌نام" },
+    { "name": "btn_cancel",         "value": "انصراف" },
+    { "name": "btn_logout",         "value": "خروج" },
+
+    { "name": "wallet_empty",       "value": "هیچ مدرکی در کیف پول یافت نشد" },
+    { "name": "credential_valid",   "value": "معتبر" },
+    { "name": "credential_revoked", "value": "ابطال‌شده" },
+    { "name": "credential_expired", "value": "منقضی" },
+
+    { "name": "verify_present",     "value": "ارائه مدرک" },
+    { "name": "verify_scan",        "value": "اسکن تأیید" },
+    { "name": "verify_approved",    "value": "تأیید شد ✓" },
+    { "name": "verify_denied",      "value": "رد شد ✗" },
+
+    { "name": "settings_language",  "value": "زبان" },
+    { "name": "settings_numerals",  "value": "اعداد فارسی" },
+    { "name": "settings_gateway",   "value": "آدرس Gateway" },
+    { "name": "settings_privacy",   "value": "مرکز حریم خصوصی" },
+    { "name": "settings_version",   "value": "نسخه" },
+    { "name": "settings_did",       "value": "شناسه دستگاه (DID)" },
+    { "name": "logout_confirm",     "value": "آیا مطمئن هستید که می‌خواهید خارج شوید؟" }
+  ]
+}

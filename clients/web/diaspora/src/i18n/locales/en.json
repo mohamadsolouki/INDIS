@@ -1,0 +1,56 @@
+{
+  "app_name": "INDIS Diaspora Portal",
+  "tagline": "Iran National Digital Identity System",
+  "login": {
+    "title": "Sign in to Portal",
+    "email": "Email address",
+    "password": "Password",
+    "btn_login": "Sign in",
+    "no_account": "Don't have an account?",
+    "register_link": "Register here"
+  },
+  "enrollment": {
+    "title": "Overseas Iranian Enrollment",
+    "intro": "Upload the following documents to receive your digital identity card.",
+    "step_personal": "Personal Info",
+    "step_documents": "Documents",
+    "step_appointment": "Embassy Appointment",
+    "step_review": "Review",
+    "national_id": "National ID number",
+    "full_name": "Full name",
+    "birth_date": "Date of birth",
+    "country": "Country of residence",
+    "city": "City",
+    "passport_number": "Passport number",
+    "embassy": "Embassy / Consulate",
+    "upload_passport": "Upload passport",
+    "upload_photo": "Upload portrait photo",
+    "upload_proof": "Upload proof of residence",
+    "btn_next": "Next",
+    "btn_back": "Back",
+    "btn_submit": "Submit application",
+    "submitting": "Submitting…",
+    "success_title": "Application submitted",
+    "success_body": "Your application was successfully submitted. Tracking code:"
+  },
+  "status": {
+    "title": "Application status",
+    "enrollment_id": "Application ID",
+    "status_pending": "Pending review",
+    "status_approved": "Approved",
+    "status_rejected": "Rejected",
+    "check_btn": "Check status",
+    "checking": "Checking…"
+  },
+  "nav": {
+    "home": "Home",
+    "enroll": "Enroll",
+    "status": "Status",
+    "logout": "Sign out"
+  },
+  "errors": {
+    "required": "This field is required",
+    "invalid_national_id": "National ID must be 10 digits",
+    "network": "Network error — please try again"
+  }
+}

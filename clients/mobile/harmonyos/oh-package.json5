@@ -1,0 +1,9 @@
+{
+  "modelVersion": "5.0.0",
+  "description": "INDIS — Iran National Digital Identity System — HarmonyOS Citizen App",
+  "name": "org.indis.harmonyos",
+  "version": "1.0.0",
+  "author": "INDIS Project",
+  "license": "AGPL-3.0",
+  "dependencies": {}
+}

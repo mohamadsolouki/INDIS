@@ -1,0 +1,56 @@
+{
+  "app_name": "پرتال ایرانیان خارج از کشور",
+  "tagline": "سامانه هویت دیجیتال ملی ایران",
+  "login": {
+    "title": "ورود به پرتال",
+    "email": "پست الکترونیک",
+    "password": "رمز عبور",
+    "btn_login": "ورود",
+    "no_account": "حساب ندارید؟",
+    "register_link": "ثبت‌نام کنید"
+  },
+  "enrollment": {
+    "title": "ثبت‌نام ایرانیان خارج از کشور",
+    "intro": "برای دریافت کارت هویت دیجیتال، مدارک زیر را بارگذاری کنید.",
+    "step_personal": "اطلاعات شخصی",
+    "step_documents": "مدارک",
+    "step_appointment": "وقت سفارت",
+    "step_review": "بررسی",
+    "national_id": "کد ملی",
+    "full_name": "نام کامل",
+    "birth_date": "تاریخ تولد",
+    "country": "کشور محل اقامت",
+    "city": "شهر",
+    "passport_number": "شماره گذرنامه",
+    "embassy": "سفارت / کنسولگری",
+    "upload_passport": "بارگذاری گذرنامه",
+    "upload_photo": "بارگذاری عکس پرسنلی",
+    "upload_proof": "بارگذاری مدرک اقامت",
+    "btn_next": "ادامه",
+    "btn_back": "بازگشت",
+    "btn_submit": "ارسال درخواست",
+    "submitting": "در حال ارسال…",
+    "success_title": "درخواست ثبت شد",
+    "success_body": "درخواست شما با موفقیت ثبت شد. کد پیگیری:"
+  },
+  "status": {
+    "title": "وضعیت درخواست",
+    "enrollment_id": "شناسه درخواست",
+    "status_pending": "در انتظار بررسی",
+    "status_approved": "تأیید شد",
+    "status_rejected": "رد شد",
+    "check_btn": "بررسی وضعیت",
+    "checking": "در حال بررسی…"
+  },
+  "nav": {
+    "home": "خانه",
+    "enroll": "ثبت‌نام",
+    "status": "وضعیت",
+    "logout": "خروج"
+  },
+  "errors": {
+    "required": "این فیلد الزامی است",
+    "invalid_national_id": "کد ملی باید ۱۰ رقم باشد",
+    "network": "خطای شبکه — لطفاً دوباره تلاش کنید"
+  }
+}

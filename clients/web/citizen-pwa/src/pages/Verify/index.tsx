@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   QrCodeIcon, CheckCircleIcon, XCircleIcon, ShieldCheckIcon, InformationCircleIcon,
@@ -9,6 +9,12 @@ import { useAuthStore } from '../../auth/store';
 import { useVerificationRequests } from '../../hooks/useVerificationRequests';
 import { http } from '../../api/client';
 import { cn } from '../../lib/cn';
+import {
+  generateZKProof,
+  encodeProofForQR,
+  isRevocationCacheFresh,
+  RevocationCacheStaleError,
+} from '../../crypto/zkBridge';
 
 export default function Verify() {
   const { t } = useTranslation();
@@ -16,13 +22,52 @@ export default function Verify() {
   const [showQR, setShowQR] = useState(false);
   const [requestResult, setRequestResult] = useState<Record<string, 'approved' | 'denied'>>({});
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [offlineQRData, setOfflineQRData] = useState<string | null>(null);
+  const [offlineError, setOfflineError] = useState<string | null>(null);
+  const [isGeneratingOfflineProof, setIsGeneratingOfflineProof] = useState(false);
+  const isOnline = navigator.onLine;
 
   // Real-time verification requests via SSE.
   const { requests, status, dismiss } = useVerificationRequests();
 
-  const qrData = did
-    ? JSON.stringify({ type: 'INDIS_CREDENTIAL_PRESENTATION', did, ts: Date.now() })
-    : '';
+  // When offline, generate a WASM-based ZK proof for the QR code.
+  useEffect(() => {
+    if (!showQR || isOnline || !did) return;
+    if (offlineQRData) return; // already generated
+
+    setIsGeneratingOfflineProof(true);
+    setOfflineError(null);
+
+    generateZKProof({
+      did,
+      credentialId: 'default',
+      claimType: 'is_citizen',
+      proofSystem: 'groth16',
+    }, { forceOffline: true })
+      .then((proof) => {
+        setOfflineQRData(encodeProofForQR(proof));
+      })
+      .catch((err: unknown) => {
+        if (err instanceof RevocationCacheStaleError) {
+          setOfflineError('کش ابطال منقضی شده است. لطفاً به اینترنت متصل شوید.');
+        } else {
+          setOfflineError('خطا در تولید اثبات آفلاین.');
+        }
+      })
+      .finally(() => setIsGeneratingOfflineProof(false));
+  }, [showQR, isOnline, did, offlineQRData]);
+
+  // Reset offline state when coming back online.
+  useEffect(() => {
+    if (isOnline) {
+      setOfflineQRData(null);
+      setOfflineError(null);
+    }
+  }, [isOnline]);
+
+  const qrData = isOnline
+    ? (did ? JSON.stringify({ type: 'INDIS_CREDENTIAL_PRESENTATION', did, ts: Date.now() }) : '')
+    : (offlineQRData ?? '');
 
   async function handleDecision(requestId: string, decision: 'approved' | 'denied') {
     setActionLoading(requestId);
@@ -179,12 +224,30 @@ export default function Verify() {
           </p>
 
           {showQR && (
-            <QRDisplay
-              value={qrData}
-              label="هویت دیجیتال INDIS"
-              size={180}
-              className="py-2"
-            />
+            <>
+              {!isOnline && isGeneratingOfflineProof && (
+                <div className="flex items-center gap-2 text-xs text-indigo-600 py-2">
+                  <span className="w-3 h-3 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
+                  در حال تولید اثبات ZK آفلاین…
+                </div>
+              )}
+              {!isOnline && offlineError && (
+                <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{offlineError}</p>
+              )}
+              {!isOnline && !isRevocationCacheFresh() && !offlineError && (
+                <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+                  کش ابطال قدیمی است — اثبات آفلاین قابل استفاده نیست (PRD FR-006)
+                </p>
+              )}
+              {(isOnline || offlineQRData) && !offlineError && (
+                <QRDisplay
+                  value={qrData}
+                  label={isOnline ? 'هویت دیجیتال INDIS' : 'اثبات ZK آفلاین'}
+                  size={180}
+                  className="py-2"
+                />
+              )}
+            </>
           )}
         </div>
       )}
