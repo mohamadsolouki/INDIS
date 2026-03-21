@@ -7,25 +7,25 @@ use (
 	./pkg/crypto
 	./pkg/did
 	./pkg/events
+	./pkg/hsm
 	./pkg/i18n
 	./pkg/metrics
-	./pkg/tracing
 	./pkg/migrate
-	./pkg/hsm
 	./pkg/tls
+	./pkg/tracing
 	./pkg/vc
 	./services/audit
 	./services/biometric
+	./services/card
 	./services/credential
 	./services/electoral
 	./services/enrollment
 	./services/gateway
+	./services/govportal
 	./services/identity
 	./services/justice
 	./services/notification
-	./services/card
 	./services/ussd
 	./services/verifier
-	./services/govportal
 	./tools/pqc-migrate
 )
