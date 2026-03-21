@@ -1,6 +1,10 @@
 -- Migration 009: Align electoral schema with service repository contract.
 
--- elections table alignment
+-- Drop FK constraint FIRST so we can retype both referenced and referencing columns.
+ALTER TABLE ballots
+    DROP CONSTRAINT IF EXISTS ballots_election_id_fkey;
+
+-- elections table: change primary key from UUID to TEXT.
 ALTER TABLE elections
     ALTER COLUMN id DROP DEFAULT;
 
@@ -20,10 +24,7 @@ SET
     closes_at = COALESCE(closes_at, end_time),
     admin_did = COALESCE(admin_did, '');
 
--- ballots table alignment
-ALTER TABLE ballots
-    DROP CONSTRAINT IF EXISTS ballots_election_id_fkey;
-
+-- ballots table: change primary key and FK column from UUID to TEXT.
 ALTER TABLE ballots
     ALTER COLUMN id DROP DEFAULT;
 
@@ -31,6 +32,7 @@ ALTER TABLE ballots
     ALTER COLUMN id TYPE TEXT USING id::text,
     ALTER COLUMN election_id TYPE TEXT USING election_id::text;
 
+-- Re-add FK now that both sides are TEXT.
 ALTER TABLE ballots
     ADD CONSTRAINT ballots_election_id_fkey
     FOREIGN KEY (election_id) REFERENCES elections(id);

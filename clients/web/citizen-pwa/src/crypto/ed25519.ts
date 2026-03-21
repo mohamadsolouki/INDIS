@@ -1,6 +1,9 @@
 // Ed25519 via WebCrypto API (available in modern browsers)
 // PRD FR-001.4: citizen private keys never leave the device.
 
+import { openDB } from 'idb';
+
+const DB_NAME = 'indis_crypto';
 const KEY_STORE_NAME = 'indis_ed25519_key';
 
 /** Generate a new Ed25519 key pair. Stores the private key in IndexedDB (non-extractable). */
@@ -25,26 +28,34 @@ export async function exportPublicKeyMultibase(publicKey: CryptoKey): Promise<st
 }
 
 /** Sign a message with the private key. Returns base64url signature. */
-export async function sign(privateKey: CryptoKey, message: Uint8Array): Promise<string> {
+export async function sign(privateKey: CryptoKey, message: BufferSource): Promise<string> {
   const signature = await crypto.subtle.sign('Ed25519', privateKey, message);
   return arrayBufferToBase64url(signature);
 }
 
 /** Verify a signature. */
-export async function verify(publicKey: CryptoKey, message: Uint8Array, signatureBase64url: string): Promise<boolean> {
+export async function verify(publicKey: CryptoKey, message: BufferSource, signatureBase64url: string): Promise<boolean> {
   const signature = base64urlToArrayBuffer(signatureBase64url);
   return crypto.subtle.verify('Ed25519', publicKey, signature, message);
 }
 
-// ── Key persistence via IndexedDB ─────────────────────────────────────────────
+// ── Key persistence via IndexedDB (idb library) ───────────────────────────────
+
+function openKeyStore() {
+  return openDB(DB_NAME, 1, {
+    upgrade(db) {
+      if (!db.objectStoreNames.contains(KEY_STORE_NAME)) {
+        db.createObjectStore(KEY_STORE_NAME, { keyPath: 'id' });
+      }
+    },
+  });
+}
 
 /** Store the key pair in IndexedDB. Returns the stored key ID. */
 export async function storeKeyPair(keyPair: CryptoKeyPair): Promise<string> {
   const keyId = crypto.randomUUID();
   const db = await openKeyStore();
-  const tx = db.transaction(KEY_STORE_NAME, 'readwrite');
-  await tx.objectStore(KEY_STORE_NAME).put({ id: keyId, privateKey: keyPair.privateKey, publicKey: keyPair.publicKey });
-  await tx.done;
+  await db.put(KEY_STORE_NAME, { id: keyId, privateKey: keyPair.privateKey, publicKey: keyPair.publicKey });
   db.close();
   localStorage.setItem('indis_key_id', keyId);
   return keyId;
@@ -53,25 +64,10 @@ export async function storeKeyPair(keyPair: CryptoKeyPair): Promise<string> {
 /** Load a stored key pair from IndexedDB. */
 export async function loadKeyPair(keyId: string): Promise<CryptoKeyPair | null> {
   const db = await openKeyStore();
-  const tx = db.transaction(KEY_STORE_NAME, 'readonly');
-  const record = await tx.objectStore(KEY_STORE_NAME).get(keyId) as { privateKey: CryptoKey; publicKey: CryptoKey } | undefined;
+  const record = await db.get(KEY_STORE_NAME, keyId) as { privateKey: CryptoKey; publicKey: CryptoKey } | undefined;
   db.close();
   if (!record) return null;
   return { privateKey: record.privateKey, publicKey: record.publicKey };
-}
-
-async function openKeyStore(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open('indis_crypto', 1);
-    req.onupgradeneeded = (e) => {
-      const db = (e.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(KEY_STORE_NAME)) {
-        db.createObjectStore(KEY_STORE_NAME, { keyPath: 'id' });
-      }
-    };
-    req.onsuccess = (e) => resolve((e.target as IDBOpenDBRequest).result);
-    req.onerror   = () => reject(req.error);
-  });
 }
 
 // ── Encoding helpers ──────────────────────────────────────────────────────────
@@ -88,7 +84,7 @@ function base64urlToArrayBuffer(s: string): ArrayBuffer {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes.buffer;
+  return bytes.buffer as ArrayBuffer;
 }
 
 const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';

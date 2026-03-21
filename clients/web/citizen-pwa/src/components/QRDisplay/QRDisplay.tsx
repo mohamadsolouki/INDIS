@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { useTranslation } from 'react-i18next';
 import { ArrowsPointingOutIcon, ArrowsPointingInIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import { cn } from '../../lib/cn';
 
@@ -13,7 +12,6 @@ interface QRDisplayProps {
 }
 
 export default function QRDisplay({ value, label, size = 200, showDownload = true, className }: QRDisplayProps) {
-  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
   const qrSize = expanded ? Math.min(window.innerWidth - 64, 320) : size;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   DocumentTextIcon,
@@ -64,8 +64,6 @@ const STEP_KEYS: string[] = [
  */
 export default function Enrollment() {
   const { t } = useTranslation();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const navigate = useNavigate();
   const [step, setStep] = useState<Step>(0);
   const [pathway, setPathway] = useState<EnrollmentPathway | null>(null);
   const [completedDid, setCompletedDid] = useState<string | null>(null);
