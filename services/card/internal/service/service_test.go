@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/IranProsperityProject/INDIS/services/card/internal/repository"
+	"github.com/mohamadsolouki/INDIS/services/card/internal/repository"
 )
 
 const testSeedHex = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"

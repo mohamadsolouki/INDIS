@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"log"
 
-	auditv1 "github.com/IranProsperityProject/INDIS/api/gen/go/audit/v1"
-	"github.com/IranProsperityProject/INDIS/pkg/events"
-	"github.com/IranProsperityProject/INDIS/services/audit/internal/service"
+	auditv1 "github.com/mohamadsolouki/INDIS/api/gen/go/audit/v1"
+	"github.com/mohamadsolouki/INDIS/pkg/events"
+	"github.com/mohamadsolouki/INDIS/services/audit/internal/service"
 )
 
 func runCredentialRevokedConsumer(ctx context.Context, brokers []string, groupID string, svc *service.AuditService) error {

@@ -5,7 +5,7 @@ syntax = "proto3";
 
 package indis.electoral.v1;
 
-option go_package = "github.com/IranProsperityProject/INDIS/api/gen/go/electoral/v1";
+option go_package = "github.com/mohamadsolouki/INDIS/api/gen/go/electoral/v1";
 
 // ElectoralService manages voter eligibility and ballot operations.
 // All ballots are verifiable without revealing voter identity (PRD §FR-010).

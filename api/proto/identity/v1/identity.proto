@@ -4,7 +4,7 @@ syntax = "proto3";
 
 package indis.identity.v1;
 
-option go_package = "github.com/IranProsperityProject/INDIS/api/gen/go/identity/v1";
+option go_package = "github.com/mohamadsolouki/INDIS/api/gen/go/identity/v1";
 
 // IdentityService manages decentralized identifiers (DIDs) per W3C DID Core 1.0.
 service IdentityService {

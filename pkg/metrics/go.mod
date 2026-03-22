@@ -1,4 +1,4 @@
-module github.com/IranProsperityProject/INDIS/pkg/metrics
+module github.com/mohamadsolouki/INDIS/pkg/metrics
 
 go 1.22.0
 

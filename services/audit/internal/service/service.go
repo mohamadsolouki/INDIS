@@ -11,9 +11,9 @@ import (
 	"fmt"
 	"time"
 
-	auditv1 "github.com/IranProsperityProject/INDIS/api/gen/go/audit/v1"
-	"github.com/IranProsperityProject/INDIS/pkg/blockchain"
-	"github.com/IranProsperityProject/INDIS/services/audit/internal/repository"
+	auditv1 "github.com/mohamadsolouki/INDIS/api/gen/go/audit/v1"
+	"github.com/mohamadsolouki/INDIS/pkg/blockchain"
+	"github.com/mohamadsolouki/INDIS/services/audit/internal/repository"
 )
 
 // AuditService implements tamper-evident append-only audit logging.

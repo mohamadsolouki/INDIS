@@ -16,7 +16,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/IranProsperityProject/INDIS/services/ussd/internal/repository"
+	"github.com/mohamadsolouki/INDIS/services/ussd/internal/repository"
 )
 
 // sessionTTL is the maximum idle lifetime of a USSD session.

@@ -4,8 +4,8 @@ package handler
 import (
 	"context"
 
-	notificationv1 "github.com/IranProsperityProject/INDIS/api/gen/go/notification/v1"
-	"github.com/IranProsperityProject/INDIS/services/notification/internal/service"
+	notificationv1 "github.com/mohamadsolouki/INDIS/api/gen/go/notification/v1"
+	"github.com/mohamadsolouki/INDIS/services/notification/internal/service"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

@@ -9,12 +9,12 @@ import (
 	"fmt"
 	"time"
 
-	biometricv1 "github.com/IranProsperityProject/INDIS/api/gen/go/biometric/v1"
-	"github.com/IranProsperityProject/INDIS/pkg/blockchain"
-	indiscrypto "github.com/IranProsperityProject/INDIS/pkg/crypto"
-	"github.com/IranProsperityProject/INDIS/pkg/did"
-	"github.com/IranProsperityProject/INDIS/pkg/events"
-	"github.com/IranProsperityProject/INDIS/services/enrollment/internal/repository"
+	biometricv1 "github.com/mohamadsolouki/INDIS/api/gen/go/biometric/v1"
+	"github.com/mohamadsolouki/INDIS/pkg/blockchain"
+	indiscrypto "github.com/mohamadsolouki/INDIS/pkg/crypto"
+	"github.com/mohamadsolouki/INDIS/pkg/did"
+	"github.com/mohamadsolouki/INDIS/pkg/events"
+	"github.com/mohamadsolouki/INDIS/services/enrollment/internal/repository"
 )
 
 const minSocialAttestors = 3 // Ref: PRD §FR-001.8

@@ -5,9 +5,9 @@ import (
 	"context"
 	"time"
 
-	verifierv1 "github.com/IranProsperityProject/INDIS/api/gen/go/verifier/v1"
-	"github.com/IranProsperityProject/INDIS/services/verifier/internal/repository"
-	"github.com/IranProsperityProject/INDIS/services/verifier/internal/service"
+	verifierv1 "github.com/mohamadsolouki/INDIS/api/gen/go/verifier/v1"
+	"github.com/mohamadsolouki/INDIS/services/verifier/internal/repository"
+	"github.com/mohamadsolouki/INDIS/services/verifier/internal/service"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

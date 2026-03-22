@@ -4,8 +4,8 @@ package handler
 import (
 	"context"
 
-	credentialv1 "github.com/IranProsperityProject/INDIS/api/gen/go/credential/v1"
-	"github.com/IranProsperityProject/INDIS/services/credential/internal/service"
+	credentialv1 "github.com/mohamadsolouki/INDIS/api/gen/go/credential/v1"
+	"github.com/mohamadsolouki/INDIS/services/credential/internal/service"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

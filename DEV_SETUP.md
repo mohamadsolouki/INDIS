@@ -94,7 +94,7 @@ If you're on a clean machine without conflicts, revert those to 5432 / 8080.
 ### 1. Clone and enter the repo
 
 ```bash
-git clone https://github.com/IranProsperityProject/INDIS.git
+git clone https://github.com/mohamadsolouki/INDIS.git
 cd INDIS
 ```
 

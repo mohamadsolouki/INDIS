@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/IranProsperityProject/INDIS/pkg/blockchain"
-	"github.com/IranProsperityProject/INDIS/services/credential/internal/repository"
+	"github.com/mohamadsolouki/INDIS/pkg/blockchain"
+	"github.com/mohamadsolouki/INDIS/services/credential/internal/repository"
 )
 
 type mockRepo struct {

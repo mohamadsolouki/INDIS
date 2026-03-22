@@ -1,4 +1,4 @@
-module github.com/IranProsperityProject/INDIS/pkg/tracing
+module github.com/mohamadsolouki/INDIS/pkg/tracing
 
 go 1.22.0
 

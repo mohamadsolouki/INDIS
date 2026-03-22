@@ -4,8 +4,8 @@ package handler
 import (
 	"context"
 
-	justicev1 "github.com/IranProsperityProject/INDIS/api/gen/go/justice/v1"
-	"github.com/IranProsperityProject/INDIS/services/justice/internal/service"
+	justicev1 "github.com/mohamadsolouki/INDIS/api/gen/go/justice/v1"
+	"github.com/mohamadsolouki/INDIS/services/justice/internal/service"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

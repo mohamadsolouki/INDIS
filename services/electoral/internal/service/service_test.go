@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	electoralv1 "github.com/IranProsperityProject/INDIS/api/gen/go/electoral/v1"
-	"github.com/IranProsperityProject/INDIS/services/electoral/internal/repository"
+	electoralv1 "github.com/mohamadsolouki/INDIS/api/gen/go/electoral/v1"
+	"github.com/mohamadsolouki/INDIS/services/electoral/internal/repository"
 )
 
 type fakeRepo struct {

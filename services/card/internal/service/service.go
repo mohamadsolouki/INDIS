@@ -19,8 +19,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/IranProsperityProject/INDIS/pkg/hsm"
-	"github.com/IranProsperityProject/INDIS/services/card/internal/repository"
+	"github.com/mohamadsolouki/INDIS/pkg/hsm"
+	"github.com/mohamadsolouki/INDIS/services/card/internal/repository"
 )
 
 // CardData is the structured card record returned to callers.

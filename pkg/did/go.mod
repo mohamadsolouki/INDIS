@@ -1,3 +1,3 @@
-module github.com/IranProsperityProject/INDIS/pkg/did
+module github.com/mohamadsolouki/INDIS/pkg/did
 
 go 1.22.0

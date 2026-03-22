@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"log"
 
-	notificationv1 "github.com/IranProsperityProject/INDIS/api/gen/go/notification/v1"
-	"github.com/IranProsperityProject/INDIS/pkg/events"
-	"github.com/IranProsperityProject/INDIS/services/notification/internal/service"
+	notificationv1 "github.com/mohamadsolouki/INDIS/api/gen/go/notification/v1"
+	"github.com/mohamadsolouki/INDIS/pkg/events"
+	"github.com/mohamadsolouki/INDIS/services/notification/internal/service"
 )
 
 func runCredentialRevokedConsumer(ctx context.Context, brokers []string, groupID string, svc *service.NotificationService) error {

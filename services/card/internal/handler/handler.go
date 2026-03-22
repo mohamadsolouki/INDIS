@@ -15,8 +15,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/IranProsperityProject/INDIS/services/card/internal/repository"
-	"github.com/IranProsperityProject/INDIS/services/card/internal/service"
+	"github.com/mohamadsolouki/INDIS/services/card/internal/repository"
+	"github.com/mohamadsolouki/INDIS/services/card/internal/service"
 )
 
 // Handler is the HTTP handler for the card service.

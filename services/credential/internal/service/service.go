@@ -14,11 +14,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/IranProsperityProject/INDIS/pkg/blockchain"
-	"github.com/IranProsperityProject/INDIS/pkg/events"
-	"github.com/IranProsperityProject/INDIS/pkg/hsm"
-	"github.com/IranProsperityProject/INDIS/pkg/vc"
-	"github.com/IranProsperityProject/INDIS/services/credential/internal/repository"
+	"github.com/mohamadsolouki/INDIS/pkg/blockchain"
+	"github.com/mohamadsolouki/INDIS/pkg/events"
+	"github.com/mohamadsolouki/INDIS/pkg/hsm"
+	"github.com/mohamadsolouki/INDIS/pkg/vc"
+	"github.com/mohamadsolouki/INDIS/services/credential/internal/repository"
 )
 
 // IssueResult holds the outcome of a successful credential issuance.

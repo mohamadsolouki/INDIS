@@ -4,7 +4,7 @@ syntax = "proto3";
 
 package indis.audit.v1;
 
-option go_package = "github.com/IranProsperityProject/INDIS/api/gen/go/audit/v1";
+option go_package = "github.com/mohamadsolouki/INDIS/api/gen/go/audit/v1";
 
 // AuditService records and queries tamper-evident audit events.
 service AuditService {

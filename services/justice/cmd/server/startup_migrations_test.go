@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	indismigrate "github.com/IranProsperityProject/INDIS/pkg/migrate"
-	"github.com/IranProsperityProject/INDIS/services/justice/internal/repository"
+	indismigrate "github.com/mohamadsolouki/INDIS/pkg/migrate"
+	"github.com/mohamadsolouki/INDIS/services/justice/internal/repository"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 

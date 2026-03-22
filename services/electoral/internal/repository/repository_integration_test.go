@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	indismigrate "github.com/IranProsperityProject/INDIS/pkg/migrate"
+	indismigrate "github.com/mohamadsolouki/INDIS/pkg/migrate"
 )
 
 func TestRepositoryCastBallotPersistsRemoteMetadata(t *testing.T) {

@@ -9,8 +9,8 @@ import (
 	"log"
 	"time"
 
-	notificationv1 "github.com/IranProsperityProject/INDIS/api/gen/go/notification/v1"
-	"github.com/IranProsperityProject/INDIS/services/notification/internal/repository"
+	notificationv1 "github.com/mohamadsolouki/INDIS/api/gen/go/notification/v1"
+	"github.com/mohamadsolouki/INDIS/services/notification/internal/repository"
 )
 
 // NotificationService handles multi-channel notification delivery.

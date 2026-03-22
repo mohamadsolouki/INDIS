@@ -1,3 +1,3 @@
-module github.com/IranProsperityProject/INDIS/pkg/blockchain
+module github.com/mohamadsolouki/INDIS/pkg/blockchain
 
 go 1.22.0

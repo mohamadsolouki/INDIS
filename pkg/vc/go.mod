@@ -1,3 +1,3 @@
-module github.com/IranProsperityProject/INDIS/pkg/vc
+module github.com/mohamadsolouki/INDIS/pkg/vc
 
 go 1.22.0

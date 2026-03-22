@@ -1,4 +1,4 @@
-module github.com/IranProsperityProject/INDIS/pkg/migrate
+module github.com/mohamadsolouki/INDIS/pkg/migrate
 
 go 1.22.0
 

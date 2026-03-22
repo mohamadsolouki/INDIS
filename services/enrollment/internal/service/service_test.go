@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/IranProsperityProject/INDIS/pkg/blockchain"
-	"github.com/IranProsperityProject/INDIS/services/enrollment/internal/service"
+	"github.com/mohamadsolouki/INDIS/pkg/blockchain"
+	"github.com/mohamadsolouki/INDIS/services/enrollment/internal/service"
 )
 
 // mockChain satisfies blockchain.BlockchainAdapter for testing.

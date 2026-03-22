@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/IranProsperityProject/INDIS/services/govportal/internal/repository"
+	"github.com/mohamadsolouki/INDIS/services/govportal/internal/repository"
 )
 
 // fakeRepo is an in-memory implementation of GovPortalRepository.

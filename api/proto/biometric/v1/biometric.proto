@@ -5,7 +5,7 @@ syntax = "proto3";
 
 package indis.biometric.v1;
 
-option go_package = "github.com/IranProsperityProject/INDIS/api/gen/go/biometric/v1";
+option go_package = "github.com/mohamadsolouki/INDIS/api/gen/go/biometric/v1";
 
 // BiometricService manages encrypted biometric templates and deduplication.
 service BiometricService {

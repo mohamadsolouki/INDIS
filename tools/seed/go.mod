@@ -1,3 +1,3 @@
-module github.com/IranProsperityProject/INDIS/tools/seed
+module github.com/mohamadsolouki/INDIS/tools/seed
 
 go 1.22

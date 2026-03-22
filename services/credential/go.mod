@@ -1,17 +1,17 @@
-module github.com/IranProsperityProject/INDIS/services/credential
+module github.com/mohamadsolouki/INDIS/services/credential
 
 go 1.22.0
 
 require (
-	github.com/IranProsperityProject/INDIS/api/gen/go v0.0.0-00010101000000-000000000000
-	github.com/IranProsperityProject/INDIS/pkg/blockchain v0.0.0-00010101000000-000000000000
-	github.com/IranProsperityProject/INDIS/pkg/cache v0.0.0-00010101000000-000000000000
-	github.com/IranProsperityProject/INDIS/pkg/events v0.0.0-00010101000000-000000000000
-	github.com/IranProsperityProject/INDIS/pkg/metrics v0.0.0
-	github.com/IranProsperityProject/INDIS/pkg/migrate v0.0.0-00010101000000-000000000000
-	github.com/IranProsperityProject/INDIS/pkg/tls v0.0.0-00010101000000-000000000000
-	github.com/IranProsperityProject/INDIS/pkg/tracing v0.0.0-00010101000000-000000000000-00010101000000-000000000000
-	github.com/IranProsperityProject/INDIS/pkg/vc v0.0.0-00010101000000-000000000000
+	github.com/mohamadsolouki/INDIS/api/gen/go v0.0.0-00010101000000-000000000000
+	github.com/mohamadsolouki/INDIS/pkg/blockchain v0.0.0-00010101000000-000000000000
+	github.com/mohamadsolouki/INDIS/pkg/cache v0.0.0-00010101000000-000000000000
+	github.com/mohamadsolouki/INDIS/pkg/events v0.0.0-00010101000000-000000000000
+	github.com/mohamadsolouki/INDIS/pkg/metrics v0.0.0
+	github.com/mohamadsolouki/INDIS/pkg/migrate v0.0.0-00010101000000-000000000000
+	github.com/mohamadsolouki/INDIS/pkg/tls v0.0.0-00010101000000-000000000000
+	github.com/mohamadsolouki/INDIS/pkg/tracing v0.0.0-00010101000000-000000000000-00010101000000-000000000000
+	github.com/mohamadsolouki/INDIS/pkg/vc v0.0.0-00010101000000-000000000000
 	github.com/jackc/pgx/v5 v5.6.0
 	google.golang.org/grpc v1.64.0
 )
@@ -54,13 +54,13 @@ require (
 )
 
 replace (
-	github.com/IranProsperityProject/INDIS/api/gen/go => ../../api/gen/go
-	github.com/IranProsperityProject/INDIS/pkg/blockchain => ../../pkg/blockchain
-	github.com/IranProsperityProject/INDIS/pkg/cache => ../../pkg/cache
-	github.com/IranProsperityProject/INDIS/pkg/events => ../../pkg/events
-	github.com/IranProsperityProject/INDIS/pkg/metrics => ../../pkg/metrics
-	github.com/IranProsperityProject/INDIS/pkg/migrate => ../../pkg/migrate
-	github.com/IranProsperityProject/INDIS/pkg/tls => ../../pkg/tls
-	github.com/IranProsperityProject/INDIS/pkg/tracing => ../../pkg/tracing
-	github.com/IranProsperityProject/INDIS/pkg/vc => ../../pkg/vc
+	github.com/mohamadsolouki/INDIS/api/gen/go => ../../api/gen/go
+	github.com/mohamadsolouki/INDIS/pkg/blockchain => ../../pkg/blockchain
+	github.com/mohamadsolouki/INDIS/pkg/cache => ../../pkg/cache
+	github.com/mohamadsolouki/INDIS/pkg/events => ../../pkg/events
+	github.com/mohamadsolouki/INDIS/pkg/metrics => ../../pkg/metrics
+	github.com/mohamadsolouki/INDIS/pkg/migrate => ../../pkg/migrate
+	github.com/mohamadsolouki/INDIS/pkg/tls => ../../pkg/tls
+	github.com/mohamadsolouki/INDIS/pkg/tracing => ../../pkg/tracing
+	github.com/mohamadsolouki/INDIS/pkg/vc => ../../pkg/vc
 )

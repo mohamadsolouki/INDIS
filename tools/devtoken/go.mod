@@ -1,3 +1,3 @@
-module github.com/IranProsperityProject/INDIS/tools/devtoken
+module github.com/mohamadsolouki/INDIS/tools/devtoken
 
 go 1.22

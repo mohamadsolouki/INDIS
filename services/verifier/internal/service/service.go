@@ -17,7 +17,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/IranProsperityProject/INDIS/services/verifier/internal/repository"
+	"github.com/mohamadsolouki/INDIS/services/verifier/internal/repository"
 )
 
 // zkProofVerifyRequest is the JSON body sent to the zkproof HTTP /verify endpoint.

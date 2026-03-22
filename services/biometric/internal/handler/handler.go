@@ -4,8 +4,8 @@ package handler
 import (
 	"context"
 
-	biometricv1 "github.com/IranProsperityProject/INDIS/api/gen/go/biometric/v1"
-	"github.com/IranProsperityProject/INDIS/services/biometric/internal/service"
+	biometricv1 "github.com/mohamadsolouki/INDIS/api/gen/go/biometric/v1"
+	"github.com/mohamadsolouki/INDIS/services/biometric/internal/service"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

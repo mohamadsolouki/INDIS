@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/IranProsperityProject/INDIS/services/ussd/internal/repository"
+	"github.com/mohamadsolouki/INDIS/services/ussd/internal/repository"
 )
 
 // fakeRepo is an in-memory implementation of USSDRepository.

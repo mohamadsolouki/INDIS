@@ -4,8 +4,8 @@ package handler
 import (
 	"context"
 
-	enrollmentv1 "github.com/IranProsperityProject/INDIS/api/gen/go/enrollment/v1"
-	"github.com/IranProsperityProject/INDIS/services/enrollment/internal/service"
+	enrollmentv1 "github.com/mohamadsolouki/INDIS/api/gen/go/enrollment/v1"
+	"github.com/mohamadsolouki/INDIS/services/enrollment/internal/service"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

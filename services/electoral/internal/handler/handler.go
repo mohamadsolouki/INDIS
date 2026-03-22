@@ -4,8 +4,8 @@ package handler
 import (
 	"context"
 
-	electoralv1 "github.com/IranProsperityProject/INDIS/api/gen/go/electoral/v1"
-	"github.com/IranProsperityProject/INDIS/services/electoral/internal/service"
+	electoralv1 "github.com/mohamadsolouki/INDIS/api/gen/go/electoral/v1"
+	"github.com/mohamadsolouki/INDIS/services/electoral/internal/service"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

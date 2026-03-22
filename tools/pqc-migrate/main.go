@@ -19,8 +19,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/IranProsperityProject/INDIS/pkg/crypto"
-	"github.com/IranProsperityProject/INDIS/pkg/vc"
+	"github.com/mohamadsolouki/INDIS/pkg/crypto"
+	"github.com/mohamadsolouki/INDIS/pkg/vc"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 

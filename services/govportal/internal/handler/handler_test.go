@@ -11,12 +11,12 @@ import (
 	"testing"
 	"time"
 
-	auditv1 "github.com/IranProsperityProject/INDIS/api/gen/go/audit/v1"
-	credentialv1 "github.com/IranProsperityProject/INDIS/api/gen/go/credential/v1"
-	enrollmentv1 "github.com/IranProsperityProject/INDIS/api/gen/go/enrollment/v1"
-	identityv1 "github.com/IranProsperityProject/INDIS/api/gen/go/identity/v1"
-	"github.com/IranProsperityProject/INDIS/services/govportal/internal/repository"
-	govportalservice "github.com/IranProsperityProject/INDIS/services/govportal/internal/service"
+	auditv1 "github.com/mohamadsolouki/INDIS/api/gen/go/audit/v1"
+	credentialv1 "github.com/mohamadsolouki/INDIS/api/gen/go/credential/v1"
+	enrollmentv1 "github.com/mohamadsolouki/INDIS/api/gen/go/enrollment/v1"
+	identityv1 "github.com/mohamadsolouki/INDIS/api/gen/go/identity/v1"
+	"github.com/mohamadsolouki/INDIS/services/govportal/internal/repository"
+	govportalservice "github.com/mohamadsolouki/INDIS/services/govportal/internal/service"
 )
 
 type fakeRepo struct {

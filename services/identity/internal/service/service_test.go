@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/IranProsperityProject/INDIS/pkg/blockchain"
-	"github.com/IranProsperityProject/INDIS/pkg/crypto"
-	pkgdid "github.com/IranProsperityProject/INDIS/pkg/did"
-	"github.com/IranProsperityProject/INDIS/services/identity/internal/repository"
-	"github.com/IranProsperityProject/INDIS/services/identity/internal/service"
+	"github.com/mohamadsolouki/INDIS/pkg/blockchain"
+	"github.com/mohamadsolouki/INDIS/pkg/crypto"
+	pkgdid "github.com/mohamadsolouki/INDIS/pkg/did"
+	"github.com/mohamadsolouki/INDIS/services/identity/internal/repository"
+	"github.com/mohamadsolouki/INDIS/services/identity/internal/service"
 )
 
 // ── in-memory mock repository ────────────────────────────────────────────────

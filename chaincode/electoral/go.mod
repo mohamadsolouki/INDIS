@@ -1,4 +1,4 @@
-module github.com/IranProsperityProject/INDIS/chaincode/electoral
+module github.com/mohamadsolouki/INDIS/chaincode/electoral
 
 go 1.22.0
 

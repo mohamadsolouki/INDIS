@@ -1,4 +1,4 @@
-module github.com/IranProsperityProject/INDIS/pkg/events
+module github.com/mohamadsolouki/INDIS/pkg/events
 
 go 1.22.0
 

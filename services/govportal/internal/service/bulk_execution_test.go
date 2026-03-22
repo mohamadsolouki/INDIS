@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	credentialv1 "github.com/IranProsperityProject/INDIS/api/gen/go/credential/v1"
+	credentialv1 "github.com/mohamadsolouki/INDIS/api/gen/go/credential/v1"
 	"google.golang.org/grpc"
 )
 

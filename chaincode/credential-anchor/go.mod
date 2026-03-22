@@ -1,4 +1,4 @@
-module github.com/IranProsperityProject/INDIS/chaincode/credential-anchor
+module github.com/mohamadsolouki/INDIS/chaincode/credential-anchor
 
 go 1.22.0
 

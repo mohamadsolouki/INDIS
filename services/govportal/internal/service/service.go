@@ -15,11 +15,11 @@ import (
 	"strings"
 	"time"
 
-	credentialv1 "github.com/IranProsperityProject/INDIS/api/gen/go/credential/v1"
-	auditv1 "github.com/IranProsperityProject/INDIS/api/gen/go/audit/v1"
-	enrollmentv1 "github.com/IranProsperityProject/INDIS/api/gen/go/enrollment/v1"
-	identityv1 "github.com/IranProsperityProject/INDIS/api/gen/go/identity/v1"
-	"github.com/IranProsperityProject/INDIS/services/govportal/internal/repository"
+	credentialv1 "github.com/mohamadsolouki/INDIS/api/gen/go/credential/v1"
+	auditv1 "github.com/mohamadsolouki/INDIS/api/gen/go/audit/v1"
+	enrollmentv1 "github.com/mohamadsolouki/INDIS/api/gen/go/enrollment/v1"
+	identityv1 "github.com/mohamadsolouki/INDIS/api/gen/go/identity/v1"
+	"github.com/mohamadsolouki/INDIS/services/govportal/internal/repository"
 )
 
 // RoleHierarchy maps role names to numeric levels for comparison.

@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	indiscrypto "github.com/IranProsperityProject/INDIS/pkg/crypto"
-	"github.com/IranProsperityProject/INDIS/services/biometric/internal/repository"
+	indiscrypto "github.com/mohamadsolouki/INDIS/pkg/crypto"
+	"github.com/mohamadsolouki/INDIS/services/biometric/internal/repository"
 )
 
 // BiometricService handles template encryption, storage, and deduplication.

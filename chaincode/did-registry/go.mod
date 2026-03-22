@@ -1,4 +1,4 @@
-module github.com/IranProsperityProject/INDIS/chaincode/did-registry
+module github.com/mohamadsolouki/INDIS/chaincode/did-registry
 
 go 1.22.0
 

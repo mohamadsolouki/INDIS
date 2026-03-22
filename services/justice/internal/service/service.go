@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/IranProsperityProject/INDIS/services/justice/internal/repository"
+	"github.com/mohamadsolouki/INDIS/services/justice/internal/repository"
 )
 
 // JusticeService handles anonymous testimony and amnesty workflows.

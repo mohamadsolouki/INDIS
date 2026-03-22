@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/IranProsperityProject/INDIS/services/ussd/internal/service"
+	"github.com/mohamadsolouki/INDIS/services/ussd/internal/service"
 )
 
 // Handler is the HTTP handler for the USSD/SMS service.

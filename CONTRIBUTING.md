@@ -17,7 +17,7 @@ Thank you for your interest in contributing to the Iran National Digital Identit
 
 ```bash
 # Clone the repository
-git clone https://github.com/IranProsperityProject/INDIS.git
+git clone https://github.com/mohamadsolouki/INDIS.git
 cd INDIS
 
 # Start infrastructure services

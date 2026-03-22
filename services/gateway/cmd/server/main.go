@@ -22,15 +22,15 @@ import (
 	"syscall"
 	"time"
 
-	indismetrics "github.com/IranProsperityProject/INDIS/pkg/metrics"
-	indistrace "github.com/IranProsperityProject/INDIS/pkg/tracing"
-	"github.com/IranProsperityProject/INDIS/services/gateway/internal/auth"
-	"github.com/IranProsperityProject/INDIS/services/gateway/internal/config"
-	"github.com/IranProsperityProject/INDIS/services/gateway/internal/cors"
-	"github.com/IranProsperityProject/INDIS/services/gateway/internal/handler"
-	"github.com/IranProsperityProject/INDIS/services/gateway/internal/proxy"
-	"github.com/IranProsperityProject/INDIS/services/gateway/internal/ratelimit"
-	"github.com/IranProsperityProject/INDIS/services/gateway/internal/repository"
+	indismetrics "github.com/mohamadsolouki/INDIS/pkg/metrics"
+	indistrace "github.com/mohamadsolouki/INDIS/pkg/tracing"
+	"github.com/mohamadsolouki/INDIS/services/gateway/internal/auth"
+	"github.com/mohamadsolouki/INDIS/services/gateway/internal/config"
+	"github.com/mohamadsolouki/INDIS/services/gateway/internal/cors"
+	"github.com/mohamadsolouki/INDIS/services/gateway/internal/handler"
+	"github.com/mohamadsolouki/INDIS/services/gateway/internal/proxy"
+	"github.com/mohamadsolouki/INDIS/services/gateway/internal/ratelimit"
+	"github.com/mohamadsolouki/INDIS/services/gateway/internal/repository"
 )
 
 func main() {

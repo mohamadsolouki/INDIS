@@ -1,4 +1,4 @@
-module github.com/IranProsperityProject/INDIS/chaincode/audit-log
+module github.com/mohamadsolouki/INDIS/chaincode/audit-log
 
 go 1.22.0
 

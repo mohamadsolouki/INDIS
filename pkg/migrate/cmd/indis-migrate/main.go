@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	indismigrate "github.com/IranProsperityProject/INDIS/pkg/migrate"
+	indismigrate "github.com/mohamadsolouki/INDIS/pkg/migrate"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 

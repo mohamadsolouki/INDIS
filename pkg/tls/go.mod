@@ -1,4 +1,4 @@
-module github.com/IranProsperityProject/INDIS/pkg/tls
+module github.com/mohamadsolouki/INDIS/pkg/tls
 
 go 1.22.0
 

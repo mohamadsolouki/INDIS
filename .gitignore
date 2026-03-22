@@ -2,6 +2,9 @@
 # INDIS Project .gitignore
 # ========================
 
+# === IDE / AI tooling ===
+.claude/
+
 # === Go ===
 *.exe
 *.exe~

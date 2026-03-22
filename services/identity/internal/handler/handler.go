@@ -7,9 +7,9 @@ import (
 	"encoding/json"
 	"time"
 
-	identityv1 "github.com/IranProsperityProject/INDIS/api/gen/go/identity/v1"
-	"github.com/IranProsperityProject/INDIS/pkg/did"
-	"github.com/IranProsperityProject/INDIS/services/identity/internal/service"
+	identityv1 "github.com/mohamadsolouki/INDIS/api/gen/go/identity/v1"
+	"github.com/mohamadsolouki/INDIS/pkg/did"
+	"github.com/mohamadsolouki/INDIS/services/identity/internal/service"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

@@ -16,13 +16,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/IranProsperityProject/INDIS/pkg/hsm"
-	indismigrate "github.com/IranProsperityProject/INDIS/pkg/migrate"
-	indistrace "github.com/IranProsperityProject/INDIS/pkg/tracing"
-	"github.com/IranProsperityProject/INDIS/services/card/internal/config"
-	"github.com/IranProsperityProject/INDIS/services/card/internal/handler"
-	"github.com/IranProsperityProject/INDIS/services/card/internal/repository"
-	"github.com/IranProsperityProject/INDIS/services/card/internal/service"
+	"github.com/mohamadsolouki/INDIS/pkg/hsm"
+	indismigrate "github.com/mohamadsolouki/INDIS/pkg/migrate"
+	indistrace "github.com/mohamadsolouki/INDIS/pkg/tracing"
+	"github.com/mohamadsolouki/INDIS/services/card/internal/config"
+	"github.com/mohamadsolouki/INDIS/services/card/internal/handler"
+	"github.com/mohamadsolouki/INDIS/services/card/internal/repository"
+	"github.com/mohamadsolouki/INDIS/services/card/internal/service"
 )
 
 func main() {

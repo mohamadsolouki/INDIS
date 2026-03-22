@@ -1,4 +1,4 @@
-module github.com/IranProsperityProject/INDIS/tests/integration/testcontainers
+module github.com/mohamadsolouki/INDIS/tests/integration/testcontainers
 
 go 1.22.0
 

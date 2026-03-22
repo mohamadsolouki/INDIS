@@ -4,7 +4,7 @@ syntax = "proto3";
 
 package indis.enrollment.v1;
 
-option go_package = "github.com/IranProsperityProject/INDIS/api/gen/go/enrollment/v1";
+option go_package = "github.com/mohamadsolouki/INDIS/api/gen/go/enrollment/v1";
 
 // EnrollmentService processes citizen enrollment (PRD §FR-001).
 service EnrollmentService {

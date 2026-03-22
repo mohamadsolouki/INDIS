@@ -5,9 +5,9 @@ import (
 	"context"
 	"time"
 
-	auditv1 "github.com/IranProsperityProject/INDIS/api/gen/go/audit/v1"
-	"github.com/IranProsperityProject/INDIS/services/audit/internal/repository"
-	"github.com/IranProsperityProject/INDIS/services/audit/internal/service"
+	auditv1 "github.com/mohamadsolouki/INDIS/api/gen/go/audit/v1"
+	"github.com/mohamadsolouki/INDIS/services/audit/internal/repository"
+	"github.com/mohamadsolouki/INDIS/services/audit/internal/service"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

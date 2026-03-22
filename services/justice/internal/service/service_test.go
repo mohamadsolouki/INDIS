@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/IranProsperityProject/INDIS/services/justice/internal/repository"
+	"github.com/mohamadsolouki/INDIS/services/justice/internal/repository"
 )
 
 type fakeRepo struct {

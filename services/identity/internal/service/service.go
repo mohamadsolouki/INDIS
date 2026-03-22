@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/IranProsperityProject/INDIS/pkg/blockchain"
-	"github.com/IranProsperityProject/INDIS/pkg/did"
-	"github.com/IranProsperityProject/INDIS/pkg/events"
-	"github.com/IranProsperityProject/INDIS/services/identity/internal/repository"
+	"github.com/mohamadsolouki/INDIS/pkg/blockchain"
+	"github.com/mohamadsolouki/INDIS/pkg/did"
+	"github.com/mohamadsolouki/INDIS/pkg/events"
+	"github.com/mohamadsolouki/INDIS/services/identity/internal/repository"
 )
 
 // RegisterResult holds the outcome of a successful DID registration.

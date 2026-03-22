@@ -4,7 +4,7 @@
 
 syntax = "proto3";
 package indis.verifier.v1;
-option go_package = "github.com/IranProsperityProject/INDIS/api/gen/go/verifier/v1";
+option go_package = "github.com/mohamadsolouki/INDIS/api/gen/go/verifier/v1";
 
 // VerifierService manages verifier organizations and credential verification via ZK proofs.
 service VerifierService {

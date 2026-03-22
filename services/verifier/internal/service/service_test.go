@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/IranProsperityProject/INDIS/services/verifier/internal/repository"
+	"github.com/mohamadsolouki/INDIS/services/verifier/internal/repository"
 )
 
 // fakeRepo is an in-memory implementation of VerifierRepository.

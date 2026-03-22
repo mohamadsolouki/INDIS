@@ -1,4 +1,4 @@
-module github.com/IranProsperityProject/INDIS/pkg/cache
+module github.com/mohamadsolouki/INDIS/pkg/cache
 
 go 1.22.0
 

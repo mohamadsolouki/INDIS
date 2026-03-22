@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"log"
 
-	"github.com/IranProsperityProject/INDIS/pkg/events"
-	"github.com/IranProsperityProject/INDIS/services/credential/internal/service"
+	"github.com/mohamadsolouki/INDIS/pkg/events"
+	"github.com/mohamadsolouki/INDIS/services/credential/internal/service"
 )
 
 func runEnrollmentCompletedConsumer(ctx context.Context, brokers []string, groupID string, svc *service.CredentialService) error {
