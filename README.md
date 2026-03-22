@@ -3,6 +3,7 @@
 <!-- سیستم هویت دیجیتال ملی ایران -->
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+[![GitHub](https://img.shields.io/badge/GitHub-mohamadsolouki%2FINDIS-181717?logo=github)](https://github.com/mohamadsolouki/INDIS)
 
 > A sovereign digital identity infrastructure designed as the foundational trust layer
 > for Iran — privacy-respecting, cryptographically verifiable, and
@@ -44,7 +45,7 @@ INDIS/
 ├── api/                        # API definitions (source of truth)
 │   ├── proto/                  # gRPC service definitions (9 services)
 │   ├── gen/go/                 # Generated Go stubs — do not edit directly
-│   └── openapi/                # OpenAPI 3.0 spec (1 720 lines, 40+ routes)
+│   └── openapi/                # OpenAPI 3.0 spec (40+ routes)
 ├── services/                   # Backend microservices
 │   ├── identity/               # Go — W3C DID management
 │   ├── credential/             # Go — Verifiable Credentials (VC 2.0)
@@ -61,7 +62,7 @@ INDIS/
 │   ├── card/                   # Go — ICAO 9303 physical card + MRZ
 │   ├── zkproof/                # Rust — Groth16 / STARK / Bulletproofs engine
 │   └── ai/                     # Python (FastAPI) — Biometric dedup & fraud detection
-├── pkg/                        # Shared Go libraries (all production-ready)
+├── pkg/                        # Shared Go libraries
 │   ├── crypto/                 # Ed25519, ECDSA P-256, AES-256-GCM, Dilithium3
 │   ├── did/                    # W3C DID Core 1.0 — generate, parse, resolve
 │   ├── vc/                     # W3C VC 2.0 — issue, verify, IssueWithSigner (HSM-safe)
@@ -84,13 +85,18 @@ INDIS/
 │   └── electoral/              # Nullifier + STARK hash anchoring
 ├── clients/                    # Frontend applications
 │   ├── web/
-│   │   ├── citizen-pwa/        # React 18 + TS + Vite + Workbox PWA (75%)
-│   │   ├── gov-portal/         # React 18 + Apollo GraphQL portal (60%)
-│   │   └── verifier/           # React + html5-qrcode terminal (75%)
+│   │   ├── citizen-pwa/        # React 18 + TS + Vite + Workbox PWA
+│   │   └── diaspora/           # React + Vite diaspora enrollment portal
+│   ├── gov-portal/             # React 18 + Apollo GraphQL ministry portal
+│   ├── verifier/               # React + html5-qrcode verifier terminal
 │   └── mobile/
-│       ├── android/            # Kotlin + Jetpack — scaffold (40%)
-│       ├── ios/                # SwiftUI — not started (0%)
-│       └── harmonyos/          # ArkTS — not started (0%)
+│       ├── android/            # Kotlin + Jetpack MVVM
+│       ├── ios/                # SwiftUI + Secure Enclave
+│       └── harmonyos/          # ArkTS/ArkUI
+├── tests/                      # Test suites
+│   ├── e2e/playwright/         # End-to-end browser tests
+│   ├── integration/testcontainers/  # Integration tests (real DB/Kafka)
+│   └── load/k6/                # Load tests (enrollment, credential, verify)
 ├── db/
 │   └── migrations/             # 11 SQL migration files (applied at startup)
 ├── deploy/                     # Infrastructure-as-code
@@ -98,13 +104,20 @@ INDIS/
 │   ├── terraform/              # Cloud-agnostic infra provisioning
 │   ├── prometheus/             # prometheus.yml + alert rules
 │   └── grafana/                # Dashboard JSON
+├── .github/workflows/          # GitHub Actions (e2e, SDK codegen)
+├── .gitlab/ci/                 # GitLab CI pipelines (go, rust, python, security, deploy)
 ├── docs/                       # Documentation
 │   ├── architecture/           # Architecture Decision Records
 │   └── security/               # Security policies, threat model, mTLS guide
-├── scripts/                    # Helper scripts
-└── tools/                      # Dev tools
-    ├── devtoken/               # Generate dev JWTs for local testing
-    └── pqc-migrate/            # Batch re-sign credentials with Dilithium3 (--tags circl)
+├── scripts/                    # Helper scripts (proto-gen, cert generation)
+├── tools/                      # Dev tools
+│   ├── devtoken/               # Generate dev JWTs for local testing
+│   ├── pqc-migrate/            # Batch re-sign credentials with Dilithium3
+│   └── seed/                   # Seed test data into local infrastructure
+├── docker-compose.yml          # Core infrastructure (Postgres, Redis, Kafka, etc.)
+├── docker-compose.services.yml # All 15 backend services
+├── docker-compose.override.yml # Local dev overrides
+└── go.work                     # Go workspace (all modules in one graph)
 ```
 
 ## Quick Start
@@ -185,12 +198,12 @@ W3C DID Core 1.0 • W3C VC 2.0 • OpenID4VP • ISO/IEC 18013-5 (mDL) • ISO 
 | Layer | Status |
 | ----- | ------ |
 | Shared Go packages (`pkg/`) | ✅ 100% — all 11 packages production-ready |
-| Backend Go services (15) | ✅ ~97% — core logic complete; production wiring deferred |
+| Backend Go services (15) | ✅ ~98% — HSM-safe VC signing, biometric wallet auth, Dockerfiles for all services |
 | ZK proof service (Rust) | ✅ ~92% — Groth16 + STARK + Bulletproofs; dev trusted setup |
 | AI biometric service (Python) | 🟡 ~60% — perceptual-hash baseline; real CNN pending |
 | Blockchain chaincode (Go) | ✅ ~95% — code complete; Fabric network deployment pending |
 | API specs (OpenAPI + Proto) | ✅ 100% |
-| Infrastructure (Helm, Terraform, CI/CD) | ✅ ~97% |
+| Infrastructure (Helm, Terraform, CI/CD, Docker) | ✅ ~98% — Dockerfiles added for all 15 services |
 | Citizen PWA | ✅ ~95% — i18n (6 locales), camera, SSE, login, service worker caching, WASM ZK bridge (offline proof generation, PRD FR-006/FR-013) |
 | Gov portal frontend | ✅ ~98% — EnrollmentReviewPage (approve/reject/biometric-request), CredentialIssuancePage (5 types, 5s polling), Dashboard (7-stat grid), AuditPage (paginated+filtered), role gating, RTL CSS |
 | Verifier terminal PWA | ✅ ~90% — QR scan, JWT auth, history, offline revocation cache (PWA) |
