@@ -5,7 +5,7 @@
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 
 > A sovereign digital identity infrastructure designed as the foundational trust layer
-> for post-transition Iran — privacy-respecting, cryptographically verifiable, and
+> for Iran — privacy-respecting, cryptographically verifiable, and
 > institutionally trustworthy.
 
 ---
@@ -210,4 +210,4 @@ W3C DID Core 1.0 • W3C VC 2.0 • OpenID4VP • ISO/IEC 18013-5 (mDL) • ISO 
 
 ---
 
-📄 **[Full PRD →](INDIS_PRD_v1.0.md)** &nbsp;|&nbsp; 🗺 **[Implementation Plan →](IMPLEMENTATION_PLAN.md)** &nbsp;|&nbsp; 🔒 **[Security Policy →](SECURITY.md)** &nbsp;|&nbsp; 🤝 **[Contributing →](CONTRIBUTING.md)**
+📄 **[Full PRD →](INDIS_PRD_v2.0.md)** &nbsp;|&nbsp; 🗺 **[Implementation Plan →](IMPLEMENTATION_PLAN.md)** &nbsp;|&nbsp; 🔒 **[Security Policy →](SECURITY.md)** &nbsp;|&nbsp; 🤝 **[Contributing →](CONTRIBUTING.md)**
