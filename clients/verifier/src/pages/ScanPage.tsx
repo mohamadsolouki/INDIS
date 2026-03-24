@@ -89,34 +89,32 @@ export default function ScanPage() {
 
   return (
     <div
-      className="verifier-screen"
-      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
+      className="verifier-screen verifier-screen--center"
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', maxWidth: 340, marginBottom: 8 }}>
-        <h1 style={{ margin: 0 }}>پایانه تأیید INDIS</h1>
-        <div style={{ display: 'flex', gap: 8 }}>
+      <div className="scan-header">
+        <h1 className="scan-title">پایانه تأیید INDIS</h1>
+        <div className="scan-actions">
           <Link
             to="/history"
-            style={{ fontSize: 12, color: '#aaa', padding: '6px 10px', borderRadius: 6, border: '1px solid #333', background: 'transparent' }}
+            className="verifier-btn verifier-link-btn"
           >
             تاریخچه
           </Link>
           <button
             onClick={() => { localStorage.removeItem('verifier_id'); window.location.href = '/login' }}
-            className="verifier-btn"
-            style={{ fontSize: 12 }}
+            className="verifier-btn verifier-btn-sm"
           >
             خروج
           </button>
         </div>
       </div>
-      <p style={{ color: '#aaa', marginBottom: 24, fontSize: 14 }}>
+      <p className="scan-helper">
         کد QR شهروند را اسکن کنید
       </p>
 
       <div
         id="qr-reader"
-        style={{ width: 300, height: 300, borderRadius: 12, overflow: 'hidden' }}
+        className="qr-reader-shell"
       />
 
       {!scanning && !error && <FeedbackState kind="loading" title="راه‌اندازی دوربین" message="چند لحظه صبر کنید تا اسکنر فعال شود." />}

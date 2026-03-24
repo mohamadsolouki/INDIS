@@ -32,6 +32,15 @@
   cursor: pointer;
 }
 
+.verifier-link-btn {
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.verifier-btn-sm {
+  font-size: 12px;
+}
+
 .verifier-btn:focus-visible,
 .verifier-input:focus-visible,
 .verifier-tab:focus-visible {
@@ -67,4 +76,268 @@
   margin: 0;
   color: var(--verifier-muted);
   font-size: 13px;
+}
+
+.verifier-screen--center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.scan-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 340px;
+  margin-bottom: 8px;
+}
+
+.scan-title {
+  margin: 0;
+}
+
+.scan-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.scan-helper {
+  color: var(--verifier-muted);
+  margin-bottom: 24px;
+  font-size: 14px;
+}
+
+.qr-reader-shell {
+  width: 300px;
+  height: 300px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.history-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.history-back-btn {
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.history-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.history-subtitle {
+  font-size: 12px;
+  color: #73839d;
+  margin: 4px 0 0;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-item {
+  background: var(--verifier-panel);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--verifier-line);
+}
+
+.history-item--ok {
+  border-right: 4px solid #0f9960;
+}
+
+.history-item--fail {
+  border-right: 4px solid #c23030;
+}
+
+.history-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.history-badge--ok {
+  background: #0f996020;
+}
+
+.history-badge--fail {
+  background: #c2303020;
+}
+
+.history-content {
+  flex: 1;
+}
+
+.history-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.history-status {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.history-status--ok {
+  color: #4ade80;
+}
+
+.history-status--fail {
+  color: #f87171;
+}
+
+.history-time {
+  font-size: 11px;
+  color: #73839d;
+  direction: ltr;
+}
+
+.history-meta {
+  font-size: 12px;
+  color: #96a7c0;
+  margin-top: 4px;
+  display: flex;
+  gap: 12px;
+}
+
+.history-dot {
+  color: #64748b;
+}
+
+.login-card {
+  padding: 32px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.login-icon {
+  font-size: 40px;
+  margin-bottom: 8px;
+}
+
+.login-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.login-subtitle {
+  font-size: 13px;
+  color: var(--verifier-muted);
+  margin-top: 4px;
+}
+
+.login-tabs {
+  display: flex;
+  margin-bottom: 24px;
+  border-radius: 10px;
+  background: #0d0d1a;
+  padding: 4px;
+}
+
+.verifier-tab {
+  flex: 1;
+  padding: 8px 0;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--verifier-muted);
+  transition: background-color 120ms ease;
+}
+
+.verifier-tab--active {
+  background: var(--verifier-accent);
+  color: #fff;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.login-field-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  color: #cbd5e1;
+}
+
+.verifier-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--verifier-line);
+  background: #0d0d1a;
+  color: var(--verifier-text);
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.login-error {
+  color: #ff6b6b;
+  font-size: 13px;
+}
+
+.login-submit {
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 16px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.login-submit--primary {
+  background: var(--verifier-accent);
+}
+
+.login-submit--success {
+  background: #0f9960;
+}
+
+.login-submit:disabled {
+  background: #555;
+  cursor: not-allowed;
+}
+
+.login-dev-btn {
+  margin-top: 16px;
+  background: transparent;
+  color: #64748b;
+  border: 1px solid var(--verifier-line);
+  border-radius: 8px;
+  padding: 8px;
+  width: 100%;
+  font-size: 12px;
+  cursor: pointer;
 }

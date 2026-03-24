@@ -44,21 +44,20 @@ export default function HistoryPage() {
   return (
     <div
       className="verifier-screen"
-      style={{ direction: 'rtl' }}
+      dir="rtl"
     >
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+      <div className="history-header">
         <button
           onClick={() => navigate('/')}
-          className="verifier-btn"
-          style={{ border: 'none', fontSize: 24, lineHeight: 1 }}
+          className="verifier-btn history-back-btn"
           aria-label="بازگشت"
         >
           →
         </button>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>تاریخچه تأییدیه‌ها</h1>
-          <p style={{ fontSize: 12, color: '#666', margin: '4px 0 0' }}>
+          <h1 className="history-title">تاریخچه تأییدیه‌ها</h1>
+          <p className="history-subtitle">
             پایانه: <span dir="ltr">{verifierId}</span>
           </p>
         </div>
@@ -72,51 +71,32 @@ export default function HistoryPage() {
       )}
 
       {!loading && !error && entries.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="history-list">
           {entries.map((entry) => (
             <div
               key={entry.id}
-              style={{
-                background: 'var(--verifier-panel)',
-                borderRadius: 12,
-                padding: '14px 16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 14,
-                border: '1px solid var(--verifier-line)',
-                borderRight: `4px solid ${entry.valid ? '#0f9960' : '#c23030'}`,
-              }}
+              className={`history-item ${entry.valid ? 'history-item--ok' : 'history-item--fail'}`}
             >
               {/* Result badge */}
               <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 18,
-                  background: entry.valid ? '#0f996020' : '#c2303020',
-                  flexShrink: 0,
-                }}
+                className={`history-badge ${entry.valid ? 'history-badge--ok' : 'history-badge--fail'}`}
               >
                 {entry.valid ? '✅' : '❌'}
               </div>
 
               {/* Details */}
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: entry.valid ? '#4ade80' : '#f87171' }}>
+              <div className="history-content">
+                <div className="history-row">
+                  <span className={`history-status ${entry.valid ? 'history-status--ok' : 'history-status--fail'}`}>
                     {entry.valid ? 'تأیید شد' : 'رد شد'}
                   </span>
-                  <span style={{ fontSize: 11, color: '#666', direction: 'ltr' }}>
+                  <span className="history-time">
                     {new Date(entry.verified_at).toLocaleString('fa-IR')}
                   </span>
                 </div>
-                <div style={{ fontSize: 12, color: '#888', marginTop: 4, display: 'flex', gap: 12 }}>
+                <div className="history-meta">
                   <span>{entry.predicate || entry.credential_type}</span>
-                  <span style={{ color: '#555' }}>•</span>
+                  <span className="history-dot">•</span>
                   <span>{entry.proof_system}</span>
                 </div>
               </div>

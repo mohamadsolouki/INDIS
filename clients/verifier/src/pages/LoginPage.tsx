@@ -75,43 +75,28 @@ export default function LoginPage() {
 
   return (
     <div
-      className="verifier-screen"
-      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', direction: 'rtl' }}
+      className="verifier-screen verifier-screen--center"
+      dir="rtl"
     >
       <div
-        className="verifier-panel"
-        style={{
-          padding: 32,
-          width: '100%',
-          maxWidth: 400,
-        }}
+        className="verifier-panel login-card"
       >
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>🛡️</div>
-          <h1 style={{ fontSize: 20, fontWeight: 700 }}>پایانه تأیید INDIS</h1>
-          <p style={{ fontSize: 13, color: '#aaa', marginTop: 4 }}>
+        <div className="login-header">
+          <div className="login-icon">🛡️</div>
+          <h1 className="login-title">پایانه تأیید INDIS</h1>
+          <p className="login-subtitle">
             ورود تأیید‌کننده‌های مجاز
           </p>
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', marginBottom: 24, borderRadius: 10, background: '#0d0d1a', padding: 4 }}>
+        <div className="login-tabs">
           {(['login', 'register'] as const).map((t) => (
             <button
               key={t}
               onClick={() => { setTab(t); setError('') }}
-              style={{
-                flex: 1,
-                padding: '8px 0',
-                borderRadius: 8,
-                border: 'none',
-                fontSize: 14,
-                cursor: 'pointer',
-                background: tab === t ? '#1a56db' : 'transparent',
-                color: tab === t ? '#fff' : '#aaa',
-                transition: 'background 0.2s',
-              }}
+              className={`verifier-tab ${tab === t ? 'verifier-tab--active' : ''}`}
             >
               {t === 'login' ? 'ورود' : 'ثبت پایانه'}
             </button>
@@ -120,9 +105,9 @@ export default function LoginPage() {
 
         {/* Login form */}
         {tab === 'login' && (
-          <form onSubmit={(e) => void handleLogin(e)} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <form onSubmit={(e) => void handleLogin(e)} className="login-form">
             <div>
-              <label style={{ display: 'block', marginBottom: 6, fontSize: 14, color: '#ccc' }}>
+              <label className="login-field-label">
                 شناسه تأیید‌کننده
               </label>
               <input
@@ -131,32 +116,14 @@ export default function LoginPage() {
                 onChange={(e) => setVerifierId(e.target.value)}
                 placeholder="verifier-xxxxx"
                 dir="ltr"
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: 8,
-                  border: '1px solid #333',
-                  background: '#0d0d1a',
-                  color: '#fff',
-                  fontSize: 14,
-                  boxSizing: 'border-box',
-                }}
+                className="verifier-input"
               />
             </div>
-            {error && <p role="alert" style={{ color: '#ff6b6b', fontSize: 13 }}>{error}</p>}
+            {error && <p role="alert" className="login-error">{error}</p>}
             <button
               type="submit"
               disabled={loading}
-              style={{
-                background: loading ? '#555' : '#1a56db',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 8,
-                padding: '12px',
-                fontSize: 16,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                fontWeight: 600,
-              }}
+              className="login-submit login-submit--primary"
             >
               {loading ? 'در حال ورود…' : 'ورود'}
             </button>
@@ -165,9 +132,9 @@ export default function LoginPage() {
 
         {/* Register form */}
         {tab === 'register' && (
-          <form onSubmit={(e) => void handleRegister(e)} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <form onSubmit={(e) => void handleRegister(e)} className="login-form">
             <div>
-              <label style={{ display: 'block', marginBottom: 6, fontSize: 14, color: '#ccc' }}>
+              <label className="login-field-label">
                 نام پایانه
               </label>
               <input
@@ -175,20 +142,11 @@ export default function LoginPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="مثلاً: پایانه درب ورودی"
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: 8,
-                  border: '1px solid #333',
-                  background: '#0d0d1a',
-                  color: '#fff',
-                  fontSize: 14,
-                  boxSizing: 'border-box',
-                }}
+                className="verifier-input"
               />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: 6, fontSize: 14, color: '#ccc' }}>
+              <label className="login-field-label">
                 سازمان
               </label>
               <input
@@ -196,32 +154,14 @@ export default function LoginPage() {
                 value={organization}
                 onChange={(e) => setOrganization(e.target.value)}
                 placeholder="مثلاً: وزارت کشور"
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: 8,
-                  border: '1px solid #333',
-                  background: '#0d0d1a',
-                  color: '#fff',
-                  fontSize: 14,
-                  boxSizing: 'border-box',
-                }}
+                className="verifier-input"
               />
             </div>
-            {error && <p role="alert" style={{ color: '#ff6b6b', fontSize: 13 }}>{error}</p>}
+            {error && <p role="alert" className="login-error">{error}</p>}
             <button
               type="submit"
               disabled={loading}
-              style={{
-                background: loading ? '#555' : '#0f9960',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 8,
-                padding: '12px',
-                fontSize: 16,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                fontWeight: 600,
-              }}
+              className="login-submit login-submit--success"
             >
               {loading ? 'در حال ثبت…' : 'ثبت پایانه'}
             </button>
@@ -236,17 +176,7 @@ export default function LoginPage() {
               localStorage.setItem('verifier_token', 'dev-token')
               navigate('/')
             }}
-            style={{
-              marginTop: 16,
-              background: 'transparent',
-              color: '#555',
-              border: '1px solid #333',
-              borderRadius: 8,
-              padding: '8px',
-              width: '100%',
-              fontSize: 12,
-              cursor: 'pointer',
-            }}
+            className="login-dev-btn"
           >
             ورود توسعه‌دهنده (dev-verifier)
           </button>
