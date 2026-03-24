@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import FeedbackState from '../components/FeedbackState'
+import {
+  verificationStatusFromBoolean,
+  verificationStatusPresentation,
+} from '../lib/canonicalStatus'
 
 const GATEWAY = import.meta.env.VITE_GATEWAY_URL ?? 'http://localhost:8080'
 
@@ -72,23 +76,27 @@ export default function HistoryPage() {
 
       {!loading && !error && entries.length > 0 && (
         <div className="history-list">
-          {entries.map((entry) => (
-            <div
-              key={entry.id}
-              className={`history-item ${entry.valid ? 'history-item--ok' : 'history-item--fail'}`}
-            >
+          {entries.map((entry) => {
+            const status = verificationStatusFromBoolean(entry.valid)
+            const presentation = verificationStatusPresentation(status)
+
+            return (
+              <div
+                key={entry.id}
+                className={`history-item ${presentation.tone === 'ok' ? 'history-item--ok' : 'history-item--fail'}`}
+              >
               {/* Result badge */}
               <div
-                className={`history-badge ${entry.valid ? 'history-badge--ok' : 'history-badge--fail'}`}
+                className={`history-badge ${presentation.tone === 'ok' ? 'history-badge--ok' : 'history-badge--fail'}`}
               >
-                {entry.valid ? '✅' : '❌'}
+                {presentation.tone === 'ok' ? '✅' : '❌'}
               </div>
 
               {/* Details */}
               <div className="history-content">
                 <div className="history-row">
-                  <span className={`history-status ${entry.valid ? 'history-status--ok' : 'history-status--fail'}`}>
-                    {entry.valid ? 'تأیید شد' : 'رد شد'}
+                  <span className={`history-status ${presentation.tone === 'ok' ? 'history-status--ok' : 'history-status--fail'}`}>
+                    {presentation.labelFa}
                   </span>
                   <span className="history-time">
                     {new Date(entry.verified_at).toLocaleString('fa-IR')}
@@ -100,8 +108,9 @@ export default function HistoryPage() {
                   <span>{entry.proof_system}</span>
                 </div>
               </div>
-            </div>
-          ))}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

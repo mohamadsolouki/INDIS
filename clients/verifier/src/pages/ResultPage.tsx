@@ -1,5 +1,9 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
+import {
+  verificationStatusFromBoolean,
+  verificationStatusPresentation,
+} from '../lib/canonicalStatus'
 
 /**
  * Full-screen binary result display per PRD §2.1.3 / FR-013.
@@ -15,6 +19,8 @@ export default function ResultPage() {
   const navigate = useNavigate()
   const state = location.state as { valid: boolean; error?: string } | null
   const valid = state?.valid ?? false
+  const status = verificationStatusFromBoolean(valid)
+  const presentation = verificationStatusPresentation(status)
 
   useEffect(() => {
     const timer = setTimeout(() => navigate('/'), 5000)
@@ -23,28 +29,19 @@ export default function ResultPage() {
 
   return (
     <div
-      style={{
-        minHeight: '100dvh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: valid ? '#0a6640' : '#8b1a1a',
-        color: '#fff',
-        cursor: 'pointer',
-      }}
+      className={`result-screen ${presentation.tone === 'ok' ? 'result-screen--ok' : 'result-screen--fail'}`}
       onClick={() => navigate('/')}
     >
-      <div style={{ fontSize: 120, lineHeight: 1 }}>
-        {valid ? '✅' : '❌'}
+      <div className="result-icon">
+        {presentation.tone === 'ok' ? '✅' : '❌'}
       </div>
-      <h1 style={{ fontSize: 48, marginTop: 24, fontWeight: 800 }}>
-        {valid ? 'تأیید شد' : 'رد شد'}
+      <h1 className="result-title">
+        {presentation.labelFa}
       </h1>
-      <p style={{ marginTop: 16, fontSize: 20, opacity: 0.8 }}>
-        {valid ? 'APPROVED' : 'DENIED'}
+      <p className="result-subtitle">
+        {presentation.labelEn}
       </p>
-      <p style={{ marginTop: 40, opacity: 0.6, fontSize: 14 }}>
+      <p className="result-return-note">
         ۵ ثانیه دیگر به صفحه اسکن باز می‌گردید…
       </p>
     </div>
