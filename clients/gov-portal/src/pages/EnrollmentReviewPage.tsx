@@ -77,20 +77,18 @@ export default function EnrollmentReviewPage({ role, token }: Props) {
         <select
           value={filter}
           onChange={e => setFilter(e.target.value)}
-          className="role-select"
+          className="role-select filter-select"
           title="فیلتر وضعیت"
-          style={{ minWidth: 160 }}
         >
           {['all', 'pending', 'under_review', 'approved', 'rejected', 'requires_biometric'].map(s => (
             <option key={s} value={s}>{s === 'all' ? 'همه' : enrollmentStatusLabel(s as EnrollmentStatus)}</option>
           ))}
         </select>
         <input
-          className="search-input"
+          className="search-input search-input--wide"
           placeholder="جستجو با کد ملی یا نام…"
           value={searchNid}
           onChange={e => setSearchNid(e.target.value)}
-          style={{ flex: 1, maxWidth: 280 }}
         />
         <span className="page-counter">{visible.length} مورد</span>
       </div>
@@ -114,7 +112,7 @@ export default function EnrollmentReviewPage({ role, token }: Props) {
             <tbody>
               {visible.map(app => (
                 <tr key={app.enrollment_id}>
-                  <td style={{ fontFamily: 'monospace', direction: 'ltr', fontSize: 13 }}>
+                  <td className="cell-mono">
                     {app.national_id}
                   </td>
                   <td>{app.full_name}</td>
@@ -132,8 +130,7 @@ export default function EnrollmentReviewPage({ role, token }: Props) {
                   <td>
                     <button
                       type="button"
-                      className="btn btn-sm"
-                      style={{ background: '#f1f5f9', color: '#1e293b', border: '1px solid #e2e8f0' }}
+                      className="btn btn-sm view-btn"
                       onClick={() => setSelected(app)}
                     >
                       مشاهده
@@ -226,13 +223,13 @@ function ReviewModal({ app, token, canReview, canOverride, onClose, onUpdated }:
       aria-labelledby="review-modal-title"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="modal" style={{ maxWidth: 520 }}>
+      <div className="modal modal-wide">
         <div className="modal-header">
           <h2 id="review-modal-title" className="modal-title">بررسی ثبت‌نام</h2>
           <button type="button" onClick={onClose} className="modal-close" aria-label="بستن">✕</button>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '0 0 16px' }}>
+        <div className="review-meta">
           <Row label="شناسه ثبت‌نام" value={app.enrollment_id} mono />
           <Row label="کد ملی" value={app.national_id} mono />
           <Row label="نام کامل" value={app.full_name} />
@@ -251,8 +248,7 @@ function ReviewModal({ app, token, canReview, canOverride, onClose, onUpdated }:
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
                 rows={3}
-                className="form-input"
-                style={{ resize: 'vertical' }}
+                className="form-input textarea-resize"
                 placeholder="دلیل تأیید یا رد (اختیاری)"
               />
             </div>
@@ -268,8 +264,7 @@ function ReviewModal({ app, token, canReview, canOverride, onClose, onUpdated }:
               <button
                 type="button"
                 disabled={loading}
-                className="btn"
-                style={{ background: '#dc2626', color: '#fff' }}
+                className="btn btn-danger"
                 onClick={() => void decide('reject')}
               >
                 رد
@@ -277,8 +272,7 @@ function ReviewModal({ app, token, canReview, canOverride, onClose, onUpdated }:
               <button
                 type="button"
                 disabled={loading}
-                className="btn"
-                style={{ background: '#0f9960', color: '#fff' }}
+                className="btn btn-biometric"
                 onClick={() => void requestBiometric()}
               >
                 درخواست بیومتریک
@@ -311,9 +305,9 @@ function ReviewModal({ app, token, canReview, canOverride, onClose, onUpdated }:
 
 function Row({ label, value, mono }: { label: string; value: string | undefined; mono?: boolean }) {
   return (
-    <div style={{ display: 'flex', gap: 12, fontSize: 14, alignItems: 'baseline' }}>
-      <span style={{ color: '#64748b', minWidth: 120, flexShrink: 0 }}>{label}:</span>
-      <span style={{ fontFamily: mono ? 'monospace' : 'inherit', wordBreak: 'break-all' }}>{value ?? '—'}</span>
+    <div className="detail-row">
+      <span className="detail-row-label">{label}:</span>
+      <span className={`detail-row-value ${mono ? 'detail-row-value--mono' : ''}`.trim()}>{value ?? '—'}</span>
     </div>
   )
 }

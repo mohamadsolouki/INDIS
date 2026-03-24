@@ -118,8 +118,8 @@ export default function CredentialIssuancePage({ role, token }: Props) {
             <tbody>
               {jobs.map(job => (
                 <tr key={job.job_id}>
-                  <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{job.enrollment_id.slice(-8)}</td>
-                  <td style={{ fontFamily: 'monospace', fontSize: 13 }}>{job.national_id}</td>
+                  <td className="cell-mono-sm">{job.enrollment_id.slice(-8)}</td>
+                  <td className="cell-mono">{job.national_id}</td>
                   <td>{job.full_name}</td>
                   <td>
                     <span className="credential-badge">
@@ -131,13 +131,13 @@ export default function CredentialIssuancePage({ role, token }: Props) {
                       {issuanceStatusLabel(job.status)}
                     </span>
                     {job.error_message && (
-                      <span title={job.error_message} style={{ marginRight: 6, cursor: 'help', fontSize: 14 }}>⚠️</span>
+                      <span title={job.error_message} className="warning-icon">⚠️</span>
                     )}
                   </td>
                   <td className="text-muted">
                     {job.issued_at ? new Date(job.issued_at).toLocaleDateString('fa-IR') : '—'}
                   </td>
-                  <td style={{ fontFamily: 'monospace', fontSize: 11, color: '#64748b' }}>
+                  <td className="cell-mono-xs-muted">
                     {job.credential_id ? job.credential_id.slice(-16) : '—'}
                   </td>
                 </tr>
