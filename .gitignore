@@ -4,6 +4,13 @@
 
 # === IDE / AI tooling ===
 .claude/
+.copilot/
+.github/
+.gemini/
+.codex/
+.agent/
+.cursor/
+.opencode/
 
 # === Go ===
 *.exe
