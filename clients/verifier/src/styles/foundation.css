@@ -1,0 +1,70 @@
+:root {
+  --verifier-bg: #0f172a;
+  --verifier-panel: #111b2f;
+  --verifier-panel-soft: #17233a;
+  --verifier-text: #e2e8f0;
+  --verifier-muted: #94a3b8;
+  --verifier-line: #273449;
+  --verifier-accent: #2f7ad5;
+  --verifier-focus: #f59e0b;
+}
+
+.verifier-screen {
+  min-height: 100dvh;
+  background: radial-gradient(circle at 10% 0%, rgba(47, 122, 213, 0.16), transparent 40%), var(--verifier-bg);
+  color: var(--verifier-text);
+  padding: 24px;
+}
+
+.verifier-panel {
+  background: var(--verifier-panel);
+  border: 1px solid var(--verifier-line);
+  border-radius: 14px;
+  box-shadow: 0 10px 28px rgba(3, 9, 22, 0.35);
+}
+
+.verifier-btn {
+  background: transparent;
+  color: var(--verifier-muted);
+  border: 1px solid var(--verifier-line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.verifier-btn:focus-visible,
+.verifier-input:focus-visible,
+.verifier-tab:focus-visible {
+  outline: 3px solid var(--verifier-focus);
+  outline-offset: 2px;
+}
+
+.verifier-feedback {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border: 1px solid var(--verifier-line);
+  border-radius: 12px;
+  background: var(--verifier-panel-soft);
+  padding: 14px;
+}
+
+.verifier-feedback--error {
+  border-color: #7f1d1d;
+  background: #2a1212;
+}
+
+.verifier-feedback--empty {
+  border-color: #334155;
+}
+
+.verifier-feedback__title {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.verifier-feedback__message {
+  margin: 0;
+  color: var(--verifier-muted);
+  font-size: 13px;
+}

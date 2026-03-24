@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import FeedbackState from '../components/FeedbackState'
 
 const VERIFIER_ID = import.meta.env.VITE_VERIFIER_ID ?? 'dev-verifier'
 const GATEWAY = import.meta.env.VITE_GATEWAY_URL ?? 'http://localhost:8080'
@@ -88,16 +89,8 @@ export default function ScanPage() {
 
   return (
     <div
-      style={{
-        minHeight: '100dvh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#111',
-        color: '#fff',
-        padding: 24,
-      }}
+      className="verifier-screen"
+      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', maxWidth: 340, marginBottom: 8 }}>
         <h1 style={{ margin: 0 }}>پایانه تأیید INDIS</h1>
@@ -110,7 +103,8 @@ export default function ScanPage() {
           </Link>
           <button
             onClick={() => { localStorage.removeItem('verifier_id'); window.location.href = '/login' }}
-            style={{ fontSize: 12, color: '#aaa', padding: '6px 10px', borderRadius: 6, border: '1px solid #333', background: 'transparent', cursor: 'pointer' }}
+            className="verifier-btn"
+            style={{ fontSize: 12 }}
           >
             خروج
           </button>
@@ -125,11 +119,9 @@ export default function ScanPage() {
         style={{ width: 300, height: 300, borderRadius: 12, overflow: 'hidden' }}
       />
 
-      {!scanning && !error && (
-        <p style={{ color: '#aaa', marginTop: 16 }}>در حال راه‌اندازی دوربین…</p>
-      )}
+      {!scanning && !error && <FeedbackState kind="loading" title="راه‌اندازی دوربین" message="چند لحظه صبر کنید تا اسکنر فعال شود." />}
       {error && (
-        <p style={{ color: '#ff6b6b', marginTop: 16 }}>{error}</p>
+        <FeedbackState kind="error" title="اسکنر در دسترس نیست" message={error} />
       )}
     </div>
   )

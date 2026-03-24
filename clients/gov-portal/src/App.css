@@ -1,9 +1,28 @@
+:root {
+  --surface-bg: #f2f5f9;
+  --surface-card: #ffffff;
+  --text-primary: #1f2937;
+  --text-muted: #64748b;
+  --line-subtle: #d8e0ea;
+  --brand-primary: #0f4c81;
+  --brand-primary-strong: #0b3b66;
+  --focus-ring: #f59e0b;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-soft: 0 8px 28px rgba(15, 76, 129, 0.08);
+}
+
 .app-shell {
   display: flex;
   min-height: 100dvh;
+  background:
+    radial-gradient(circle at 15% 0%, rgba(15, 76, 129, 0.14), transparent 45%),
+    radial-gradient(circle at 85% 100%, rgba(245, 158, 11, 0.1), transparent 45%),
+    var(--surface-bg);
 }
 
 .app-main {
   flex: 1;
   padding: 24px;
+  color: var(--text-primary);
 }

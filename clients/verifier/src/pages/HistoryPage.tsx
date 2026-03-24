@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import FeedbackState from '../components/FeedbackState'
 
 const GATEWAY = import.meta.env.VITE_GATEWAY_URL ?? 'http://localhost:8080'
 
@@ -42,19 +43,15 @@ export default function HistoryPage() {
 
   return (
     <div
-      style={{
-        minHeight: '100dvh',
-        background: '#111',
-        color: '#fff',
-        padding: 24,
-        direction: 'rtl',
-      }}
+      className="verifier-screen"
+      style={{ direction: 'rtl' }}
     >
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
         <button
           onClick={() => navigate('/')}
-          style={{ background: 'transparent', border: 'none', color: '#aaa', fontSize: 24, cursor: 'pointer' }}
+          className="verifier-btn"
+          style={{ border: 'none', fontSize: 24, lineHeight: 1 }}
           aria-label="بازگشت"
         >
           →
@@ -67,14 +64,11 @@ export default function HistoryPage() {
         </div>
       </div>
 
-      {loading && <p style={{ color: '#aaa' }}>در حال بارگذاری…</p>}
-      {error && <p style={{ color: '#ff6b6b' }}>{error}</p>}
+      {loading && <FeedbackState kind="loading" title="در حال بارگذاری تاریخچه" message="سوابق پایانه در حال دریافت است." />}
+      {error && <FeedbackState kind="error" title="بارگذاری تاریخچه ناموفق بود" message={error} />}
 
       {!loading && !error && entries.length === 0 && (
-        <div style={{ textAlign: 'center', marginTop: 80, color: '#555' }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
-          <p>هیچ تأییدیه‌ای ثبت نشده است</p>
-        </div>
+        <FeedbackState kind="empty" title="تاریخچه‌ای ثبت نشده است" message="هنوز هیچ رویداد تأییدی در این پایانه ذخیره نشده است." />
       )}
 
       {!loading && !error && entries.length > 0 && (
@@ -83,12 +77,13 @@ export default function HistoryPage() {
             <div
               key={entry.id}
               style={{
-                background: '#1a1a2e',
+                background: 'var(--verifier-panel)',
                 borderRadius: 12,
                 padding: '14px 16px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 14,
+                border: '1px solid var(--verifier-line)',
                 borderRight: `4px solid ${entry.valid ? '#0f9960' : '#c23030'}`,
               }}
             >

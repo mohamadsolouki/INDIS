@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react'
 import { hasRole } from '../hooks/useGovAuth'
 import type { GovRole } from '../hooks/useGovAuth'
+import FeedbackState from '../components/FeedbackState'
+import {
+  enrollmentStatusBadgeClass,
+  enrollmentStatusLabel,
+  type EnrollmentStatus,
+} from '../lib/canonicalStatus'
 import './Page.css'
 
 interface EnrollmentApplication {
@@ -8,7 +14,7 @@ interface EnrollmentApplication {
   national_id: string
   full_name: string
   pathway: 'standard' | 'enhanced' | 'social'
-  status: 'pending' | 'under_review' | 'approved' | 'rejected' | 'requires_biometric'
+  status: EnrollmentStatus
   submitted_at: string
   ministry_reviewer?: string
   notes?: string
@@ -17,28 +23,6 @@ interface EnrollmentApplication {
 interface Props {
   role: GovRole
   token: string
-}
-
-function statusLabel(s: EnrollmentApplication['status']): string {
-  const map: Record<string, string> = {
-    pending: 'در انتظار',
-    under_review: 'در حال بررسی',
-    approved: 'تأیید شده',
-    rejected: 'رد شده',
-    requires_biometric: 'نیاز به بیومتریک',
-  }
-  return map[s] ?? s
-}
-
-function statusBadgeClass(s: EnrollmentApplication['status']): string {
-  const map: Record<string, string> = {
-    pending: 'status-badge--warning',
-    under_review: 'status-badge--info',
-    approved: 'status-badge--success',
-    rejected: 'status-badge--error',
-    requires_biometric: 'status-badge--info',
-  }
-  return map[s] ?? 'status-badge--default'
 }
 
 function pathwayLabel(p: EnrollmentApplication['pathway']): string {
@@ -51,20 +35,30 @@ export default function EnrollmentReviewPage({ role, token }: Props) {
   const [selected, setSelected] = useState<EnrollmentApplication | null>(null)
   const [filter, setFilter] = useState<string>('pending')
   const [searchNid, setSearchNid] = useState('')
+  const [loadError, setLoadError] = useState('')
 
   const canReview = hasRole(role, 'operator')
   const canOverride = hasRole(role, 'admin')
 
   useEffect(() => {
     setLoading(true)
+    setLoadError('')
     const params = new URLSearchParams({ limit: '100' })
     if (filter !== 'all') params.set('status', filter)
     fetch(`/v1/portal/enrollments?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then(r => r.json())
+      .then(async r => {
+        if (!r.ok) {
+          throw new Error(`خطا در دریافت ثبت نام ها: ${r.status}`)
+        }
+        return r.json()
+      })
       .then(data => setApps((data as { enrollments: EnrollmentApplication[] }).enrollments ?? []))
-      .catch(() => setApps([]))
+      .catch(err => {
+        setApps([])
+        setLoadError(String(err))
+      })
       .finally(() => setLoading(false))
   }, [token, filter])
 
@@ -76,10 +70,10 @@ export default function EnrollmentReviewPage({ role, token }: Props) {
     <div className="page">
       <div className="page-header">
         <h1 className="page-title">بررسی ثبت‌نام‌ها</h1>
-        <span style={{ fontSize: 12, color: '#666' }}>فقط خواندنی برای نقش بازدیدکننده</span>
+        {!canReview && <span className="page-counter">فقط خواندنی برای نقش بازدیدکننده</span>}
       </div>
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div className="page-toolbar">
         <select
           value={filter}
           onChange={e => setFilter(e.target.value)}
@@ -88,7 +82,7 @@ export default function EnrollmentReviewPage({ role, token }: Props) {
           style={{ minWidth: 160 }}
         >
           {['all', 'pending', 'under_review', 'approved', 'rejected', 'requires_biometric'].map(s => (
-            <option key={s} value={s}>{s === 'all' ? 'همه' : statusLabel(s as EnrollmentApplication['status'])}</option>
+            <option key={s} value={s}>{s === 'all' ? 'همه' : enrollmentStatusLabel(s as EnrollmentStatus)}</option>
           ))}
         </select>
         <input
@@ -98,13 +92,15 @@ export default function EnrollmentReviewPage({ role, token }: Props) {
           onChange={e => setSearchNid(e.target.value)}
           style={{ flex: 1, maxWidth: 280 }}
         />
-        <span style={{ fontSize: 13, color: '#666' }}>{visible.length} مورد</span>
+        <span className="page-counter">{visible.length} مورد</span>
       </div>
 
       {loading ? (
-        <p className="page-loading">در حال بارگذاری…</p>
+        <FeedbackState kind="loading" title="در حال بارگذاری ثبت‌نام‌ها" message="فهرست پرونده‌ها در حال به‌روزرسانی است." />
+      ) : loadError ? (
+        <FeedbackState kind="error" title="دریافت اطلاعات ناموفق بود" message={loadError} />
       ) : visible.length === 0 ? (
-        <p className="page-empty">هیچ ثبت‌نامی با این فیلتر یافت نشد.</p>
+        <FeedbackState kind="empty" title="موردی پیدا نشد" message="با فیلتر فعلی هیچ ثبت‌نامی وجود ندارد." />
       ) : (
         <div className="table-wrap">
           <table className="data-table">
@@ -126,8 +122,8 @@ export default function EnrollmentReviewPage({ role, token }: Props) {
                     <span className="pathway-badge">{pathwayLabel(app.pathway)}</span>
                   </td>
                   <td>
-                    <span className={`status-badge ${statusBadgeClass(app.status)}`}>
-                      {statusLabel(app.status)}
+                    <span className={`status-badge ${enrollmentStatusBadgeClass(app.status)}`}>
+                      {enrollmentStatusLabel(app.status)}
                     </span>
                   </td>
                   <td className="text-muted">
@@ -241,7 +237,7 @@ function ReviewModal({ app, token, canReview, canOverride, onClose, onUpdated }:
           <Row label="کد ملی" value={app.national_id} mono />
           <Row label="نام کامل" value={app.full_name} />
           <Row label="مسیر" value={{ standard: 'استاندارد', enhanced: 'پیشرفته', social: 'اجتماعی' }[app.pathway]} />
-          <Row label="وضعیت فعلی" value={app.status} />
+          <Row label="وضعیت فعلی" value={enrollmentStatusLabel(app.status)} />
           <Row label="تاریخ ارسال" value={new Date(app.submitted_at).toLocaleString('fa-IR')} />
           {app.ministry_reviewer && <Row label="بررسی‌کننده" value={app.ministry_reviewer} />}
 

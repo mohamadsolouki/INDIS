@@ -75,26 +75,15 @@ export default function LoginPage() {
 
   return (
     <div
-      style={{
-        minHeight: '100dvh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#111',
-        color: '#fff',
-        padding: 24,
-        direction: 'rtl',
-      }}
+      className="verifier-screen"
+      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', direction: 'rtl' }}
     >
       <div
+        className="verifier-panel"
         style={{
-          background: '#1a1a2e',
-          borderRadius: 16,
           padding: 32,
           width: '100%',
           maxWidth: 400,
-          boxShadow: '0 8px 40px rgba(0,0,0,0.5)',
         }}
       >
         {/* Header */}
@@ -154,7 +143,7 @@ export default function LoginPage() {
                 }}
               />
             </div>
-            {error && <p style={{ color: '#ff6b6b', fontSize: 13 }}>{error}</p>}
+            {error && <p role="alert" style={{ color: '#ff6b6b', fontSize: 13 }}>{error}</p>}
             <button
               type="submit"
               disabled={loading}
@@ -219,7 +208,7 @@ export default function LoginPage() {
                 }}
               />
             </div>
-            {error && <p style={{ color: '#ff6b6b', fontSize: 13 }}>{error}</p>}
+            {error && <p role="alert" style={{ color: '#ff6b6b', fontSize: 13 }}>{error}</p>}
             <button
               type="submit"
               disabled={loading}

@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react'
 import { hasRole } from '../hooks/useGovAuth'
 import type { GovRole } from '../hooks/useGovAuth'
+import FeedbackState from '../components/FeedbackState'
+import {
+  issuanceStatusBadgeClass,
+  issuanceStatusLabel,
+  type IssuanceStatus,
+} from '../lib/canonicalStatus'
 import './Page.css'
 
 interface IssuanceJob {
@@ -9,7 +15,7 @@ interface IssuanceJob {
   national_id: string
   full_name: string
   credential_type: string
-  status: 'queued' | 'issuing' | 'issued' | 'failed'
+  status: IssuanceStatus
   issued_at?: string
   credential_id?: string
   error_message?: string
@@ -28,23 +34,10 @@ const CREDENTIAL_TYPES = [
   { value: 'ResidencyCredential', label: 'اعتبارنامه اقامت' },
 ]
 
-function statusLabel(s: IssuanceJob['status']): string {
-  return { queued: 'در صف', issuing: 'در حال صدور', issued: 'صادر شد', failed: 'خطا' }[s] ?? s
-}
-
-function statusBadgeClass(s: IssuanceJob['status']): string {
-  const map: Record<string, string> = {
-    queued: 'status-badge--warning',
-    issuing: 'status-badge--info',
-    issued: 'status-badge--success',
-    failed: 'status-badge--error',
-  }
-  return map[s] ?? 'status-badge--default'
-}
-
 export default function CredentialIssuancePage({ role, token }: Props) {
   const [jobs, setJobs] = useState<IssuanceJob[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [pollingId, setPollingId] = useState<number | null>(null)
 
@@ -68,12 +61,21 @@ export default function CredentialIssuancePage({ role, token }: Props) {
   useEffect(() => () => { if (pollingId !== null) window.clearInterval(pollingId) }, [pollingId])
 
   function loadJobs() {
+    setLoadError('')
     fetch('/v1/portal/credential-issuance?limit=50', {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then(r => r.json())
+      .then(async r => {
+        if (!r.ok) {
+          throw new Error(`خطا در دریافت وضعیت صدور: ${r.status}`)
+        }
+        return r.json()
+      })
       .then(data => setJobs((data as { jobs: IssuanceJob[] }).jobs ?? []))
-      .catch(() => {})
+      .catch(err => {
+        setJobs([])
+        setLoadError(String(err))
+      })
       .finally(() => setLoading(false))
   }
 
@@ -98,9 +100,11 @@ export default function CredentialIssuancePage({ role, token }: Props) {
       )}
 
       {loading ? (
-        <p className="page-loading">در حال بارگذاری…</p>
+        <FeedbackState kind="loading" title="در حال بارگذاری فرایندهای صدور" message="فهرست وضعیت صدور در حال تازه‌سازی است." />
+      ) : loadError ? (
+        <FeedbackState kind="error" title="دریافت وضعیت صدور ناموفق بود" message={loadError} />
       ) : jobs.length === 0 ? (
-        <p className="page-empty">هیچ کاری برای صدور یافت نشد.</p>
+        <FeedbackState kind="empty" title="درخواستی برای صدور وجود ندارد" message="هنوز کاری برای صدور اعتبارنامه ثبت نشده است." />
       ) : (
         <div className="table-wrap">
           <table className="data-table">
@@ -118,13 +122,13 @@ export default function CredentialIssuancePage({ role, token }: Props) {
                   <td style={{ fontFamily: 'monospace', fontSize: 13 }}>{job.national_id}</td>
                   <td>{job.full_name}</td>
                   <td>
-                    <span style={{ fontSize: 12, background: '#eff6ff', color: '#1a56db', padding: '2px 8px', borderRadius: 4 }}>
+                    <span className="credential-badge">
                       {CREDENTIAL_TYPES.find(c => c.value === job.credential_type)?.label ?? job.credential_type}
                     </span>
                   </td>
                   <td>
-                    <span className={`status-badge ${statusBadgeClass(job.status)}`}>
-                      {statusLabel(job.status)}
+                    <span className={`status-badge ${issuanceStatusBadgeClass(job.status)}`}>
+                      {issuanceStatusLabel(job.status)}
                     </span>
                     {job.error_message && (
                       <span title={job.error_message} style={{ marginRight: 6, cursor: 'help', fontSize: 14 }}>⚠️</span>
